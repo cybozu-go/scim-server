@@ -11,8 +11,12 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/cybozu-go/scim-server/ent/email"
+	"github.com/cybozu-go/scim-server/ent/entitlement"
 	"github.com/cybozu-go/scim-server/ent/group"
+	"github.com/cybozu-go/scim-server/ent/ims"
 	"github.com/cybozu-go/scim-server/ent/names"
+	"github.com/cybozu-go/scim-server/ent/phonenumber"
+	"github.com/cybozu-go/scim-server/ent/photo"
 	"github.com/cybozu-go/scim-server/ent/predicate"
 	"github.com/cybozu-go/scim-server/ent/role"
 	"github.com/cybozu-go/scim-server/ent/user"
@@ -303,6 +307,21 @@ func (uu *UserUpdate) AddName(n ...*Names) *UserUpdate {
 	return uu.AddNameIDs(ids...)
 }
 
+// AddEntitlementIDs adds the "entitlements" edge to the Entitlement entity by IDs.
+func (uu *UserUpdate) AddEntitlementIDs(ids ...int) *UserUpdate {
+	uu.mutation.AddEntitlementIDs(ids...)
+	return uu
+}
+
+// AddEntitlements adds the "entitlements" edges to the Entitlement entity.
+func (uu *UserUpdate) AddEntitlements(e ...*Entitlement) *UserUpdate {
+	ids := make([]int, len(e))
+	for i := range e {
+		ids[i] = e[i].ID
+	}
+	return uu.AddEntitlementIDs(ids...)
+}
+
 // AddRoleIDs adds the "roles" edge to the Role entity by IDs.
 func (uu *UserUpdate) AddRoleIDs(ids ...int) *UserUpdate {
 	uu.mutation.AddRoleIDs(ids...)
@@ -316,6 +335,51 @@ func (uu *UserUpdate) AddRoles(r ...*Role) *UserUpdate {
 		ids[i] = r[i].ID
 	}
 	return uu.AddRoleIDs(ids...)
+}
+
+// AddImseIDs adds the "imses" edge to the IMS entity by IDs.
+func (uu *UserUpdate) AddImseIDs(ids ...int) *UserUpdate {
+	uu.mutation.AddImseIDs(ids...)
+	return uu
+}
+
+// AddImses adds the "imses" edges to the IMS entity.
+func (uu *UserUpdate) AddImses(i ...*IMS) *UserUpdate {
+	ids := make([]int, len(i))
+	for j := range i {
+		ids[j] = i[j].ID
+	}
+	return uu.AddImseIDs(ids...)
+}
+
+// AddPhoneNumberIDs adds the "phone_numbers" edge to the PhoneNumber entity by IDs.
+func (uu *UserUpdate) AddPhoneNumberIDs(ids ...int) *UserUpdate {
+	uu.mutation.AddPhoneNumberIDs(ids...)
+	return uu
+}
+
+// AddPhoneNumbers adds the "phone_numbers" edges to the PhoneNumber entity.
+func (uu *UserUpdate) AddPhoneNumbers(p ...*PhoneNumber) *UserUpdate {
+	ids := make([]int, len(p))
+	for i := range p {
+		ids[i] = p[i].ID
+	}
+	return uu.AddPhoneNumberIDs(ids...)
+}
+
+// AddPhotoIDs adds the "photos" edge to the Photo entity by IDs.
+func (uu *UserUpdate) AddPhotoIDs(ids ...int) *UserUpdate {
+	uu.mutation.AddPhotoIDs(ids...)
+	return uu
+}
+
+// AddPhotos adds the "photos" edges to the Photo entity.
+func (uu *UserUpdate) AddPhotos(p ...*Photo) *UserUpdate {
+	ids := make([]int, len(p))
+	for i := range p {
+		ids[i] = p[i].ID
+	}
+	return uu.AddPhotoIDs(ids...)
 }
 
 // Mutation returns the UserMutation object of the builder.
@@ -386,6 +450,27 @@ func (uu *UserUpdate) RemoveName(n ...*Names) *UserUpdate {
 	return uu.RemoveNameIDs(ids...)
 }
 
+// ClearEntitlements clears all "entitlements" edges to the Entitlement entity.
+func (uu *UserUpdate) ClearEntitlements() *UserUpdate {
+	uu.mutation.ClearEntitlements()
+	return uu
+}
+
+// RemoveEntitlementIDs removes the "entitlements" edge to Entitlement entities by IDs.
+func (uu *UserUpdate) RemoveEntitlementIDs(ids ...int) *UserUpdate {
+	uu.mutation.RemoveEntitlementIDs(ids...)
+	return uu
+}
+
+// RemoveEntitlements removes "entitlements" edges to Entitlement entities.
+func (uu *UserUpdate) RemoveEntitlements(e ...*Entitlement) *UserUpdate {
+	ids := make([]int, len(e))
+	for i := range e {
+		ids[i] = e[i].ID
+	}
+	return uu.RemoveEntitlementIDs(ids...)
+}
+
 // ClearRoles clears all "roles" edges to the Role entity.
 func (uu *UserUpdate) ClearRoles() *UserUpdate {
 	uu.mutation.ClearRoles()
@@ -405,6 +490,69 @@ func (uu *UserUpdate) RemoveRoles(r ...*Role) *UserUpdate {
 		ids[i] = r[i].ID
 	}
 	return uu.RemoveRoleIDs(ids...)
+}
+
+// ClearImses clears all "imses" edges to the IMS entity.
+func (uu *UserUpdate) ClearImses() *UserUpdate {
+	uu.mutation.ClearImses()
+	return uu
+}
+
+// RemoveImseIDs removes the "imses" edge to IMS entities by IDs.
+func (uu *UserUpdate) RemoveImseIDs(ids ...int) *UserUpdate {
+	uu.mutation.RemoveImseIDs(ids...)
+	return uu
+}
+
+// RemoveImses removes "imses" edges to IMS entities.
+func (uu *UserUpdate) RemoveImses(i ...*IMS) *UserUpdate {
+	ids := make([]int, len(i))
+	for j := range i {
+		ids[j] = i[j].ID
+	}
+	return uu.RemoveImseIDs(ids...)
+}
+
+// ClearPhoneNumbers clears all "phone_numbers" edges to the PhoneNumber entity.
+func (uu *UserUpdate) ClearPhoneNumbers() *UserUpdate {
+	uu.mutation.ClearPhoneNumbers()
+	return uu
+}
+
+// RemovePhoneNumberIDs removes the "phone_numbers" edge to PhoneNumber entities by IDs.
+func (uu *UserUpdate) RemovePhoneNumberIDs(ids ...int) *UserUpdate {
+	uu.mutation.RemovePhoneNumberIDs(ids...)
+	return uu
+}
+
+// RemovePhoneNumbers removes "phone_numbers" edges to PhoneNumber entities.
+func (uu *UserUpdate) RemovePhoneNumbers(p ...*PhoneNumber) *UserUpdate {
+	ids := make([]int, len(p))
+	for i := range p {
+		ids[i] = p[i].ID
+	}
+	return uu.RemovePhoneNumberIDs(ids...)
+}
+
+// ClearPhotos clears all "photos" edges to the Photo entity.
+func (uu *UserUpdate) ClearPhotos() *UserUpdate {
+	uu.mutation.ClearPhotos()
+	return uu
+}
+
+// RemovePhotoIDs removes the "photos" edge to Photo entities by IDs.
+func (uu *UserUpdate) RemovePhotoIDs(ids ...int) *UserUpdate {
+	uu.mutation.RemovePhotoIDs(ids...)
+	return uu
+}
+
+// RemovePhotos removes "photos" edges to Photo entities.
+func (uu *UserUpdate) RemovePhotos(p ...*Photo) *UserUpdate {
+	ids := make([]int, len(p))
+	for i := range p {
+		ids[i] = p[i].ID
+	}
+	return uu.RemovePhotoIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -812,6 +960,60 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if uu.mutation.EntitlementsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.EntitlementsTable,
+			Columns: []string{user.EntitlementsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: entitlement.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.RemovedEntitlementsIDs(); len(nodes) > 0 && !uu.mutation.EntitlementsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.EntitlementsTable,
+			Columns: []string{user.EntitlementsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: entitlement.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.EntitlementsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.EntitlementsTable,
+			Columns: []string{user.EntitlementsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: entitlement.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if uu.mutation.RolesCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -858,6 +1060,168 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 				IDSpec: &sqlgraph.FieldSpec{
 					Type:   field.TypeInt,
 					Column: role.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if uu.mutation.ImsesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ImsesTable,
+			Columns: []string{user.ImsesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: ims.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.RemovedImsesIDs(); len(nodes) > 0 && !uu.mutation.ImsesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ImsesTable,
+			Columns: []string{user.ImsesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: ims.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.ImsesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ImsesTable,
+			Columns: []string{user.ImsesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: ims.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if uu.mutation.PhoneNumbersCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PhoneNumbersTable,
+			Columns: []string{user.PhoneNumbersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: phonenumber.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.RemovedPhoneNumbersIDs(); len(nodes) > 0 && !uu.mutation.PhoneNumbersCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PhoneNumbersTable,
+			Columns: []string{user.PhoneNumbersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: phonenumber.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.PhoneNumbersIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PhoneNumbersTable,
+			Columns: []string{user.PhoneNumbersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: phonenumber.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if uu.mutation.PhotosCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PhotosTable,
+			Columns: []string{user.PhotosColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: photo.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.RemovedPhotosIDs(); len(nodes) > 0 && !uu.mutation.PhotosCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PhotosTable,
+			Columns: []string{user.PhotosColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: photo.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.PhotosIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PhotosTable,
+			Columns: []string{user.PhotosColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: photo.FieldID,
 				},
 			},
 		}
@@ -1156,6 +1520,21 @@ func (uuo *UserUpdateOne) AddName(n ...*Names) *UserUpdateOne {
 	return uuo.AddNameIDs(ids...)
 }
 
+// AddEntitlementIDs adds the "entitlements" edge to the Entitlement entity by IDs.
+func (uuo *UserUpdateOne) AddEntitlementIDs(ids ...int) *UserUpdateOne {
+	uuo.mutation.AddEntitlementIDs(ids...)
+	return uuo
+}
+
+// AddEntitlements adds the "entitlements" edges to the Entitlement entity.
+func (uuo *UserUpdateOne) AddEntitlements(e ...*Entitlement) *UserUpdateOne {
+	ids := make([]int, len(e))
+	for i := range e {
+		ids[i] = e[i].ID
+	}
+	return uuo.AddEntitlementIDs(ids...)
+}
+
 // AddRoleIDs adds the "roles" edge to the Role entity by IDs.
 func (uuo *UserUpdateOne) AddRoleIDs(ids ...int) *UserUpdateOne {
 	uuo.mutation.AddRoleIDs(ids...)
@@ -1169,6 +1548,51 @@ func (uuo *UserUpdateOne) AddRoles(r ...*Role) *UserUpdateOne {
 		ids[i] = r[i].ID
 	}
 	return uuo.AddRoleIDs(ids...)
+}
+
+// AddImseIDs adds the "imses" edge to the IMS entity by IDs.
+func (uuo *UserUpdateOne) AddImseIDs(ids ...int) *UserUpdateOne {
+	uuo.mutation.AddImseIDs(ids...)
+	return uuo
+}
+
+// AddImses adds the "imses" edges to the IMS entity.
+func (uuo *UserUpdateOne) AddImses(i ...*IMS) *UserUpdateOne {
+	ids := make([]int, len(i))
+	for j := range i {
+		ids[j] = i[j].ID
+	}
+	return uuo.AddImseIDs(ids...)
+}
+
+// AddPhoneNumberIDs adds the "phone_numbers" edge to the PhoneNumber entity by IDs.
+func (uuo *UserUpdateOne) AddPhoneNumberIDs(ids ...int) *UserUpdateOne {
+	uuo.mutation.AddPhoneNumberIDs(ids...)
+	return uuo
+}
+
+// AddPhoneNumbers adds the "phone_numbers" edges to the PhoneNumber entity.
+func (uuo *UserUpdateOne) AddPhoneNumbers(p ...*PhoneNumber) *UserUpdateOne {
+	ids := make([]int, len(p))
+	for i := range p {
+		ids[i] = p[i].ID
+	}
+	return uuo.AddPhoneNumberIDs(ids...)
+}
+
+// AddPhotoIDs adds the "photos" edge to the Photo entity by IDs.
+func (uuo *UserUpdateOne) AddPhotoIDs(ids ...int) *UserUpdateOne {
+	uuo.mutation.AddPhotoIDs(ids...)
+	return uuo
+}
+
+// AddPhotos adds the "photos" edges to the Photo entity.
+func (uuo *UserUpdateOne) AddPhotos(p ...*Photo) *UserUpdateOne {
+	ids := make([]int, len(p))
+	for i := range p {
+		ids[i] = p[i].ID
+	}
+	return uuo.AddPhotoIDs(ids...)
 }
 
 // Mutation returns the UserMutation object of the builder.
@@ -1239,6 +1663,27 @@ func (uuo *UserUpdateOne) RemoveName(n ...*Names) *UserUpdateOne {
 	return uuo.RemoveNameIDs(ids...)
 }
 
+// ClearEntitlements clears all "entitlements" edges to the Entitlement entity.
+func (uuo *UserUpdateOne) ClearEntitlements() *UserUpdateOne {
+	uuo.mutation.ClearEntitlements()
+	return uuo
+}
+
+// RemoveEntitlementIDs removes the "entitlements" edge to Entitlement entities by IDs.
+func (uuo *UserUpdateOne) RemoveEntitlementIDs(ids ...int) *UserUpdateOne {
+	uuo.mutation.RemoveEntitlementIDs(ids...)
+	return uuo
+}
+
+// RemoveEntitlements removes "entitlements" edges to Entitlement entities.
+func (uuo *UserUpdateOne) RemoveEntitlements(e ...*Entitlement) *UserUpdateOne {
+	ids := make([]int, len(e))
+	for i := range e {
+		ids[i] = e[i].ID
+	}
+	return uuo.RemoveEntitlementIDs(ids...)
+}
+
 // ClearRoles clears all "roles" edges to the Role entity.
 func (uuo *UserUpdateOne) ClearRoles() *UserUpdateOne {
 	uuo.mutation.ClearRoles()
@@ -1258,6 +1703,69 @@ func (uuo *UserUpdateOne) RemoveRoles(r ...*Role) *UserUpdateOne {
 		ids[i] = r[i].ID
 	}
 	return uuo.RemoveRoleIDs(ids...)
+}
+
+// ClearImses clears all "imses" edges to the IMS entity.
+func (uuo *UserUpdateOne) ClearImses() *UserUpdateOne {
+	uuo.mutation.ClearImses()
+	return uuo
+}
+
+// RemoveImseIDs removes the "imses" edge to IMS entities by IDs.
+func (uuo *UserUpdateOne) RemoveImseIDs(ids ...int) *UserUpdateOne {
+	uuo.mutation.RemoveImseIDs(ids...)
+	return uuo
+}
+
+// RemoveImses removes "imses" edges to IMS entities.
+func (uuo *UserUpdateOne) RemoveImses(i ...*IMS) *UserUpdateOne {
+	ids := make([]int, len(i))
+	for j := range i {
+		ids[j] = i[j].ID
+	}
+	return uuo.RemoveImseIDs(ids...)
+}
+
+// ClearPhoneNumbers clears all "phone_numbers" edges to the PhoneNumber entity.
+func (uuo *UserUpdateOne) ClearPhoneNumbers() *UserUpdateOne {
+	uuo.mutation.ClearPhoneNumbers()
+	return uuo
+}
+
+// RemovePhoneNumberIDs removes the "phone_numbers" edge to PhoneNumber entities by IDs.
+func (uuo *UserUpdateOne) RemovePhoneNumberIDs(ids ...int) *UserUpdateOne {
+	uuo.mutation.RemovePhoneNumberIDs(ids...)
+	return uuo
+}
+
+// RemovePhoneNumbers removes "phone_numbers" edges to PhoneNumber entities.
+func (uuo *UserUpdateOne) RemovePhoneNumbers(p ...*PhoneNumber) *UserUpdateOne {
+	ids := make([]int, len(p))
+	for i := range p {
+		ids[i] = p[i].ID
+	}
+	return uuo.RemovePhoneNumberIDs(ids...)
+}
+
+// ClearPhotos clears all "photos" edges to the Photo entity.
+func (uuo *UserUpdateOne) ClearPhotos() *UserUpdateOne {
+	uuo.mutation.ClearPhotos()
+	return uuo
+}
+
+// RemovePhotoIDs removes the "photos" edge to Photo entities by IDs.
+func (uuo *UserUpdateOne) RemovePhotoIDs(ids ...int) *UserUpdateOne {
+	uuo.mutation.RemovePhotoIDs(ids...)
+	return uuo
+}
+
+// RemovePhotos removes "photos" edges to Photo entities.
+func (uuo *UserUpdateOne) RemovePhotos(p ...*Photo) *UserUpdateOne {
+	ids := make([]int, len(p))
+	for i := range p {
+		ids[i] = p[i].ID
+	}
+	return uuo.RemovePhotoIDs(ids...)
 }
 
 // Select allows selecting one or more fields (columns) of the returned entity.
@@ -1689,6 +2197,60 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if uuo.mutation.EntitlementsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.EntitlementsTable,
+			Columns: []string{user.EntitlementsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: entitlement.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.RemovedEntitlementsIDs(); len(nodes) > 0 && !uuo.mutation.EntitlementsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.EntitlementsTable,
+			Columns: []string{user.EntitlementsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: entitlement.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.EntitlementsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.EntitlementsTable,
+			Columns: []string{user.EntitlementsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: entitlement.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if uuo.mutation.RolesCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -1735,6 +2297,168 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 				IDSpec: &sqlgraph.FieldSpec{
 					Type:   field.TypeInt,
 					Column: role.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if uuo.mutation.ImsesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ImsesTable,
+			Columns: []string{user.ImsesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: ims.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.RemovedImsesIDs(); len(nodes) > 0 && !uuo.mutation.ImsesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ImsesTable,
+			Columns: []string{user.ImsesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: ims.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.ImsesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.ImsesTable,
+			Columns: []string{user.ImsesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: ims.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if uuo.mutation.PhoneNumbersCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PhoneNumbersTable,
+			Columns: []string{user.PhoneNumbersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: phonenumber.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.RemovedPhoneNumbersIDs(); len(nodes) > 0 && !uuo.mutation.PhoneNumbersCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PhoneNumbersTable,
+			Columns: []string{user.PhoneNumbersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: phonenumber.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.PhoneNumbersIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PhoneNumbersTable,
+			Columns: []string{user.PhoneNumbersColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: phonenumber.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if uuo.mutation.PhotosCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PhotosTable,
+			Columns: []string{user.PhotosColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: photo.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.RemovedPhotosIDs(); len(nodes) > 0 && !uuo.mutation.PhotosCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PhotosTable,
+			Columns: []string{user.PhotosColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: photo.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.PhotosIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.PhotosTable,
+			Columns: []string{user.PhotosColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: photo.FieldID,
 				},
 			},
 		}

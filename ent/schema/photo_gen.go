@@ -5,11 +5,11 @@ import (
 	"entgo.io/ent/schema/field"
 )
 
-type Role struct {
+type Photo struct {
 	ent.Schema
 }
 
-func (Role) Fields() []ent.Field {
+func (Photo) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("display").Optional(),
 		field.Bool("primary").Optional(),

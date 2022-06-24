@@ -11,7 +11,10 @@ import (
 	"github.com/cybozu-go/scim-server/ent/email"
 	"github.com/cybozu-go/scim-server/ent/entitlement"
 	"github.com/cybozu-go/scim-server/ent/group"
+	"github.com/cybozu-go/scim-server/ent/ims"
 	"github.com/cybozu-go/scim-server/ent/names"
+	"github.com/cybozu-go/scim-server/ent/phonenumber"
+	"github.com/cybozu-go/scim-server/ent/photo"
 	"github.com/cybozu-go/scim-server/ent/predicate"
 	"github.com/cybozu-go/scim-server/ent/role"
 	"github.com/cybozu-go/scim-server/ent/user"
@@ -32,7 +35,10 @@ const (
 	TypeEmail       = "Email"
 	TypeEntitlement = "Entitlement"
 	TypeGroup       = "Group"
+	TypeIMS         = "IMS"
 	TypeNames       = "Names"
+	TypePhoneNumber = "PhoneNumber"
+	TypePhoto       = "Photo"
 	TypeRole        = "Role"
 	TypeUser        = "User"
 )
@@ -1759,6 +1765,558 @@ func (m *GroupMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown Group edge %s", name)
 }
 
+// IMSMutation represents an operation that mutates the IMS nodes in the graph.
+type IMSMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	display       *string
+	primary       *bool
+	_type         *string
+	value         *string
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*IMS, error)
+	predicates    []predicate.IMS
+}
+
+var _ ent.Mutation = (*IMSMutation)(nil)
+
+// imsOption allows management of the mutation configuration using functional options.
+type imsOption func(*IMSMutation)
+
+// newIMSMutation creates new mutation for the IMS entity.
+func newIMSMutation(c config, op Op, opts ...imsOption) *IMSMutation {
+	m := &IMSMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeIMS,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withIMSID sets the ID field of the mutation.
+func withIMSID(id int) imsOption {
+	return func(m *IMSMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *IMS
+		)
+		m.oldValue = func(ctx context.Context) (*IMS, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().IMS.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withIMS sets the old IMS of the mutation.
+func withIMS(node *IMS) imsOption {
+	return func(m *IMSMutation) {
+		m.oldValue = func(context.Context) (*IMS, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m IMSMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m IMSMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *IMSMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *IMSMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().IMS.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetDisplay sets the "display" field.
+func (m *IMSMutation) SetDisplay(s string) {
+	m.display = &s
+}
+
+// Display returns the value of the "display" field in the mutation.
+func (m *IMSMutation) Display() (r string, exists bool) {
+	v := m.display
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDisplay returns the old "display" field's value of the IMS entity.
+// If the IMS object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IMSMutation) OldDisplay(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDisplay is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDisplay requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDisplay: %w", err)
+	}
+	return oldValue.Display, nil
+}
+
+// ClearDisplay clears the value of the "display" field.
+func (m *IMSMutation) ClearDisplay() {
+	m.display = nil
+	m.clearedFields[ims.FieldDisplay] = struct{}{}
+}
+
+// DisplayCleared returns if the "display" field was cleared in this mutation.
+func (m *IMSMutation) DisplayCleared() bool {
+	_, ok := m.clearedFields[ims.FieldDisplay]
+	return ok
+}
+
+// ResetDisplay resets all changes to the "display" field.
+func (m *IMSMutation) ResetDisplay() {
+	m.display = nil
+	delete(m.clearedFields, ims.FieldDisplay)
+}
+
+// SetPrimary sets the "primary" field.
+func (m *IMSMutation) SetPrimary(b bool) {
+	m.primary = &b
+}
+
+// Primary returns the value of the "primary" field in the mutation.
+func (m *IMSMutation) Primary() (r bool, exists bool) {
+	v := m.primary
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPrimary returns the old "primary" field's value of the IMS entity.
+// If the IMS object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IMSMutation) OldPrimary(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPrimary is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPrimary requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPrimary: %w", err)
+	}
+	return oldValue.Primary, nil
+}
+
+// ClearPrimary clears the value of the "primary" field.
+func (m *IMSMutation) ClearPrimary() {
+	m.primary = nil
+	m.clearedFields[ims.FieldPrimary] = struct{}{}
+}
+
+// PrimaryCleared returns if the "primary" field was cleared in this mutation.
+func (m *IMSMutation) PrimaryCleared() bool {
+	_, ok := m.clearedFields[ims.FieldPrimary]
+	return ok
+}
+
+// ResetPrimary resets all changes to the "primary" field.
+func (m *IMSMutation) ResetPrimary() {
+	m.primary = nil
+	delete(m.clearedFields, ims.FieldPrimary)
+}
+
+// SetType sets the "type" field.
+func (m *IMSMutation) SetType(s string) {
+	m._type = &s
+}
+
+// GetType returns the value of the "type" field in the mutation.
+func (m *IMSMutation) GetType() (r string, exists bool) {
+	v := m._type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldType returns the old "type" field's value of the IMS entity.
+// If the IMS object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IMSMutation) OldType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldType: %w", err)
+	}
+	return oldValue.Type, nil
+}
+
+// ClearType clears the value of the "type" field.
+func (m *IMSMutation) ClearType() {
+	m._type = nil
+	m.clearedFields[ims.FieldType] = struct{}{}
+}
+
+// TypeCleared returns if the "type" field was cleared in this mutation.
+func (m *IMSMutation) TypeCleared() bool {
+	_, ok := m.clearedFields[ims.FieldType]
+	return ok
+}
+
+// ResetType resets all changes to the "type" field.
+func (m *IMSMutation) ResetType() {
+	m._type = nil
+	delete(m.clearedFields, ims.FieldType)
+}
+
+// SetValue sets the "value" field.
+func (m *IMSMutation) SetValue(s string) {
+	m.value = &s
+}
+
+// Value returns the value of the "value" field in the mutation.
+func (m *IMSMutation) Value() (r string, exists bool) {
+	v := m.value
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldValue returns the old "value" field's value of the IMS entity.
+// If the IMS object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *IMSMutation) OldValue(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldValue is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldValue requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldValue: %w", err)
+	}
+	return oldValue.Value, nil
+}
+
+// ClearValue clears the value of the "value" field.
+func (m *IMSMutation) ClearValue() {
+	m.value = nil
+	m.clearedFields[ims.FieldValue] = struct{}{}
+}
+
+// ValueCleared returns if the "value" field was cleared in this mutation.
+func (m *IMSMutation) ValueCleared() bool {
+	_, ok := m.clearedFields[ims.FieldValue]
+	return ok
+}
+
+// ResetValue resets all changes to the "value" field.
+func (m *IMSMutation) ResetValue() {
+	m.value = nil
+	delete(m.clearedFields, ims.FieldValue)
+}
+
+// Where appends a list predicates to the IMSMutation builder.
+func (m *IMSMutation) Where(ps ...predicate.IMS) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// Op returns the operation name.
+func (m *IMSMutation) Op() Op {
+	return m.op
+}
+
+// Type returns the node type of this mutation (IMS).
+func (m *IMSMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *IMSMutation) Fields() []string {
+	fields := make([]string, 0, 4)
+	if m.display != nil {
+		fields = append(fields, ims.FieldDisplay)
+	}
+	if m.primary != nil {
+		fields = append(fields, ims.FieldPrimary)
+	}
+	if m._type != nil {
+		fields = append(fields, ims.FieldType)
+	}
+	if m.value != nil {
+		fields = append(fields, ims.FieldValue)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *IMSMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case ims.FieldDisplay:
+		return m.Display()
+	case ims.FieldPrimary:
+		return m.Primary()
+	case ims.FieldType:
+		return m.GetType()
+	case ims.FieldValue:
+		return m.Value()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *IMSMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case ims.FieldDisplay:
+		return m.OldDisplay(ctx)
+	case ims.FieldPrimary:
+		return m.OldPrimary(ctx)
+	case ims.FieldType:
+		return m.OldType(ctx)
+	case ims.FieldValue:
+		return m.OldValue(ctx)
+	}
+	return nil, fmt.Errorf("unknown IMS field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *IMSMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case ims.FieldDisplay:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDisplay(v)
+		return nil
+	case ims.FieldPrimary:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPrimary(v)
+		return nil
+	case ims.FieldType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetType(v)
+		return nil
+	case ims.FieldValue:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetValue(v)
+		return nil
+	}
+	return fmt.Errorf("unknown IMS field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *IMSMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *IMSMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *IMSMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown IMS numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *IMSMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(ims.FieldDisplay) {
+		fields = append(fields, ims.FieldDisplay)
+	}
+	if m.FieldCleared(ims.FieldPrimary) {
+		fields = append(fields, ims.FieldPrimary)
+	}
+	if m.FieldCleared(ims.FieldType) {
+		fields = append(fields, ims.FieldType)
+	}
+	if m.FieldCleared(ims.FieldValue) {
+		fields = append(fields, ims.FieldValue)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *IMSMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *IMSMutation) ClearField(name string) error {
+	switch name {
+	case ims.FieldDisplay:
+		m.ClearDisplay()
+		return nil
+	case ims.FieldPrimary:
+		m.ClearPrimary()
+		return nil
+	case ims.FieldType:
+		m.ClearType()
+		return nil
+	case ims.FieldValue:
+		m.ClearValue()
+		return nil
+	}
+	return fmt.Errorf("unknown IMS nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *IMSMutation) ResetField(name string) error {
+	switch name {
+	case ims.FieldDisplay:
+		m.ResetDisplay()
+		return nil
+	case ims.FieldPrimary:
+		m.ResetPrimary()
+		return nil
+	case ims.FieldType:
+		m.ResetType()
+		return nil
+	case ims.FieldValue:
+		m.ResetValue()
+		return nil
+	}
+	return fmt.Errorf("unknown IMS field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *IMSMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *IMSMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *IMSMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *IMSMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *IMSMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *IMSMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *IMSMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown IMS unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *IMSMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown IMS edge %s", name)
+}
+
 // NamesMutation represents an operation that mutates the Names nodes in the graph.
 type NamesMutation struct {
 	config
@@ -2457,6 +3015,1110 @@ func (m *NamesMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown Names edge %s", name)
 }
 
+// PhoneNumberMutation represents an operation that mutates the PhoneNumber nodes in the graph.
+type PhoneNumberMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	display       *string
+	primary       *bool
+	_type         *string
+	value         *string
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*PhoneNumber, error)
+	predicates    []predicate.PhoneNumber
+}
+
+var _ ent.Mutation = (*PhoneNumberMutation)(nil)
+
+// phonenumberOption allows management of the mutation configuration using functional options.
+type phonenumberOption func(*PhoneNumberMutation)
+
+// newPhoneNumberMutation creates new mutation for the PhoneNumber entity.
+func newPhoneNumberMutation(c config, op Op, opts ...phonenumberOption) *PhoneNumberMutation {
+	m := &PhoneNumberMutation{
+		config:        c,
+		op:            op,
+		typ:           TypePhoneNumber,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withPhoneNumberID sets the ID field of the mutation.
+func withPhoneNumberID(id int) phonenumberOption {
+	return func(m *PhoneNumberMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *PhoneNumber
+		)
+		m.oldValue = func(ctx context.Context) (*PhoneNumber, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().PhoneNumber.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withPhoneNumber sets the old PhoneNumber of the mutation.
+func withPhoneNumber(node *PhoneNumber) phonenumberOption {
+	return func(m *PhoneNumberMutation) {
+		m.oldValue = func(context.Context) (*PhoneNumber, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m PhoneNumberMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m PhoneNumberMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *PhoneNumberMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *PhoneNumberMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().PhoneNumber.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetDisplay sets the "display" field.
+func (m *PhoneNumberMutation) SetDisplay(s string) {
+	m.display = &s
+}
+
+// Display returns the value of the "display" field in the mutation.
+func (m *PhoneNumberMutation) Display() (r string, exists bool) {
+	v := m.display
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDisplay returns the old "display" field's value of the PhoneNumber entity.
+// If the PhoneNumber object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PhoneNumberMutation) OldDisplay(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDisplay is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDisplay requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDisplay: %w", err)
+	}
+	return oldValue.Display, nil
+}
+
+// ClearDisplay clears the value of the "display" field.
+func (m *PhoneNumberMutation) ClearDisplay() {
+	m.display = nil
+	m.clearedFields[phonenumber.FieldDisplay] = struct{}{}
+}
+
+// DisplayCleared returns if the "display" field was cleared in this mutation.
+func (m *PhoneNumberMutation) DisplayCleared() bool {
+	_, ok := m.clearedFields[phonenumber.FieldDisplay]
+	return ok
+}
+
+// ResetDisplay resets all changes to the "display" field.
+func (m *PhoneNumberMutation) ResetDisplay() {
+	m.display = nil
+	delete(m.clearedFields, phonenumber.FieldDisplay)
+}
+
+// SetPrimary sets the "primary" field.
+func (m *PhoneNumberMutation) SetPrimary(b bool) {
+	m.primary = &b
+}
+
+// Primary returns the value of the "primary" field in the mutation.
+func (m *PhoneNumberMutation) Primary() (r bool, exists bool) {
+	v := m.primary
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPrimary returns the old "primary" field's value of the PhoneNumber entity.
+// If the PhoneNumber object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PhoneNumberMutation) OldPrimary(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPrimary is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPrimary requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPrimary: %w", err)
+	}
+	return oldValue.Primary, nil
+}
+
+// ClearPrimary clears the value of the "primary" field.
+func (m *PhoneNumberMutation) ClearPrimary() {
+	m.primary = nil
+	m.clearedFields[phonenumber.FieldPrimary] = struct{}{}
+}
+
+// PrimaryCleared returns if the "primary" field was cleared in this mutation.
+func (m *PhoneNumberMutation) PrimaryCleared() bool {
+	_, ok := m.clearedFields[phonenumber.FieldPrimary]
+	return ok
+}
+
+// ResetPrimary resets all changes to the "primary" field.
+func (m *PhoneNumberMutation) ResetPrimary() {
+	m.primary = nil
+	delete(m.clearedFields, phonenumber.FieldPrimary)
+}
+
+// SetType sets the "type" field.
+func (m *PhoneNumberMutation) SetType(s string) {
+	m._type = &s
+}
+
+// GetType returns the value of the "type" field in the mutation.
+func (m *PhoneNumberMutation) GetType() (r string, exists bool) {
+	v := m._type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldType returns the old "type" field's value of the PhoneNumber entity.
+// If the PhoneNumber object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PhoneNumberMutation) OldType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldType: %w", err)
+	}
+	return oldValue.Type, nil
+}
+
+// ClearType clears the value of the "type" field.
+func (m *PhoneNumberMutation) ClearType() {
+	m._type = nil
+	m.clearedFields[phonenumber.FieldType] = struct{}{}
+}
+
+// TypeCleared returns if the "type" field was cleared in this mutation.
+func (m *PhoneNumberMutation) TypeCleared() bool {
+	_, ok := m.clearedFields[phonenumber.FieldType]
+	return ok
+}
+
+// ResetType resets all changes to the "type" field.
+func (m *PhoneNumberMutation) ResetType() {
+	m._type = nil
+	delete(m.clearedFields, phonenumber.FieldType)
+}
+
+// SetValue sets the "value" field.
+func (m *PhoneNumberMutation) SetValue(s string) {
+	m.value = &s
+}
+
+// Value returns the value of the "value" field in the mutation.
+func (m *PhoneNumberMutation) Value() (r string, exists bool) {
+	v := m.value
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldValue returns the old "value" field's value of the PhoneNumber entity.
+// If the PhoneNumber object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PhoneNumberMutation) OldValue(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldValue is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldValue requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldValue: %w", err)
+	}
+	return oldValue.Value, nil
+}
+
+// ClearValue clears the value of the "value" field.
+func (m *PhoneNumberMutation) ClearValue() {
+	m.value = nil
+	m.clearedFields[phonenumber.FieldValue] = struct{}{}
+}
+
+// ValueCleared returns if the "value" field was cleared in this mutation.
+func (m *PhoneNumberMutation) ValueCleared() bool {
+	_, ok := m.clearedFields[phonenumber.FieldValue]
+	return ok
+}
+
+// ResetValue resets all changes to the "value" field.
+func (m *PhoneNumberMutation) ResetValue() {
+	m.value = nil
+	delete(m.clearedFields, phonenumber.FieldValue)
+}
+
+// Where appends a list predicates to the PhoneNumberMutation builder.
+func (m *PhoneNumberMutation) Where(ps ...predicate.PhoneNumber) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// Op returns the operation name.
+func (m *PhoneNumberMutation) Op() Op {
+	return m.op
+}
+
+// Type returns the node type of this mutation (PhoneNumber).
+func (m *PhoneNumberMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *PhoneNumberMutation) Fields() []string {
+	fields := make([]string, 0, 4)
+	if m.display != nil {
+		fields = append(fields, phonenumber.FieldDisplay)
+	}
+	if m.primary != nil {
+		fields = append(fields, phonenumber.FieldPrimary)
+	}
+	if m._type != nil {
+		fields = append(fields, phonenumber.FieldType)
+	}
+	if m.value != nil {
+		fields = append(fields, phonenumber.FieldValue)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *PhoneNumberMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case phonenumber.FieldDisplay:
+		return m.Display()
+	case phonenumber.FieldPrimary:
+		return m.Primary()
+	case phonenumber.FieldType:
+		return m.GetType()
+	case phonenumber.FieldValue:
+		return m.Value()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *PhoneNumberMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case phonenumber.FieldDisplay:
+		return m.OldDisplay(ctx)
+	case phonenumber.FieldPrimary:
+		return m.OldPrimary(ctx)
+	case phonenumber.FieldType:
+		return m.OldType(ctx)
+	case phonenumber.FieldValue:
+		return m.OldValue(ctx)
+	}
+	return nil, fmt.Errorf("unknown PhoneNumber field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *PhoneNumberMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case phonenumber.FieldDisplay:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDisplay(v)
+		return nil
+	case phonenumber.FieldPrimary:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPrimary(v)
+		return nil
+	case phonenumber.FieldType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetType(v)
+		return nil
+	case phonenumber.FieldValue:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetValue(v)
+		return nil
+	}
+	return fmt.Errorf("unknown PhoneNumber field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *PhoneNumberMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *PhoneNumberMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *PhoneNumberMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown PhoneNumber numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *PhoneNumberMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(phonenumber.FieldDisplay) {
+		fields = append(fields, phonenumber.FieldDisplay)
+	}
+	if m.FieldCleared(phonenumber.FieldPrimary) {
+		fields = append(fields, phonenumber.FieldPrimary)
+	}
+	if m.FieldCleared(phonenumber.FieldType) {
+		fields = append(fields, phonenumber.FieldType)
+	}
+	if m.FieldCleared(phonenumber.FieldValue) {
+		fields = append(fields, phonenumber.FieldValue)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *PhoneNumberMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *PhoneNumberMutation) ClearField(name string) error {
+	switch name {
+	case phonenumber.FieldDisplay:
+		m.ClearDisplay()
+		return nil
+	case phonenumber.FieldPrimary:
+		m.ClearPrimary()
+		return nil
+	case phonenumber.FieldType:
+		m.ClearType()
+		return nil
+	case phonenumber.FieldValue:
+		m.ClearValue()
+		return nil
+	}
+	return fmt.Errorf("unknown PhoneNumber nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *PhoneNumberMutation) ResetField(name string) error {
+	switch name {
+	case phonenumber.FieldDisplay:
+		m.ResetDisplay()
+		return nil
+	case phonenumber.FieldPrimary:
+		m.ResetPrimary()
+		return nil
+	case phonenumber.FieldType:
+		m.ResetType()
+		return nil
+	case phonenumber.FieldValue:
+		m.ResetValue()
+		return nil
+	}
+	return fmt.Errorf("unknown PhoneNumber field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *PhoneNumberMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *PhoneNumberMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *PhoneNumberMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *PhoneNumberMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *PhoneNumberMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *PhoneNumberMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *PhoneNumberMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown PhoneNumber unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *PhoneNumberMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown PhoneNumber edge %s", name)
+}
+
+// PhotoMutation represents an operation that mutates the Photo nodes in the graph.
+type PhotoMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *int
+	display       *string
+	primary       *bool
+	_type         *string
+	value         *string
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*Photo, error)
+	predicates    []predicate.Photo
+}
+
+var _ ent.Mutation = (*PhotoMutation)(nil)
+
+// photoOption allows management of the mutation configuration using functional options.
+type photoOption func(*PhotoMutation)
+
+// newPhotoMutation creates new mutation for the Photo entity.
+func newPhotoMutation(c config, op Op, opts ...photoOption) *PhotoMutation {
+	m := &PhotoMutation{
+		config:        c,
+		op:            op,
+		typ:           TypePhoto,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withPhotoID sets the ID field of the mutation.
+func withPhotoID(id int) photoOption {
+	return func(m *PhotoMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *Photo
+		)
+		m.oldValue = func(ctx context.Context) (*Photo, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().Photo.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withPhoto sets the old Photo of the mutation.
+func withPhoto(node *Photo) photoOption {
+	return func(m *PhotoMutation) {
+		m.oldValue = func(context.Context) (*Photo, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m PhotoMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m PhotoMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *PhotoMutation) ID() (id int, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *PhotoMutation) IDs(ctx context.Context) ([]int, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().Photo.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetDisplay sets the "display" field.
+func (m *PhotoMutation) SetDisplay(s string) {
+	m.display = &s
+}
+
+// Display returns the value of the "display" field in the mutation.
+func (m *PhotoMutation) Display() (r string, exists bool) {
+	v := m.display
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDisplay returns the old "display" field's value of the Photo entity.
+// If the Photo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PhotoMutation) OldDisplay(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDisplay is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDisplay requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDisplay: %w", err)
+	}
+	return oldValue.Display, nil
+}
+
+// ClearDisplay clears the value of the "display" field.
+func (m *PhotoMutation) ClearDisplay() {
+	m.display = nil
+	m.clearedFields[photo.FieldDisplay] = struct{}{}
+}
+
+// DisplayCleared returns if the "display" field was cleared in this mutation.
+func (m *PhotoMutation) DisplayCleared() bool {
+	_, ok := m.clearedFields[photo.FieldDisplay]
+	return ok
+}
+
+// ResetDisplay resets all changes to the "display" field.
+func (m *PhotoMutation) ResetDisplay() {
+	m.display = nil
+	delete(m.clearedFields, photo.FieldDisplay)
+}
+
+// SetPrimary sets the "primary" field.
+func (m *PhotoMutation) SetPrimary(b bool) {
+	m.primary = &b
+}
+
+// Primary returns the value of the "primary" field in the mutation.
+func (m *PhotoMutation) Primary() (r bool, exists bool) {
+	v := m.primary
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPrimary returns the old "primary" field's value of the Photo entity.
+// If the Photo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PhotoMutation) OldPrimary(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPrimary is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPrimary requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPrimary: %w", err)
+	}
+	return oldValue.Primary, nil
+}
+
+// ClearPrimary clears the value of the "primary" field.
+func (m *PhotoMutation) ClearPrimary() {
+	m.primary = nil
+	m.clearedFields[photo.FieldPrimary] = struct{}{}
+}
+
+// PrimaryCleared returns if the "primary" field was cleared in this mutation.
+func (m *PhotoMutation) PrimaryCleared() bool {
+	_, ok := m.clearedFields[photo.FieldPrimary]
+	return ok
+}
+
+// ResetPrimary resets all changes to the "primary" field.
+func (m *PhotoMutation) ResetPrimary() {
+	m.primary = nil
+	delete(m.clearedFields, photo.FieldPrimary)
+}
+
+// SetType sets the "type" field.
+func (m *PhotoMutation) SetType(s string) {
+	m._type = &s
+}
+
+// GetType returns the value of the "type" field in the mutation.
+func (m *PhotoMutation) GetType() (r string, exists bool) {
+	v := m._type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldType returns the old "type" field's value of the Photo entity.
+// If the Photo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PhotoMutation) OldType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldType: %w", err)
+	}
+	return oldValue.Type, nil
+}
+
+// ClearType clears the value of the "type" field.
+func (m *PhotoMutation) ClearType() {
+	m._type = nil
+	m.clearedFields[photo.FieldType] = struct{}{}
+}
+
+// TypeCleared returns if the "type" field was cleared in this mutation.
+func (m *PhotoMutation) TypeCleared() bool {
+	_, ok := m.clearedFields[photo.FieldType]
+	return ok
+}
+
+// ResetType resets all changes to the "type" field.
+func (m *PhotoMutation) ResetType() {
+	m._type = nil
+	delete(m.clearedFields, photo.FieldType)
+}
+
+// SetValue sets the "value" field.
+func (m *PhotoMutation) SetValue(s string) {
+	m.value = &s
+}
+
+// Value returns the value of the "value" field in the mutation.
+func (m *PhotoMutation) Value() (r string, exists bool) {
+	v := m.value
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldValue returns the old "value" field's value of the Photo entity.
+// If the Photo object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PhotoMutation) OldValue(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldValue is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldValue requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldValue: %w", err)
+	}
+	return oldValue.Value, nil
+}
+
+// ClearValue clears the value of the "value" field.
+func (m *PhotoMutation) ClearValue() {
+	m.value = nil
+	m.clearedFields[photo.FieldValue] = struct{}{}
+}
+
+// ValueCleared returns if the "value" field was cleared in this mutation.
+func (m *PhotoMutation) ValueCleared() bool {
+	_, ok := m.clearedFields[photo.FieldValue]
+	return ok
+}
+
+// ResetValue resets all changes to the "value" field.
+func (m *PhotoMutation) ResetValue() {
+	m.value = nil
+	delete(m.clearedFields, photo.FieldValue)
+}
+
+// Where appends a list predicates to the PhotoMutation builder.
+func (m *PhotoMutation) Where(ps ...predicate.Photo) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// Op returns the operation name.
+func (m *PhotoMutation) Op() Op {
+	return m.op
+}
+
+// Type returns the node type of this mutation (Photo).
+func (m *PhotoMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *PhotoMutation) Fields() []string {
+	fields := make([]string, 0, 4)
+	if m.display != nil {
+		fields = append(fields, photo.FieldDisplay)
+	}
+	if m.primary != nil {
+		fields = append(fields, photo.FieldPrimary)
+	}
+	if m._type != nil {
+		fields = append(fields, photo.FieldType)
+	}
+	if m.value != nil {
+		fields = append(fields, photo.FieldValue)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *PhotoMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case photo.FieldDisplay:
+		return m.Display()
+	case photo.FieldPrimary:
+		return m.Primary()
+	case photo.FieldType:
+		return m.GetType()
+	case photo.FieldValue:
+		return m.Value()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *PhotoMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case photo.FieldDisplay:
+		return m.OldDisplay(ctx)
+	case photo.FieldPrimary:
+		return m.OldPrimary(ctx)
+	case photo.FieldType:
+		return m.OldType(ctx)
+	case photo.FieldValue:
+		return m.OldValue(ctx)
+	}
+	return nil, fmt.Errorf("unknown Photo field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *PhotoMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case photo.FieldDisplay:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDisplay(v)
+		return nil
+	case photo.FieldPrimary:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPrimary(v)
+		return nil
+	case photo.FieldType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetType(v)
+		return nil
+	case photo.FieldValue:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetValue(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Photo field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *PhotoMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *PhotoMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *PhotoMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown Photo numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *PhotoMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(photo.FieldDisplay) {
+		fields = append(fields, photo.FieldDisplay)
+	}
+	if m.FieldCleared(photo.FieldPrimary) {
+		fields = append(fields, photo.FieldPrimary)
+	}
+	if m.FieldCleared(photo.FieldType) {
+		fields = append(fields, photo.FieldType)
+	}
+	if m.FieldCleared(photo.FieldValue) {
+		fields = append(fields, photo.FieldValue)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *PhotoMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *PhotoMutation) ClearField(name string) error {
+	switch name {
+	case photo.FieldDisplay:
+		m.ClearDisplay()
+		return nil
+	case photo.FieldPrimary:
+		m.ClearPrimary()
+		return nil
+	case photo.FieldType:
+		m.ClearType()
+		return nil
+	case photo.FieldValue:
+		m.ClearValue()
+		return nil
+	}
+	return fmt.Errorf("unknown Photo nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *PhotoMutation) ResetField(name string) error {
+	switch name {
+	case photo.FieldDisplay:
+		m.ResetDisplay()
+		return nil
+	case photo.FieldPrimary:
+		m.ResetPrimary()
+		return nil
+	case photo.FieldType:
+		m.ResetType()
+		return nil
+	case photo.FieldValue:
+		m.ResetValue()
+		return nil
+	}
+	return fmt.Errorf("unknown Photo field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *PhotoMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *PhotoMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *PhotoMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *PhotoMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *PhotoMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *PhotoMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *PhotoMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown Photo unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *PhotoMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown Photo edge %s", name)
+}
+
 // RoleMutation represents an operation that mutates the Role nodes in the graph.
 type RoleMutation struct {
 	config
@@ -2749,9 +4411,22 @@ func (m *RoleMutation) OldValue(ctx context.Context) (v string, err error) {
 	return oldValue.Value, nil
 }
 
+// ClearValue clears the value of the "value" field.
+func (m *RoleMutation) ClearValue() {
+	m.value = nil
+	m.clearedFields[role.FieldValue] = struct{}{}
+}
+
+// ValueCleared returns if the "value" field was cleared in this mutation.
+func (m *RoleMutation) ValueCleared() bool {
+	_, ok := m.clearedFields[role.FieldValue]
+	return ok
+}
+
 // ResetValue resets all changes to the "value" field.
 func (m *RoleMutation) ResetValue() {
 	m.value = nil
+	delete(m.clearedFields, role.FieldValue)
 }
 
 // Where appends a list predicates to the RoleMutation builder.
@@ -2895,6 +4570,9 @@ func (m *RoleMutation) ClearedFields() []string {
 	if m.FieldCleared(role.FieldType) {
 		fields = append(fields, role.FieldType)
 	}
+	if m.FieldCleared(role.FieldValue) {
+		fields = append(fields, role.FieldValue)
+	}
 	return fields
 }
 
@@ -2917,6 +4595,9 @@ func (m *RoleMutation) ClearField(name string) error {
 		return nil
 	case role.FieldType:
 		m.ClearType()
+		return nil
+	case role.FieldValue:
+		m.ClearValue()
 		return nil
 	}
 	return fmt.Errorf("unknown Role nullable field %s", name)
@@ -2993,37 +4674,49 @@ func (m *RoleMutation) ResetEdge(name string) error {
 // UserMutation represents an operation that mutates the User nodes in the graph.
 type UserMutation struct {
 	config
-	op                Op
-	typ               string
-	id                *uuid.UUID
-	active            *bool
-	displayName       *string
-	externalID        *string
-	locale            *string
-	nickName          *string
-	password          *string
-	preferredLanguage *string
-	profileURL        *string
-	timezone          *string
-	title             *string
-	userName          *string
-	userType          *string
-	clearedFields     map[string]struct{}
-	groups            map[uuid.UUID]struct{}
-	removedgroups     map[uuid.UUID]struct{}
-	clearedgroups     bool
-	emails            map[int]struct{}
-	removedemails     map[int]struct{}
-	clearedemails     bool
-	name              map[int]struct{}
-	removedname       map[int]struct{}
-	clearedname       bool
-	roles             map[int]struct{}
-	removedroles      map[int]struct{}
-	clearedroles      bool
-	done              bool
-	oldValue          func(context.Context) (*User, error)
-	predicates        []predicate.User
+	op                   Op
+	typ                  string
+	id                   *uuid.UUID
+	active               *bool
+	displayName          *string
+	externalID           *string
+	locale               *string
+	nickName             *string
+	password             *string
+	preferredLanguage    *string
+	profileURL           *string
+	timezone             *string
+	title                *string
+	userName             *string
+	userType             *string
+	clearedFields        map[string]struct{}
+	groups               map[uuid.UUID]struct{}
+	removedgroups        map[uuid.UUID]struct{}
+	clearedgroups        bool
+	emails               map[int]struct{}
+	removedemails        map[int]struct{}
+	clearedemails        bool
+	name                 map[int]struct{}
+	removedname          map[int]struct{}
+	clearedname          bool
+	entitlements         map[int]struct{}
+	removedentitlements  map[int]struct{}
+	clearedentitlements  bool
+	roles                map[int]struct{}
+	removedroles         map[int]struct{}
+	clearedroles         bool
+	imses                map[int]struct{}
+	removedimses         map[int]struct{}
+	clearedimses         bool
+	phone_numbers        map[int]struct{}
+	removedphone_numbers map[int]struct{}
+	clearedphone_numbers bool
+	photos               map[int]struct{}
+	removedphotos        map[int]struct{}
+	clearedphotos        bool
+	done                 bool
+	oldValue             func(context.Context) (*User, error)
+	predicates           []predicate.User
 }
 
 var _ ent.Mutation = (*UserMutation)(nil)
@@ -3867,6 +5560,60 @@ func (m *UserMutation) ResetName() {
 	m.removedname = nil
 }
 
+// AddEntitlementIDs adds the "entitlements" edge to the Entitlement entity by ids.
+func (m *UserMutation) AddEntitlementIDs(ids ...int) {
+	if m.entitlements == nil {
+		m.entitlements = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.entitlements[ids[i]] = struct{}{}
+	}
+}
+
+// ClearEntitlements clears the "entitlements" edge to the Entitlement entity.
+func (m *UserMutation) ClearEntitlements() {
+	m.clearedentitlements = true
+}
+
+// EntitlementsCleared reports if the "entitlements" edge to the Entitlement entity was cleared.
+func (m *UserMutation) EntitlementsCleared() bool {
+	return m.clearedentitlements
+}
+
+// RemoveEntitlementIDs removes the "entitlements" edge to the Entitlement entity by IDs.
+func (m *UserMutation) RemoveEntitlementIDs(ids ...int) {
+	if m.removedentitlements == nil {
+		m.removedentitlements = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.entitlements, ids[i])
+		m.removedentitlements[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedEntitlements returns the removed IDs of the "entitlements" edge to the Entitlement entity.
+func (m *UserMutation) RemovedEntitlementsIDs() (ids []int) {
+	for id := range m.removedentitlements {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// EntitlementsIDs returns the "entitlements" edge IDs in the mutation.
+func (m *UserMutation) EntitlementsIDs() (ids []int) {
+	for id := range m.entitlements {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetEntitlements resets all changes to the "entitlements" edge.
+func (m *UserMutation) ResetEntitlements() {
+	m.entitlements = nil
+	m.clearedentitlements = false
+	m.removedentitlements = nil
+}
+
 // AddRoleIDs adds the "roles" edge to the Role entity by ids.
 func (m *UserMutation) AddRoleIDs(ids ...int) {
 	if m.roles == nil {
@@ -3919,6 +5666,168 @@ func (m *UserMutation) ResetRoles() {
 	m.roles = nil
 	m.clearedroles = false
 	m.removedroles = nil
+}
+
+// AddImseIDs adds the "imses" edge to the IMS entity by ids.
+func (m *UserMutation) AddImseIDs(ids ...int) {
+	if m.imses == nil {
+		m.imses = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.imses[ids[i]] = struct{}{}
+	}
+}
+
+// ClearImses clears the "imses" edge to the IMS entity.
+func (m *UserMutation) ClearImses() {
+	m.clearedimses = true
+}
+
+// ImsesCleared reports if the "imses" edge to the IMS entity was cleared.
+func (m *UserMutation) ImsesCleared() bool {
+	return m.clearedimses
+}
+
+// RemoveImseIDs removes the "imses" edge to the IMS entity by IDs.
+func (m *UserMutation) RemoveImseIDs(ids ...int) {
+	if m.removedimses == nil {
+		m.removedimses = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.imses, ids[i])
+		m.removedimses[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedImses returns the removed IDs of the "imses" edge to the IMS entity.
+func (m *UserMutation) RemovedImsesIDs() (ids []int) {
+	for id := range m.removedimses {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ImsesIDs returns the "imses" edge IDs in the mutation.
+func (m *UserMutation) ImsesIDs() (ids []int) {
+	for id := range m.imses {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetImses resets all changes to the "imses" edge.
+func (m *UserMutation) ResetImses() {
+	m.imses = nil
+	m.clearedimses = false
+	m.removedimses = nil
+}
+
+// AddPhoneNumberIDs adds the "phone_numbers" edge to the PhoneNumber entity by ids.
+func (m *UserMutation) AddPhoneNumberIDs(ids ...int) {
+	if m.phone_numbers == nil {
+		m.phone_numbers = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.phone_numbers[ids[i]] = struct{}{}
+	}
+}
+
+// ClearPhoneNumbers clears the "phone_numbers" edge to the PhoneNumber entity.
+func (m *UserMutation) ClearPhoneNumbers() {
+	m.clearedphone_numbers = true
+}
+
+// PhoneNumbersCleared reports if the "phone_numbers" edge to the PhoneNumber entity was cleared.
+func (m *UserMutation) PhoneNumbersCleared() bool {
+	return m.clearedphone_numbers
+}
+
+// RemovePhoneNumberIDs removes the "phone_numbers" edge to the PhoneNumber entity by IDs.
+func (m *UserMutation) RemovePhoneNumberIDs(ids ...int) {
+	if m.removedphone_numbers == nil {
+		m.removedphone_numbers = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.phone_numbers, ids[i])
+		m.removedphone_numbers[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedPhoneNumbers returns the removed IDs of the "phone_numbers" edge to the PhoneNumber entity.
+func (m *UserMutation) RemovedPhoneNumbersIDs() (ids []int) {
+	for id := range m.removedphone_numbers {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// PhoneNumbersIDs returns the "phone_numbers" edge IDs in the mutation.
+func (m *UserMutation) PhoneNumbersIDs() (ids []int) {
+	for id := range m.phone_numbers {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetPhoneNumbers resets all changes to the "phone_numbers" edge.
+func (m *UserMutation) ResetPhoneNumbers() {
+	m.phone_numbers = nil
+	m.clearedphone_numbers = false
+	m.removedphone_numbers = nil
+}
+
+// AddPhotoIDs adds the "photos" edge to the Photo entity by ids.
+func (m *UserMutation) AddPhotoIDs(ids ...int) {
+	if m.photos == nil {
+		m.photos = make(map[int]struct{})
+	}
+	for i := range ids {
+		m.photos[ids[i]] = struct{}{}
+	}
+}
+
+// ClearPhotos clears the "photos" edge to the Photo entity.
+func (m *UserMutation) ClearPhotos() {
+	m.clearedphotos = true
+}
+
+// PhotosCleared reports if the "photos" edge to the Photo entity was cleared.
+func (m *UserMutation) PhotosCleared() bool {
+	return m.clearedphotos
+}
+
+// RemovePhotoIDs removes the "photos" edge to the Photo entity by IDs.
+func (m *UserMutation) RemovePhotoIDs(ids ...int) {
+	if m.removedphotos == nil {
+		m.removedphotos = make(map[int]struct{})
+	}
+	for i := range ids {
+		delete(m.photos, ids[i])
+		m.removedphotos[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedPhotos returns the removed IDs of the "photos" edge to the Photo entity.
+func (m *UserMutation) RemovedPhotosIDs() (ids []int) {
+	for id := range m.removedphotos {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// PhotosIDs returns the "photos" edge IDs in the mutation.
+func (m *UserMutation) PhotosIDs() (ids []int) {
+	for id := range m.photos {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetPhotos resets all changes to the "photos" edge.
+func (m *UserMutation) ResetPhotos() {
+	m.photos = nil
+	m.clearedphotos = false
+	m.removedphotos = nil
 }
 
 // Where appends a list predicates to the UserMutation builder.
@@ -4295,7 +6204,7 @@ func (m *UserMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *UserMutation) AddedEdges() []string {
-	edges := make([]string, 0, 4)
+	edges := make([]string, 0, 8)
 	if m.groups != nil {
 		edges = append(edges, user.EdgeGroups)
 	}
@@ -4305,8 +6214,20 @@ func (m *UserMutation) AddedEdges() []string {
 	if m.name != nil {
 		edges = append(edges, user.EdgeName)
 	}
+	if m.entitlements != nil {
+		edges = append(edges, user.EdgeEntitlements)
+	}
 	if m.roles != nil {
 		edges = append(edges, user.EdgeRoles)
+	}
+	if m.imses != nil {
+		edges = append(edges, user.EdgeImses)
+	}
+	if m.phone_numbers != nil {
+		edges = append(edges, user.EdgePhoneNumbers)
+	}
+	if m.photos != nil {
+		edges = append(edges, user.EdgePhotos)
 	}
 	return edges
 }
@@ -4333,9 +6254,33 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgeEntitlements:
+		ids := make([]ent.Value, 0, len(m.entitlements))
+		for id := range m.entitlements {
+			ids = append(ids, id)
+		}
+		return ids
 	case user.EdgeRoles:
 		ids := make([]ent.Value, 0, len(m.roles))
 		for id := range m.roles {
+			ids = append(ids, id)
+		}
+		return ids
+	case user.EdgeImses:
+		ids := make([]ent.Value, 0, len(m.imses))
+		for id := range m.imses {
+			ids = append(ids, id)
+		}
+		return ids
+	case user.EdgePhoneNumbers:
+		ids := make([]ent.Value, 0, len(m.phone_numbers))
+		for id := range m.phone_numbers {
+			ids = append(ids, id)
+		}
+		return ids
+	case user.EdgePhotos:
+		ids := make([]ent.Value, 0, len(m.photos))
+		for id := range m.photos {
 			ids = append(ids, id)
 		}
 		return ids
@@ -4345,7 +6290,7 @@ func (m *UserMutation) AddedIDs(name string) []ent.Value {
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *UserMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 4)
+	edges := make([]string, 0, 8)
 	if m.removedgroups != nil {
 		edges = append(edges, user.EdgeGroups)
 	}
@@ -4355,8 +6300,20 @@ func (m *UserMutation) RemovedEdges() []string {
 	if m.removedname != nil {
 		edges = append(edges, user.EdgeName)
 	}
+	if m.removedentitlements != nil {
+		edges = append(edges, user.EdgeEntitlements)
+	}
 	if m.removedroles != nil {
 		edges = append(edges, user.EdgeRoles)
+	}
+	if m.removedimses != nil {
+		edges = append(edges, user.EdgeImses)
+	}
+	if m.removedphone_numbers != nil {
+		edges = append(edges, user.EdgePhoneNumbers)
+	}
+	if m.removedphotos != nil {
+		edges = append(edges, user.EdgePhotos)
 	}
 	return edges
 }
@@ -4383,9 +6340,33 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 			ids = append(ids, id)
 		}
 		return ids
+	case user.EdgeEntitlements:
+		ids := make([]ent.Value, 0, len(m.removedentitlements))
+		for id := range m.removedentitlements {
+			ids = append(ids, id)
+		}
+		return ids
 	case user.EdgeRoles:
 		ids := make([]ent.Value, 0, len(m.removedroles))
 		for id := range m.removedroles {
+			ids = append(ids, id)
+		}
+		return ids
+	case user.EdgeImses:
+		ids := make([]ent.Value, 0, len(m.removedimses))
+		for id := range m.removedimses {
+			ids = append(ids, id)
+		}
+		return ids
+	case user.EdgePhoneNumbers:
+		ids := make([]ent.Value, 0, len(m.removedphone_numbers))
+		for id := range m.removedphone_numbers {
+			ids = append(ids, id)
+		}
+		return ids
+	case user.EdgePhotos:
+		ids := make([]ent.Value, 0, len(m.removedphotos))
+		for id := range m.removedphotos {
 			ids = append(ids, id)
 		}
 		return ids
@@ -4395,7 +6376,7 @@ func (m *UserMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *UserMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 4)
+	edges := make([]string, 0, 8)
 	if m.clearedgroups {
 		edges = append(edges, user.EdgeGroups)
 	}
@@ -4405,8 +6386,20 @@ func (m *UserMutation) ClearedEdges() []string {
 	if m.clearedname {
 		edges = append(edges, user.EdgeName)
 	}
+	if m.clearedentitlements {
+		edges = append(edges, user.EdgeEntitlements)
+	}
 	if m.clearedroles {
 		edges = append(edges, user.EdgeRoles)
+	}
+	if m.clearedimses {
+		edges = append(edges, user.EdgeImses)
+	}
+	if m.clearedphone_numbers {
+		edges = append(edges, user.EdgePhoneNumbers)
+	}
+	if m.clearedphotos {
+		edges = append(edges, user.EdgePhotos)
 	}
 	return edges
 }
@@ -4421,8 +6414,16 @@ func (m *UserMutation) EdgeCleared(name string) bool {
 		return m.clearedemails
 	case user.EdgeName:
 		return m.clearedname
+	case user.EdgeEntitlements:
+		return m.clearedentitlements
 	case user.EdgeRoles:
 		return m.clearedroles
+	case user.EdgeImses:
+		return m.clearedimses
+	case user.EdgePhoneNumbers:
+		return m.clearedphone_numbers
+	case user.EdgePhotos:
+		return m.clearedphotos
 	}
 	return false
 }
@@ -4448,8 +6449,20 @@ func (m *UserMutation) ResetEdge(name string) error {
 	case user.EdgeName:
 		m.ResetName()
 		return nil
+	case user.EdgeEntitlements:
+		m.ResetEntitlements()
+		return nil
 	case user.EdgeRoles:
 		m.ResetRoles()
+		return nil
+	case user.EdgeImses:
+		m.ResetImses()
+		return nil
+	case user.EdgePhoneNumbers:
+		m.ResetPhoneNumbers()
+		return nil
+	case user.EdgePhotos:
+		m.ResetPhotos()
 		return nil
 	}
 	return fmt.Errorf("unknown User edge %s", name)

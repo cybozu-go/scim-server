@@ -27,8 +27,9 @@ type Entitlement struct {
 	Primary bool `json:"primary,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the EntitlementQuery when eager-loading is set.
-	Edges            EntitlementEdges `json:"edges"`
-	entitlement_user *uuid.UUID
+	Edges             EntitlementEdges `json:"edges"`
+	entitlement_user  *uuid.UUID
+	user_entitlements *uuid.UUID
 }
 
 // EntitlementEdges holds the relations/edges for other nodes in the graph.
@@ -66,6 +67,8 @@ func (*Entitlement) scanValues(columns []string) ([]interface{}, error) {
 		case entitlement.FieldValue, entitlement.FieldDisplay, entitlement.FieldType:
 			values[i] = new(sql.NullString)
 		case entitlement.ForeignKeys[0]: // entitlement_user
+			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
+		case entitlement.ForeignKeys[1]: // user_entitlements
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		default:
 			return nil, fmt.Errorf("unexpected column %q for type Entitlement", columns[i])
@@ -118,6 +121,13 @@ func (e *Entitlement) assignValues(columns []string, values []interface{}) error
 			} else if value.Valid {
 				e.entitlement_user = new(uuid.UUID)
 				*e.entitlement_user = *value.S.(*uuid.UUID)
+			}
+		case entitlement.ForeignKeys[1]:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field user_entitlements", values[i])
+			} else if value.Valid {
+				e.user_entitlements = new(uuid.UUID)
+				*e.user_entitlements = *value.S.(*uuid.UUID)
 			}
 		}
 	}

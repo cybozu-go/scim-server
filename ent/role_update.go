@@ -93,6 +93,20 @@ func (ru *RoleUpdate) SetValue(s string) *RoleUpdate {
 	return ru
 }
 
+// SetNillableValue sets the "value" field if the given value is not nil.
+func (ru *RoleUpdate) SetNillableValue(s *string) *RoleUpdate {
+	if s != nil {
+		ru.SetValue(*s)
+	}
+	return ru
+}
+
+// ClearValue clears the value of the "value" field.
+func (ru *RoleUpdate) ClearValue() *RoleUpdate {
+	ru.mutation.ClearValue()
+	return ru
+}
+
 // Mutation returns the RoleMutation object of the builder.
 func (ru *RoleUpdate) Mutation() *RoleMutation {
 	return ru.mutation
@@ -216,6 +230,12 @@ func (ru *RoleUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Column: role.FieldValue,
 		})
 	}
+	if ru.mutation.ValueCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Column: role.FieldValue,
+		})
+	}
 	if n, err = sqlgraph.UpdateNodes(ctx, ru.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{role.Label}
@@ -298,6 +318,20 @@ func (ruo *RoleUpdateOne) ClearType() *RoleUpdateOne {
 // SetValue sets the "value" field.
 func (ruo *RoleUpdateOne) SetValue(s string) *RoleUpdateOne {
 	ruo.mutation.SetValue(s)
+	return ruo
+}
+
+// SetNillableValue sets the "value" field if the given value is not nil.
+func (ruo *RoleUpdateOne) SetNillableValue(s *string) *RoleUpdateOne {
+	if s != nil {
+		ruo.SetValue(*s)
+	}
+	return ruo
+}
+
+// ClearValue clears the value of the "value" field.
+func (ruo *RoleUpdateOne) ClearValue() *RoleUpdateOne {
+	ruo.mutation.ClearValue()
 	return ruo
 }
 
@@ -445,6 +479,12 @@ func (ruo *RoleUpdateOne) sqlSave(ctx context.Context) (_node *Role, err error) 
 		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
 			Type:   field.TypeString,
 			Value:  value,
+			Column: role.FieldValue,
+		})
+	}
+	if ruo.mutation.ValueCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
 			Column: role.FieldValue,
 		})
 	}

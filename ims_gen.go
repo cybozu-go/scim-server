@@ -6,15 +6,15 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"github.com/cybozu-go/scim-server/ent"
+	"github.com/cybozu-go/scim-server/ent/ims"
 	"github.com/cybozu-go/scim-server/ent/predicate"
-	"github.com/cybozu-go/scim-server/ent/role"
 	"github.com/cybozu-go/scim/resource"
 )
 
-func RoleResourceFromEnt(in *ent.Role) (*resource.Role, error) {
+func IMSResourceFromEnt(in *ent.IMS) (*resource.IMS, error) {
 	var b resource.Builder
 
-	builder := b.Role()
+	builder := b.IMS()
 	if !reflect.ValueOf(in.Display).IsZero() {
 		builder.Display(in.Display)
 	}
@@ -30,22 +30,22 @@ func RoleResourceFromEnt(in *ent.Role) (*resource.Role, error) {
 	return builder.Build()
 }
 
-func RoleEntFieldFromSCIM(s string) string {
+func IMSEntFieldFromSCIM(s string) string {
 	switch s {
-	case resource.RoleDisplayKey:
-		return role.FieldDisplay
-	case resource.RolePrimaryKey:
-		return role.FieldPrimary
-	case resource.RoleTypeKey:
-		return role.FieldType
-	case resource.RoleValueKey:
-		return role.FieldValue
+	case resource.IMSDisplayKey:
+		return ims.FieldDisplay
+	case resource.IMSPrimaryKey:
+		return ims.FieldPrimary
+	case resource.IMSTypeKey:
+		return ims.FieldType
+	case resource.IMSValueKey:
+		return ims.FieldValue
 	default:
 		return s
 	}
 }
 
-func roleStartsWithPredicate(q *ent.RoleQuery, scimField string, val interface{}) (predicate.Role, error) {
+func imSStartsWithPredicate(q *ent.IMSQuery, scimField string, val interface{}) (predicate.IMS, error) {
 	_ = q
 	field, subfield, err := splitScimField(scimField)
 	if err != nil {
@@ -53,21 +53,21 @@ func roleStartsWithPredicate(q *ent.RoleQuery, scimField string, val interface{}
 	}
 	_ = subfield // TODO: remove later
 	switch field {
-	case resource.RoleDisplayKey:
-		entFieldName := RoleEntFieldFromSCIM(scimField)
-		return predicate.Role(func(s *sql.Selector) {
+	case resource.IMSDisplayKey:
+		entFieldName := IMSEntFieldFromSCIM(scimField)
+		return predicate.IMS(func(s *sql.Selector) {
 			//nolint:forcetypeassert
 			s.Where(sql.HasPrefix(s.C(entFieldName), val.(string)))
 		}), nil
-	case resource.RoleTypeKey:
-		entFieldName := RoleEntFieldFromSCIM(scimField)
-		return predicate.Role(func(s *sql.Selector) {
+	case resource.IMSTypeKey:
+		entFieldName := IMSEntFieldFromSCIM(scimField)
+		return predicate.IMS(func(s *sql.Selector) {
 			//nolint:forcetypeassert
 			s.Where(sql.HasPrefix(s.C(entFieldName), val.(string)))
 		}), nil
-	case resource.RoleValueKey:
-		entFieldName := RoleEntFieldFromSCIM(scimField)
-		return predicate.Role(func(s *sql.Selector) {
+	case resource.IMSValueKey:
+		entFieldName := IMSEntFieldFromSCIM(scimField)
+		return predicate.IMS(func(s *sql.Selector) {
 			//nolint:forcetypeassert
 			s.Where(sql.HasPrefix(s.C(entFieldName), val.(string)))
 		}), nil
@@ -76,7 +76,7 @@ func roleStartsWithPredicate(q *ent.RoleQuery, scimField string, val interface{}
 	}
 }
 
-func roleEndsWithPredicate(q *ent.RoleQuery, scimField string, val interface{}) (predicate.Role, error) {
+func imSEndsWithPredicate(q *ent.IMSQuery, scimField string, val interface{}) (predicate.IMS, error) {
 	_ = q
 	field, subfield, err := splitScimField(scimField)
 	if err != nil {
@@ -84,21 +84,21 @@ func roleEndsWithPredicate(q *ent.RoleQuery, scimField string, val interface{}) 
 	}
 	_ = subfield // TODO: remove later
 	switch field {
-	case resource.RoleDisplayKey:
-		entFieldName := RoleEntFieldFromSCIM(scimField)
-		return predicate.Role(func(s *sql.Selector) {
+	case resource.IMSDisplayKey:
+		entFieldName := IMSEntFieldFromSCIM(scimField)
+		return predicate.IMS(func(s *sql.Selector) {
 			//nolint:forcetypeassert
 			s.Where(sql.HasSuffix(s.C(entFieldName), val.(string)))
 		}), nil
-	case resource.RoleTypeKey:
-		entFieldName := RoleEntFieldFromSCIM(scimField)
-		return predicate.Role(func(s *sql.Selector) {
+	case resource.IMSTypeKey:
+		entFieldName := IMSEntFieldFromSCIM(scimField)
+		return predicate.IMS(func(s *sql.Selector) {
 			//nolint:forcetypeassert
 			s.Where(sql.HasSuffix(s.C(entFieldName), val.(string)))
 		}), nil
-	case resource.RoleValueKey:
-		entFieldName := RoleEntFieldFromSCIM(scimField)
-		return predicate.Role(func(s *sql.Selector) {
+	case resource.IMSValueKey:
+		entFieldName := IMSEntFieldFromSCIM(scimField)
+		return predicate.IMS(func(s *sql.Selector) {
 			//nolint:forcetypeassert
 			s.Where(sql.HasSuffix(s.C(entFieldName), val.(string)))
 		}), nil
@@ -107,7 +107,7 @@ func roleEndsWithPredicate(q *ent.RoleQuery, scimField string, val interface{}) 
 	}
 }
 
-func roleContainsPredicate(q *ent.RoleQuery, scimField string, val interface{}) (predicate.Role, error) {
+func imSContainsPredicate(q *ent.IMSQuery, scimField string, val interface{}) (predicate.IMS, error) {
 	_ = q
 	field, subfield, err := splitScimField(scimField)
 	if err != nil {
@@ -115,21 +115,21 @@ func roleContainsPredicate(q *ent.RoleQuery, scimField string, val interface{}) 
 	}
 	_ = subfield // TODO: remove later
 	switch field {
-	case resource.RoleDisplayKey:
-		entFieldName := RoleEntFieldFromSCIM(scimField)
-		return predicate.Role(func(s *sql.Selector) {
+	case resource.IMSDisplayKey:
+		entFieldName := IMSEntFieldFromSCIM(scimField)
+		return predicate.IMS(func(s *sql.Selector) {
 			//nolint:forcetypeassert
 			s.Where(sql.Contains(s.C(entFieldName), val.(string)))
 		}), nil
-	case resource.RoleTypeKey:
-		entFieldName := RoleEntFieldFromSCIM(scimField)
-		return predicate.Role(func(s *sql.Selector) {
+	case resource.IMSTypeKey:
+		entFieldName := IMSEntFieldFromSCIM(scimField)
+		return predicate.IMS(func(s *sql.Selector) {
 			//nolint:forcetypeassert
 			s.Where(sql.Contains(s.C(entFieldName), val.(string)))
 		}), nil
-	case resource.RoleValueKey:
-		entFieldName := RoleEntFieldFromSCIM(scimField)
-		return predicate.Role(func(s *sql.Selector) {
+	case resource.IMSValueKey:
+		entFieldName := IMSEntFieldFromSCIM(scimField)
+		return predicate.IMS(func(s *sql.Selector) {
 			//nolint:forcetypeassert
 			s.Where(sql.Contains(s.C(entFieldName), val.(string)))
 		}), nil
@@ -138,7 +138,7 @@ func roleContainsPredicate(q *ent.RoleQuery, scimField string, val interface{}) 
 	}
 }
 
-func roleEqualsPredicate(q *ent.RoleQuery, scimField string, val interface{}) (predicate.Role, error) {
+func imSEqualsPredicate(q *ent.IMSQuery, scimField string, val interface{}) (predicate.IMS, error) {
 	_ = q
 	field, subfield, err := splitScimField(scimField)
 	if err != nil {
@@ -146,21 +146,21 @@ func roleEqualsPredicate(q *ent.RoleQuery, scimField string, val interface{}) (p
 	}
 	_ = subfield // TODO: remove later
 	switch field {
-	case resource.RoleDisplayKey:
-		entFieldName := RoleEntFieldFromSCIM(scimField)
-		return predicate.Role(func(s *sql.Selector) {
+	case resource.IMSDisplayKey:
+		entFieldName := IMSEntFieldFromSCIM(scimField)
+		return predicate.IMS(func(s *sql.Selector) {
 			//nolint:forcetypeassert
 			s.Where(sql.EQ(s.C(entFieldName), val.(string)))
 		}), nil
-	case resource.RoleTypeKey:
-		entFieldName := RoleEntFieldFromSCIM(scimField)
-		return predicate.Role(func(s *sql.Selector) {
+	case resource.IMSTypeKey:
+		entFieldName := IMSEntFieldFromSCIM(scimField)
+		return predicate.IMS(func(s *sql.Selector) {
 			//nolint:forcetypeassert
 			s.Where(sql.EQ(s.C(entFieldName), val.(string)))
 		}), nil
-	case resource.RoleValueKey:
-		entFieldName := RoleEntFieldFromSCIM(scimField)
-		return predicate.Role(func(s *sql.Selector) {
+	case resource.IMSValueKey:
+		entFieldName := IMSEntFieldFromSCIM(scimField)
+		return predicate.IMS(func(s *sql.Selector) {
 			//nolint:forcetypeassert
 			s.Where(sql.EQ(s.C(entFieldName), val.(string)))
 		}), nil
@@ -169,14 +169,14 @@ func roleEqualsPredicate(q *ent.RoleQuery, scimField string, val interface{}) (p
 	}
 }
 
-func rolePresencePredicate(scimField string) predicate.Role {
+func imSPresencePredicate(scimField string) predicate.IMS {
 	switch scimField {
-	case resource.RoleDisplayKey:
-		return role.And(role.DisplayNotNil(), role.DisplayNEQ(""))
-	case resource.RoleTypeKey:
-		return role.And(role.TypeNotNil(), role.TypeNEQ(""))
-	case resource.RoleValueKey:
-		return role.And(role.ValueNotNil(), role.ValueNEQ(""))
+	case resource.IMSDisplayKey:
+		return ims.And(ims.DisplayNotNil(), ims.DisplayNEQ(""))
+	case resource.IMSTypeKey:
+		return ims.And(ims.TypeNotNil(), ims.TypeNEQ(""))
+	case resource.IMSValueKey:
+		return ims.And(ims.ValueNotNil(), ims.ValueNEQ(""))
 	default:
 		return nil
 	}

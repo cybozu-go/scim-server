@@ -1,4 +1,4 @@
-//go:generate go run tools/cmd/genent/main.go
+//go:generate ./tools/genent.sh
 //go:generate go generate ./ent
 
 package server

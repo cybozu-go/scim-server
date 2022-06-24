@@ -48,6 +48,19 @@ func (f GroupFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error
 	return f(ctx, mv)
 }
 
+// The IMSFunc type is an adapter to allow the use of ordinary
+// function as IMS mutator.
+type IMSFunc func(context.Context, *ent.IMSMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f IMSFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	mv, ok := m.(*ent.IMSMutation)
+	if !ok {
+		return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.IMSMutation", m)
+	}
+	return f(ctx, mv)
+}
+
 // The NamesFunc type is an adapter to allow the use of ordinary
 // function as Names mutator.
 type NamesFunc func(context.Context, *ent.NamesMutation) (ent.Value, error)
@@ -57,6 +70,32 @@ func (f NamesFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error
 	mv, ok := m.(*ent.NamesMutation)
 	if !ok {
 		return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.NamesMutation", m)
+	}
+	return f(ctx, mv)
+}
+
+// The PhoneNumberFunc type is an adapter to allow the use of ordinary
+// function as PhoneNumber mutator.
+type PhoneNumberFunc func(context.Context, *ent.PhoneNumberMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f PhoneNumberFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	mv, ok := m.(*ent.PhoneNumberMutation)
+	if !ok {
+		return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PhoneNumberMutation", m)
+	}
+	return f(ctx, mv)
+}
+
+// The PhotoFunc type is an adapter to allow the use of ordinary
+// function as Photo mutator.
+type PhotoFunc func(context.Context, *ent.PhotoMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f PhotoFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	mv, ok := m.(*ent.PhotoMutation)
+	if !ok {
+		return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PhotoMutation", m)
 	}
 	return f(ctx, mv)
 }

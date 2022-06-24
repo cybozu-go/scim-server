@@ -8,112 +8,112 @@ import (
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/cybozu-go/scim-server/ent/role"
+	"github.com/cybozu-go/scim-server/ent/ims"
 )
 
-// RoleCreate is the builder for creating a Role entity.
-type RoleCreate struct {
+// IMSCreate is the builder for creating a IMS entity.
+type IMSCreate struct {
 	config
-	mutation *RoleMutation
+	mutation *IMSMutation
 	hooks    []Hook
 }
 
 // SetDisplay sets the "display" field.
-func (rc *RoleCreate) SetDisplay(s string) *RoleCreate {
-	rc.mutation.SetDisplay(s)
-	return rc
+func (ic *IMSCreate) SetDisplay(s string) *IMSCreate {
+	ic.mutation.SetDisplay(s)
+	return ic
 }
 
 // SetNillableDisplay sets the "display" field if the given value is not nil.
-func (rc *RoleCreate) SetNillableDisplay(s *string) *RoleCreate {
+func (ic *IMSCreate) SetNillableDisplay(s *string) *IMSCreate {
 	if s != nil {
-		rc.SetDisplay(*s)
+		ic.SetDisplay(*s)
 	}
-	return rc
+	return ic
 }
 
 // SetPrimary sets the "primary" field.
-func (rc *RoleCreate) SetPrimary(b bool) *RoleCreate {
-	rc.mutation.SetPrimary(b)
-	return rc
+func (ic *IMSCreate) SetPrimary(b bool) *IMSCreate {
+	ic.mutation.SetPrimary(b)
+	return ic
 }
 
 // SetNillablePrimary sets the "primary" field if the given value is not nil.
-func (rc *RoleCreate) SetNillablePrimary(b *bool) *RoleCreate {
+func (ic *IMSCreate) SetNillablePrimary(b *bool) *IMSCreate {
 	if b != nil {
-		rc.SetPrimary(*b)
+		ic.SetPrimary(*b)
 	}
-	return rc
+	return ic
 }
 
 // SetType sets the "type" field.
-func (rc *RoleCreate) SetType(s string) *RoleCreate {
-	rc.mutation.SetType(s)
-	return rc
+func (ic *IMSCreate) SetType(s string) *IMSCreate {
+	ic.mutation.SetType(s)
+	return ic
 }
 
 // SetNillableType sets the "type" field if the given value is not nil.
-func (rc *RoleCreate) SetNillableType(s *string) *RoleCreate {
+func (ic *IMSCreate) SetNillableType(s *string) *IMSCreate {
 	if s != nil {
-		rc.SetType(*s)
+		ic.SetType(*s)
 	}
-	return rc
+	return ic
 }
 
 // SetValue sets the "value" field.
-func (rc *RoleCreate) SetValue(s string) *RoleCreate {
-	rc.mutation.SetValue(s)
-	return rc
+func (ic *IMSCreate) SetValue(s string) *IMSCreate {
+	ic.mutation.SetValue(s)
+	return ic
 }
 
 // SetNillableValue sets the "value" field if the given value is not nil.
-func (rc *RoleCreate) SetNillableValue(s *string) *RoleCreate {
+func (ic *IMSCreate) SetNillableValue(s *string) *IMSCreate {
 	if s != nil {
-		rc.SetValue(*s)
+		ic.SetValue(*s)
 	}
-	return rc
+	return ic
 }
 
-// Mutation returns the RoleMutation object of the builder.
-func (rc *RoleCreate) Mutation() *RoleMutation {
-	return rc.mutation
+// Mutation returns the IMSMutation object of the builder.
+func (ic *IMSCreate) Mutation() *IMSMutation {
+	return ic.mutation
 }
 
-// Save creates the Role in the database.
-func (rc *RoleCreate) Save(ctx context.Context) (*Role, error) {
+// Save creates the IMS in the database.
+func (ic *IMSCreate) Save(ctx context.Context) (*IMS, error) {
 	var (
 		err  error
-		node *Role
+		node *IMS
 	)
-	if len(rc.hooks) == 0 {
-		if err = rc.check(); err != nil {
+	if len(ic.hooks) == 0 {
+		if err = ic.check(); err != nil {
 			return nil, err
 		}
-		node, err = rc.sqlSave(ctx)
+		node, err = ic.sqlSave(ctx)
 	} else {
 		var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-			mutation, ok := m.(*RoleMutation)
+			mutation, ok := m.(*IMSMutation)
 			if !ok {
 				return nil, fmt.Errorf("unexpected mutation type %T", m)
 			}
-			if err = rc.check(); err != nil {
+			if err = ic.check(); err != nil {
 				return nil, err
 			}
-			rc.mutation = mutation
-			if node, err = rc.sqlSave(ctx); err != nil {
+			ic.mutation = mutation
+			if node, err = ic.sqlSave(ctx); err != nil {
 				return nil, err
 			}
 			mutation.id = &node.ID
 			mutation.done = true
 			return node, err
 		})
-		for i := len(rc.hooks) - 1; i >= 0; i-- {
-			if rc.hooks[i] == nil {
+		for i := len(ic.hooks) - 1; i >= 0; i-- {
+			if ic.hooks[i] == nil {
 				return nil, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
 			}
-			mut = rc.hooks[i](mut)
+			mut = ic.hooks[i](mut)
 		}
-		if _, err := mut.Mutate(ctx, rc.mutation); err != nil {
+		if _, err := mut.Mutate(ctx, ic.mutation); err != nil {
 			return nil, err
 		}
 	}
@@ -121,8 +121,8 @@ func (rc *RoleCreate) Save(ctx context.Context) (*Role, error) {
 }
 
 // SaveX calls Save and panics if Save returns an error.
-func (rc *RoleCreate) SaveX(ctx context.Context) *Role {
-	v, err := rc.Save(ctx)
+func (ic *IMSCreate) SaveX(ctx context.Context) *IMS {
+	v, err := ic.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
@@ -130,26 +130,26 @@ func (rc *RoleCreate) SaveX(ctx context.Context) *Role {
 }
 
 // Exec executes the query.
-func (rc *RoleCreate) Exec(ctx context.Context) error {
-	_, err := rc.Save(ctx)
+func (ic *IMSCreate) Exec(ctx context.Context) error {
+	_, err := ic.Save(ctx)
 	return err
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (rc *RoleCreate) ExecX(ctx context.Context) {
-	if err := rc.Exec(ctx); err != nil {
+func (ic *IMSCreate) ExecX(ctx context.Context) {
+	if err := ic.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
 // check runs all checks and user-defined validators on the builder.
-func (rc *RoleCreate) check() error {
+func (ic *IMSCreate) check() error {
 	return nil
 }
 
-func (rc *RoleCreate) sqlSave(ctx context.Context) (*Role, error) {
-	_node, _spec := rc.createSpec()
-	if err := sqlgraph.CreateNode(ctx, rc.driver, _spec); err != nil {
+func (ic *IMSCreate) sqlSave(ctx context.Context) (*IMS, error) {
+	_node, _spec := ic.createSpec()
+	if err := sqlgraph.CreateNode(ctx, ic.driver, _spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{err.Error(), err}
 		}
@@ -160,68 +160,68 @@ func (rc *RoleCreate) sqlSave(ctx context.Context) (*Role, error) {
 	return _node, nil
 }
 
-func (rc *RoleCreate) createSpec() (*Role, *sqlgraph.CreateSpec) {
+func (ic *IMSCreate) createSpec() (*IMS, *sqlgraph.CreateSpec) {
 	var (
-		_node = &Role{config: rc.config}
+		_node = &IMS{config: ic.config}
 		_spec = &sqlgraph.CreateSpec{
-			Table: role.Table,
+			Table: ims.Table,
 			ID: &sqlgraph.FieldSpec{
 				Type:   field.TypeInt,
-				Column: role.FieldID,
+				Column: ims.FieldID,
 			},
 		}
 	)
-	if value, ok := rc.mutation.Display(); ok {
+	if value, ok := ic.mutation.Display(); ok {
 		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
 			Type:   field.TypeString,
 			Value:  value,
-			Column: role.FieldDisplay,
+			Column: ims.FieldDisplay,
 		})
 		_node.Display = value
 	}
-	if value, ok := rc.mutation.Primary(); ok {
+	if value, ok := ic.mutation.Primary(); ok {
 		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
 			Type:   field.TypeBool,
 			Value:  value,
-			Column: role.FieldPrimary,
+			Column: ims.FieldPrimary,
 		})
 		_node.Primary = value
 	}
-	if value, ok := rc.mutation.GetType(); ok {
+	if value, ok := ic.mutation.GetType(); ok {
 		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
 			Type:   field.TypeString,
 			Value:  value,
-			Column: role.FieldType,
+			Column: ims.FieldType,
 		})
 		_node.Type = value
 	}
-	if value, ok := rc.mutation.Value(); ok {
+	if value, ok := ic.mutation.Value(); ok {
 		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
 			Type:   field.TypeString,
 			Value:  value,
-			Column: role.FieldValue,
+			Column: ims.FieldValue,
 		})
 		_node.Value = value
 	}
 	return _node, _spec
 }
 
-// RoleCreateBulk is the builder for creating many Role entities in bulk.
-type RoleCreateBulk struct {
+// IMSCreateBulk is the builder for creating many IMS entities in bulk.
+type IMSCreateBulk struct {
 	config
-	builders []*RoleCreate
+	builders []*IMSCreate
 }
 
-// Save creates the Role entities in the database.
-func (rcb *RoleCreateBulk) Save(ctx context.Context) ([]*Role, error) {
-	specs := make([]*sqlgraph.CreateSpec, len(rcb.builders))
-	nodes := make([]*Role, len(rcb.builders))
-	mutators := make([]Mutator, len(rcb.builders))
-	for i := range rcb.builders {
+// Save creates the IMS entities in the database.
+func (icb *IMSCreateBulk) Save(ctx context.Context) ([]*IMS, error) {
+	specs := make([]*sqlgraph.CreateSpec, len(icb.builders))
+	nodes := make([]*IMS, len(icb.builders))
+	mutators := make([]Mutator, len(icb.builders))
+	for i := range icb.builders {
 		func(i int, root context.Context) {
-			builder := rcb.builders[i]
+			builder := icb.builders[i]
 			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*RoleMutation)
+				mutation, ok := m.(*IMSMutation)
 				if !ok {
 					return nil, fmt.Errorf("unexpected mutation type %T", m)
 				}
@@ -232,11 +232,11 @@ func (rcb *RoleCreateBulk) Save(ctx context.Context) ([]*Role, error) {
 				nodes[i], specs[i] = builder.createSpec()
 				var err error
 				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, rcb.builders[i+1].mutation)
+					_, err = mutators[i+1].Mutate(root, icb.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
 					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, rcb.driver, spec); err != nil {
+					if err = sqlgraph.BatchCreate(ctx, icb.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
 							err = &ConstraintError{err.Error(), err}
 						}
@@ -260,7 +260,7 @@ func (rcb *RoleCreateBulk) Save(ctx context.Context) ([]*Role, error) {
 		}(i, ctx)
 	}
 	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, rcb.builders[0].mutation); err != nil {
+		if _, err := mutators[0].Mutate(ctx, icb.builders[0].mutation); err != nil {
 			return nil, err
 		}
 	}
@@ -268,8 +268,8 @@ func (rcb *RoleCreateBulk) Save(ctx context.Context) ([]*Role, error) {
 }
 
 // SaveX is like Save, but panics if an error occurs.
-func (rcb *RoleCreateBulk) SaveX(ctx context.Context) []*Role {
-	v, err := rcb.Save(ctx)
+func (icb *IMSCreateBulk) SaveX(ctx context.Context) []*IMS {
+	v, err := icb.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
@@ -277,14 +277,14 @@ func (rcb *RoleCreateBulk) SaveX(ctx context.Context) []*Role {
 }
 
 // Exec executes the query.
-func (rcb *RoleCreateBulk) Exec(ctx context.Context) error {
-	_, err := rcb.Save(ctx)
+func (icb *IMSCreateBulk) Exec(ctx context.Context) error {
+	_, err := icb.Save(ctx)
 	return err
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (rcb *RoleCreateBulk) ExecX(ctx context.Context) {
-	if err := rcb.Exec(ctx); err != nil {
+func (icb *IMSCreateBulk) ExecX(ctx context.Context) {
+	if err := icb.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

@@ -47,7 +47,7 @@ type GenEnt struct {
 	cloneDir string
 }
 
-func (g *GenEnt) Close() {
+func (g *GenEnt) RemoveCloneDir() {
 	if g.cloneDir != "" {
 		_ = os.RemoveAll(g.cloneDir)
 	}
@@ -57,13 +57,19 @@ func _main() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	var cloneDir = flag.String("clone-dir", "", "")
+	flag.Parse()
+
 	var g = GenEnt{
 		cloneURL: `https://github.com/cybozu-go/scim.git`,
+		cloneDir: *cloneDir,
 	}
-	defer g.Close()
 
-	if err := g.cloneSCIM(ctx); err != nil {
-		return fmt.Errorf(`failed to clone cybozu-go/scim: %w`, err)
+	if g.cloneDir == "" {
+		if err := g.cloneSCIM(ctx); err != nil {
+			return fmt.Errorf(`failed to clone cybozu-go/scim: %w`, err)
+		}
+		defer g.RemoveCloneDir()
 	}
 
 	var objectsFile = flag.String("objects", filepath.Join(g.cloneDir, `tools`, `cmd`, `genresources`, "objects.yml"), "")
@@ -130,7 +136,7 @@ func generateEnt(object *codegen.Object) error {
 	// for the time being, only generate for hardcoded objects.
 	// later, move this definition to objects.yml
 	switch object.Name(true) {
-	case `User`, `Group`, `Email`, `Names`, `Role`, ``:
+	case `User`, `Group`, `Email`, `Names`, `Role`, `Photo`, `IMS`, `PhoneNumber`:
 	default:
 		return nil
 	}
@@ -148,6 +154,10 @@ func generateEnt(object *codegen.Object) error {
 }
 
 func singularName(s string) string {
+	if s == "ims" {
+		return s
+	}
+
 	s2 := strings.Replace(s, `ddresses`, `ddress`, 1)
 	if s != s2 {
 		s = s2
@@ -161,8 +171,13 @@ func singularName(s string) string {
 
 func relationFilename(s string) string {
 	s = xstrings.Snake(s)
+	s = strings.Replace(s, `im_s`, `ims`, 1)
 	s = strings.Replace(s, `x_509`, `x509`, 1)
 	return singularName(s)
+}
+
+func packageName(s string) string {
+	return strings.ToLower(s)
 }
 
 func generateSchema(object *codegen.Object) error {
@@ -254,7 +269,7 @@ func generateUtilities(object *codegen.Object) error {
 	o.L(`"github.com/cybozu-go/scim/resource"`)
 	o.L(`"github.com/cybozu-go/scim-server/ent"`)
 	o.L(`"github.com/cybozu-go/scim-server/ent/predicate"`)
-	o.L(`"github.com/cybozu-go/scim-server/ent/%s"`, object.Name(false))
+	o.L(`"github.com/cybozu-go/scim-server/ent/%s"`, packageName(object.Name(false)))
 	o.L(`)`)
 
 	if object.String(`schema`) != "" {
@@ -400,7 +415,7 @@ func generateUtilities(object *codegen.Object) error {
 			continue
 		case "ID":
 			o.L(`builder.%[1]s(in.%[1]s.String())`, field.Name(true))
-		case "Schemas", "Meta", "Members", "Addresses", "Emails", "Entitlements", "IMS", "NickName", "Name", "Groups", "PhoneNumbers", "ProfileURL", "Title", "Roles", "X509Certificates":
+		case "Schemas", "Meta", "Members", "Addresses", "Emails", "Entitlements", "IMS", "NickName", "Name", "Groups", "PhoneNumbers", "ProfileURL", "Title", "Roles", "X509Certificates", "Photos":
 			// TODO: FIXME
 		default:
 			o.L(`if !reflect.ValueOf(in.%s).IsZero() {`, field.Name(true))
@@ -428,7 +443,7 @@ func generateUtilities(object *codegen.Object) error {
 		default:
 		}
 		o.L(`case resource.%s%sKey:`, object.Name(true), field.Name(true))
-		o.L(`return %s.Field%s`, object.Name(false), field.Name(true))
+		o.L(`return %s.Field%s`, packageName(object.Name(false)), field.Name(true))
 	}
 	o.L(`default:`)
 	o.L(`return s`)
@@ -480,7 +495,7 @@ func generateUtilities(object *codegen.Object) error {
 				for _, subField := range subObject.Fields() {
 					o.L(`case resource.%s%sKey:`, subObjectName, subField.Name(true))
 					o.L(`//nolint:forcetypeassert`)
-					o.L(`return %s.Has%sWith(%s.%sEQ(val.(%s))), nil`, object.Name(false), field.Name(true), strings.ToLower(singularName(field.Name(false))), subField.Name(true), subField.Type())
+					o.L(`return %s.Has%sWith(%s.%sEQ(val.(%s))), nil`, packageName(object.Name(false)), field.Name(true), strings.ToLower(singularName(field.Name(false))), subField.Name(true), subField.Type())
 				}
 				o.L(`default:`)
 				o.L(`return nil, fmt.Errorf("invalid filter specification: invalid subfield for %%q", field)`)
@@ -517,14 +532,14 @@ func generateUtilities(object *codegen.Object) error {
 			continue
 		}
 		o.L(`case resource.%s%sKey:`, object.Name(true), field.Name(true))
-		o.L(`return %[1]s.And(%[1]s.%[2]sNotNil(), %[1]s.%[2]sNEQ(""))`, object.Name(false), field.Name(true))
+		o.L(`return %[1]s.And(%[1]s.%[2]sNotNil(), %[1]s.%[2]sNEQ(""))`, packageName(object.Name(false)), field.Name(true))
 	}
 	o.L(`default:`)
 	o.L(`return nil`)
 	o.L(`}`)
 	o.L(`}`)
 
-	fn := filepath.Join(xstrings.Snake(object.Name(false)) + `_gen.go`)
+	fn := fmt.Sprintf(`%s_gen.go`, relationFilename(object.Name(false)))
 	if err := o.WriteFile(fn, codegen.WithFormatCode(true)); err != nil {
 		if cfe, ok := err.(codegen.CodeFormatError); ok {
 			fmt.Fprint(os.Stderr, cfe.Source())

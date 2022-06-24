@@ -8,112 +8,112 @@ import (
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/cybozu-go/scim-server/ent/role"
+	"github.com/cybozu-go/scim-server/ent/photo"
 )
 
-// RoleCreate is the builder for creating a Role entity.
-type RoleCreate struct {
+// PhotoCreate is the builder for creating a Photo entity.
+type PhotoCreate struct {
 	config
-	mutation *RoleMutation
+	mutation *PhotoMutation
 	hooks    []Hook
 }
 
 // SetDisplay sets the "display" field.
-func (rc *RoleCreate) SetDisplay(s string) *RoleCreate {
-	rc.mutation.SetDisplay(s)
-	return rc
+func (pc *PhotoCreate) SetDisplay(s string) *PhotoCreate {
+	pc.mutation.SetDisplay(s)
+	return pc
 }
 
 // SetNillableDisplay sets the "display" field if the given value is not nil.
-func (rc *RoleCreate) SetNillableDisplay(s *string) *RoleCreate {
+func (pc *PhotoCreate) SetNillableDisplay(s *string) *PhotoCreate {
 	if s != nil {
-		rc.SetDisplay(*s)
+		pc.SetDisplay(*s)
 	}
-	return rc
+	return pc
 }
 
 // SetPrimary sets the "primary" field.
-func (rc *RoleCreate) SetPrimary(b bool) *RoleCreate {
-	rc.mutation.SetPrimary(b)
-	return rc
+func (pc *PhotoCreate) SetPrimary(b bool) *PhotoCreate {
+	pc.mutation.SetPrimary(b)
+	return pc
 }
 
 // SetNillablePrimary sets the "primary" field if the given value is not nil.
-func (rc *RoleCreate) SetNillablePrimary(b *bool) *RoleCreate {
+func (pc *PhotoCreate) SetNillablePrimary(b *bool) *PhotoCreate {
 	if b != nil {
-		rc.SetPrimary(*b)
+		pc.SetPrimary(*b)
 	}
-	return rc
+	return pc
 }
 
 // SetType sets the "type" field.
-func (rc *RoleCreate) SetType(s string) *RoleCreate {
-	rc.mutation.SetType(s)
-	return rc
+func (pc *PhotoCreate) SetType(s string) *PhotoCreate {
+	pc.mutation.SetType(s)
+	return pc
 }
 
 // SetNillableType sets the "type" field if the given value is not nil.
-func (rc *RoleCreate) SetNillableType(s *string) *RoleCreate {
+func (pc *PhotoCreate) SetNillableType(s *string) *PhotoCreate {
 	if s != nil {
-		rc.SetType(*s)
+		pc.SetType(*s)
 	}
-	return rc
+	return pc
 }
 
 // SetValue sets the "value" field.
-func (rc *RoleCreate) SetValue(s string) *RoleCreate {
-	rc.mutation.SetValue(s)
-	return rc
+func (pc *PhotoCreate) SetValue(s string) *PhotoCreate {
+	pc.mutation.SetValue(s)
+	return pc
 }
 
 // SetNillableValue sets the "value" field if the given value is not nil.
-func (rc *RoleCreate) SetNillableValue(s *string) *RoleCreate {
+func (pc *PhotoCreate) SetNillableValue(s *string) *PhotoCreate {
 	if s != nil {
-		rc.SetValue(*s)
+		pc.SetValue(*s)
 	}
-	return rc
+	return pc
 }
 
-// Mutation returns the RoleMutation object of the builder.
-func (rc *RoleCreate) Mutation() *RoleMutation {
-	return rc.mutation
+// Mutation returns the PhotoMutation object of the builder.
+func (pc *PhotoCreate) Mutation() *PhotoMutation {
+	return pc.mutation
 }
 
-// Save creates the Role in the database.
-func (rc *RoleCreate) Save(ctx context.Context) (*Role, error) {
+// Save creates the Photo in the database.
+func (pc *PhotoCreate) Save(ctx context.Context) (*Photo, error) {
 	var (
 		err  error
-		node *Role
+		node *Photo
 	)
-	if len(rc.hooks) == 0 {
-		if err = rc.check(); err != nil {
+	if len(pc.hooks) == 0 {
+		if err = pc.check(); err != nil {
 			return nil, err
 		}
-		node, err = rc.sqlSave(ctx)
+		node, err = pc.sqlSave(ctx)
 	} else {
 		var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-			mutation, ok := m.(*RoleMutation)
+			mutation, ok := m.(*PhotoMutation)
 			if !ok {
 				return nil, fmt.Errorf("unexpected mutation type %T", m)
 			}
-			if err = rc.check(); err != nil {
+			if err = pc.check(); err != nil {
 				return nil, err
 			}
-			rc.mutation = mutation
-			if node, err = rc.sqlSave(ctx); err != nil {
+			pc.mutation = mutation
+			if node, err = pc.sqlSave(ctx); err != nil {
 				return nil, err
 			}
 			mutation.id = &node.ID
 			mutation.done = true
 			return node, err
 		})
-		for i := len(rc.hooks) - 1; i >= 0; i-- {
-			if rc.hooks[i] == nil {
+		for i := len(pc.hooks) - 1; i >= 0; i-- {
+			if pc.hooks[i] == nil {
 				return nil, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
 			}
-			mut = rc.hooks[i](mut)
+			mut = pc.hooks[i](mut)
 		}
-		if _, err := mut.Mutate(ctx, rc.mutation); err != nil {
+		if _, err := mut.Mutate(ctx, pc.mutation); err != nil {
 			return nil, err
 		}
 	}
@@ -121,8 +121,8 @@ func (rc *RoleCreate) Save(ctx context.Context) (*Role, error) {
 }
 
 // SaveX calls Save and panics if Save returns an error.
-func (rc *RoleCreate) SaveX(ctx context.Context) *Role {
-	v, err := rc.Save(ctx)
+func (pc *PhotoCreate) SaveX(ctx context.Context) *Photo {
+	v, err := pc.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
@@ -130,26 +130,26 @@ func (rc *RoleCreate) SaveX(ctx context.Context) *Role {
 }
 
 // Exec executes the query.
-func (rc *RoleCreate) Exec(ctx context.Context) error {
-	_, err := rc.Save(ctx)
+func (pc *PhotoCreate) Exec(ctx context.Context) error {
+	_, err := pc.Save(ctx)
 	return err
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (rc *RoleCreate) ExecX(ctx context.Context) {
-	if err := rc.Exec(ctx); err != nil {
+func (pc *PhotoCreate) ExecX(ctx context.Context) {
+	if err := pc.Exec(ctx); err != nil {
 		panic(err)
 	}
 }
 
 // check runs all checks and user-defined validators on the builder.
-func (rc *RoleCreate) check() error {
+func (pc *PhotoCreate) check() error {
 	return nil
 }
 
-func (rc *RoleCreate) sqlSave(ctx context.Context) (*Role, error) {
-	_node, _spec := rc.createSpec()
-	if err := sqlgraph.CreateNode(ctx, rc.driver, _spec); err != nil {
+func (pc *PhotoCreate) sqlSave(ctx context.Context) (*Photo, error) {
+	_node, _spec := pc.createSpec()
+	if err := sqlgraph.CreateNode(ctx, pc.driver, _spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
 			err = &ConstraintError{err.Error(), err}
 		}
@@ -160,68 +160,68 @@ func (rc *RoleCreate) sqlSave(ctx context.Context) (*Role, error) {
 	return _node, nil
 }
 
-func (rc *RoleCreate) createSpec() (*Role, *sqlgraph.CreateSpec) {
+func (pc *PhotoCreate) createSpec() (*Photo, *sqlgraph.CreateSpec) {
 	var (
-		_node = &Role{config: rc.config}
+		_node = &Photo{config: pc.config}
 		_spec = &sqlgraph.CreateSpec{
-			Table: role.Table,
+			Table: photo.Table,
 			ID: &sqlgraph.FieldSpec{
 				Type:   field.TypeInt,
-				Column: role.FieldID,
+				Column: photo.FieldID,
 			},
 		}
 	)
-	if value, ok := rc.mutation.Display(); ok {
+	if value, ok := pc.mutation.Display(); ok {
 		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
 			Type:   field.TypeString,
 			Value:  value,
-			Column: role.FieldDisplay,
+			Column: photo.FieldDisplay,
 		})
 		_node.Display = value
 	}
-	if value, ok := rc.mutation.Primary(); ok {
+	if value, ok := pc.mutation.Primary(); ok {
 		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
 			Type:   field.TypeBool,
 			Value:  value,
-			Column: role.FieldPrimary,
+			Column: photo.FieldPrimary,
 		})
 		_node.Primary = value
 	}
-	if value, ok := rc.mutation.GetType(); ok {
+	if value, ok := pc.mutation.GetType(); ok {
 		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
 			Type:   field.TypeString,
 			Value:  value,
-			Column: role.FieldType,
+			Column: photo.FieldType,
 		})
 		_node.Type = value
 	}
-	if value, ok := rc.mutation.Value(); ok {
+	if value, ok := pc.mutation.Value(); ok {
 		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
 			Type:   field.TypeString,
 			Value:  value,
-			Column: role.FieldValue,
+			Column: photo.FieldValue,
 		})
 		_node.Value = value
 	}
 	return _node, _spec
 }
 
-// RoleCreateBulk is the builder for creating many Role entities in bulk.
-type RoleCreateBulk struct {
+// PhotoCreateBulk is the builder for creating many Photo entities in bulk.
+type PhotoCreateBulk struct {
 	config
-	builders []*RoleCreate
+	builders []*PhotoCreate
 }
 
-// Save creates the Role entities in the database.
-func (rcb *RoleCreateBulk) Save(ctx context.Context) ([]*Role, error) {
-	specs := make([]*sqlgraph.CreateSpec, len(rcb.builders))
-	nodes := make([]*Role, len(rcb.builders))
-	mutators := make([]Mutator, len(rcb.builders))
-	for i := range rcb.builders {
+// Save creates the Photo entities in the database.
+func (pcb *PhotoCreateBulk) Save(ctx context.Context) ([]*Photo, error) {
+	specs := make([]*sqlgraph.CreateSpec, len(pcb.builders))
+	nodes := make([]*Photo, len(pcb.builders))
+	mutators := make([]Mutator, len(pcb.builders))
+	for i := range pcb.builders {
 		func(i int, root context.Context) {
-			builder := rcb.builders[i]
+			builder := pcb.builders[i]
 			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-				mutation, ok := m.(*RoleMutation)
+				mutation, ok := m.(*PhotoMutation)
 				if !ok {
 					return nil, fmt.Errorf("unexpected mutation type %T", m)
 				}
@@ -232,11 +232,11 @@ func (rcb *RoleCreateBulk) Save(ctx context.Context) ([]*Role, error) {
 				nodes[i], specs[i] = builder.createSpec()
 				var err error
 				if i < len(mutators)-1 {
-					_, err = mutators[i+1].Mutate(root, rcb.builders[i+1].mutation)
+					_, err = mutators[i+1].Mutate(root, pcb.builders[i+1].mutation)
 				} else {
 					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
 					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, rcb.driver, spec); err != nil {
+					if err = sqlgraph.BatchCreate(ctx, pcb.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
 							err = &ConstraintError{err.Error(), err}
 						}
@@ -260,7 +260,7 @@ func (rcb *RoleCreateBulk) Save(ctx context.Context) ([]*Role, error) {
 		}(i, ctx)
 	}
 	if len(mutators) > 0 {
-		if _, err := mutators[0].Mutate(ctx, rcb.builders[0].mutation); err != nil {
+		if _, err := mutators[0].Mutate(ctx, pcb.builders[0].mutation); err != nil {
 			return nil, err
 		}
 	}
@@ -268,8 +268,8 @@ func (rcb *RoleCreateBulk) Save(ctx context.Context) ([]*Role, error) {
 }
 
 // SaveX is like Save, but panics if an error occurs.
-func (rcb *RoleCreateBulk) SaveX(ctx context.Context) []*Role {
-	v, err := rcb.Save(ctx)
+func (pcb *PhotoCreateBulk) SaveX(ctx context.Context) []*Photo {
+	v, err := pcb.Save(ctx)
 	if err != nil {
 		panic(err)
 	}
@@ -277,14 +277,14 @@ func (rcb *RoleCreateBulk) SaveX(ctx context.Context) []*Role {
 }
 
 // Exec executes the query.
-func (rcb *RoleCreateBulk) Exec(ctx context.Context) error {
-	_, err := rcb.Save(ctx)
+func (pcb *PhotoCreateBulk) Exec(ctx context.Context) error {
+	_, err := pcb.Save(ctx)
 	return err
 }
 
 // ExecX is like Exec, but panics if an error occurs.
-func (rcb *RoleCreateBulk) ExecX(ctx context.Context) {
-	if err := rcb.Exec(ctx); err != nil {
+func (pcb *PhotoCreateBulk) ExecX(ctx context.Context) {
+	if err := pcb.Exec(ctx); err != nil {
 		panic(err)
 	}
 }

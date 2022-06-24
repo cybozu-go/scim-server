@@ -13,7 +13,10 @@ import (
 	"github.com/cybozu-go/scim-server/ent/email"
 	"github.com/cybozu-go/scim-server/ent/entitlement"
 	"github.com/cybozu-go/scim-server/ent/group"
+	"github.com/cybozu-go/scim-server/ent/ims"
 	"github.com/cybozu-go/scim-server/ent/names"
+	"github.com/cybozu-go/scim-server/ent/phonenumber"
+	"github.com/cybozu-go/scim-server/ent/photo"
 	"github.com/cybozu-go/scim-server/ent/role"
 	"github.com/cybozu-go/scim-server/ent/user"
 
@@ -33,8 +36,14 @@ type Client struct {
 	Entitlement *EntitlementClient
 	// Group is the client for interacting with the Group builders.
 	Group *GroupClient
+	// IMS is the client for interacting with the IMS builders.
+	IMS *IMSClient
 	// Names is the client for interacting with the Names builders.
 	Names *NamesClient
+	// PhoneNumber is the client for interacting with the PhoneNumber builders.
+	PhoneNumber *PhoneNumberClient
+	// Photo is the client for interacting with the Photo builders.
+	Photo *PhotoClient
 	// Role is the client for interacting with the Role builders.
 	Role *RoleClient
 	// User is the client for interacting with the User builders.
@@ -55,7 +64,10 @@ func (c *Client) init() {
 	c.Email = NewEmailClient(c.config)
 	c.Entitlement = NewEntitlementClient(c.config)
 	c.Group = NewGroupClient(c.config)
+	c.IMS = NewIMSClient(c.config)
 	c.Names = NewNamesClient(c.config)
+	c.PhoneNumber = NewPhoneNumberClient(c.config)
+	c.Photo = NewPhotoClient(c.config)
 	c.Role = NewRoleClient(c.config)
 	c.User = NewUserClient(c.config)
 }
@@ -94,7 +106,10 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Email:       NewEmailClient(cfg),
 		Entitlement: NewEntitlementClient(cfg),
 		Group:       NewGroupClient(cfg),
+		IMS:         NewIMSClient(cfg),
 		Names:       NewNamesClient(cfg),
+		PhoneNumber: NewPhoneNumberClient(cfg),
+		Photo:       NewPhotoClient(cfg),
 		Role:        NewRoleClient(cfg),
 		User:        NewUserClient(cfg),
 	}, nil
@@ -119,7 +134,10 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Email:       NewEmailClient(cfg),
 		Entitlement: NewEntitlementClient(cfg),
 		Group:       NewGroupClient(cfg),
+		IMS:         NewIMSClient(cfg),
 		Names:       NewNamesClient(cfg),
+		PhoneNumber: NewPhoneNumberClient(cfg),
+		Photo:       NewPhotoClient(cfg),
 		Role:        NewRoleClient(cfg),
 		User:        NewUserClient(cfg),
 	}, nil
@@ -154,7 +172,10 @@ func (c *Client) Use(hooks ...Hook) {
 	c.Email.Use(hooks...)
 	c.Entitlement.Use(hooks...)
 	c.Group.Use(hooks...)
+	c.IMS.Use(hooks...)
 	c.Names.Use(hooks...)
+	c.PhoneNumber.Use(hooks...)
+	c.Photo.Use(hooks...)
 	c.Role.Use(hooks...)
 	c.User.Use(hooks...)
 }
@@ -493,6 +514,96 @@ func (c *GroupClient) Hooks() []Hook {
 	return c.hooks.Group
 }
 
+// IMSClient is a client for the IMS schema.
+type IMSClient struct {
+	config
+}
+
+// NewIMSClient returns a client for the IMS from the given config.
+func NewIMSClient(c config) *IMSClient {
+	return &IMSClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `ims.Hooks(f(g(h())))`.
+func (c *IMSClient) Use(hooks ...Hook) {
+	c.hooks.IMS = append(c.hooks.IMS, hooks...)
+}
+
+// Create returns a create builder for IMS.
+func (c *IMSClient) Create() *IMSCreate {
+	mutation := newIMSMutation(c.config, OpCreate)
+	return &IMSCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of IMS entities.
+func (c *IMSClient) CreateBulk(builders ...*IMSCreate) *IMSCreateBulk {
+	return &IMSCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for IMS.
+func (c *IMSClient) Update() *IMSUpdate {
+	mutation := newIMSMutation(c.config, OpUpdate)
+	return &IMSUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *IMSClient) UpdateOne(i *IMS) *IMSUpdateOne {
+	mutation := newIMSMutation(c.config, OpUpdateOne, withIMS(i))
+	return &IMSUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *IMSClient) UpdateOneID(id int) *IMSUpdateOne {
+	mutation := newIMSMutation(c.config, OpUpdateOne, withIMSID(id))
+	return &IMSUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for IMS.
+func (c *IMSClient) Delete() *IMSDelete {
+	mutation := newIMSMutation(c.config, OpDelete)
+	return &IMSDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a delete builder for the given entity.
+func (c *IMSClient) DeleteOne(i *IMS) *IMSDeleteOne {
+	return c.DeleteOneID(i.ID)
+}
+
+// DeleteOneID returns a delete builder for the given id.
+func (c *IMSClient) DeleteOneID(id int) *IMSDeleteOne {
+	builder := c.Delete().Where(ims.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &IMSDeleteOne{builder}
+}
+
+// Query returns a query builder for IMS.
+func (c *IMSClient) Query() *IMSQuery {
+	return &IMSQuery{
+		config: c.config,
+	}
+}
+
+// Get returns a IMS entity by its id.
+func (c *IMSClient) Get(ctx context.Context, id int) (*IMS, error) {
+	return c.Query().Where(ims.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *IMSClient) GetX(ctx context.Context, id int) *IMS {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *IMSClient) Hooks() []Hook {
+	return c.hooks.IMS
+}
+
 // NamesClient is a client for the Names schema.
 type NamesClient struct {
 	config
@@ -581,6 +692,186 @@ func (c *NamesClient) GetX(ctx context.Context, id int) *Names {
 // Hooks returns the client hooks.
 func (c *NamesClient) Hooks() []Hook {
 	return c.hooks.Names
+}
+
+// PhoneNumberClient is a client for the PhoneNumber schema.
+type PhoneNumberClient struct {
+	config
+}
+
+// NewPhoneNumberClient returns a client for the PhoneNumber from the given config.
+func NewPhoneNumberClient(c config) *PhoneNumberClient {
+	return &PhoneNumberClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `phonenumber.Hooks(f(g(h())))`.
+func (c *PhoneNumberClient) Use(hooks ...Hook) {
+	c.hooks.PhoneNumber = append(c.hooks.PhoneNumber, hooks...)
+}
+
+// Create returns a create builder for PhoneNumber.
+func (c *PhoneNumberClient) Create() *PhoneNumberCreate {
+	mutation := newPhoneNumberMutation(c.config, OpCreate)
+	return &PhoneNumberCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of PhoneNumber entities.
+func (c *PhoneNumberClient) CreateBulk(builders ...*PhoneNumberCreate) *PhoneNumberCreateBulk {
+	return &PhoneNumberCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for PhoneNumber.
+func (c *PhoneNumberClient) Update() *PhoneNumberUpdate {
+	mutation := newPhoneNumberMutation(c.config, OpUpdate)
+	return &PhoneNumberUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *PhoneNumberClient) UpdateOne(pn *PhoneNumber) *PhoneNumberUpdateOne {
+	mutation := newPhoneNumberMutation(c.config, OpUpdateOne, withPhoneNumber(pn))
+	return &PhoneNumberUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *PhoneNumberClient) UpdateOneID(id int) *PhoneNumberUpdateOne {
+	mutation := newPhoneNumberMutation(c.config, OpUpdateOne, withPhoneNumberID(id))
+	return &PhoneNumberUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for PhoneNumber.
+func (c *PhoneNumberClient) Delete() *PhoneNumberDelete {
+	mutation := newPhoneNumberMutation(c.config, OpDelete)
+	return &PhoneNumberDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a delete builder for the given entity.
+func (c *PhoneNumberClient) DeleteOne(pn *PhoneNumber) *PhoneNumberDeleteOne {
+	return c.DeleteOneID(pn.ID)
+}
+
+// DeleteOneID returns a delete builder for the given id.
+func (c *PhoneNumberClient) DeleteOneID(id int) *PhoneNumberDeleteOne {
+	builder := c.Delete().Where(phonenumber.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &PhoneNumberDeleteOne{builder}
+}
+
+// Query returns a query builder for PhoneNumber.
+func (c *PhoneNumberClient) Query() *PhoneNumberQuery {
+	return &PhoneNumberQuery{
+		config: c.config,
+	}
+}
+
+// Get returns a PhoneNumber entity by its id.
+func (c *PhoneNumberClient) Get(ctx context.Context, id int) (*PhoneNumber, error) {
+	return c.Query().Where(phonenumber.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *PhoneNumberClient) GetX(ctx context.Context, id int) *PhoneNumber {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *PhoneNumberClient) Hooks() []Hook {
+	return c.hooks.PhoneNumber
+}
+
+// PhotoClient is a client for the Photo schema.
+type PhotoClient struct {
+	config
+}
+
+// NewPhotoClient returns a client for the Photo from the given config.
+func NewPhotoClient(c config) *PhotoClient {
+	return &PhotoClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `photo.Hooks(f(g(h())))`.
+func (c *PhotoClient) Use(hooks ...Hook) {
+	c.hooks.Photo = append(c.hooks.Photo, hooks...)
+}
+
+// Create returns a create builder for Photo.
+func (c *PhotoClient) Create() *PhotoCreate {
+	mutation := newPhotoMutation(c.config, OpCreate)
+	return &PhotoCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Photo entities.
+func (c *PhotoClient) CreateBulk(builders ...*PhotoCreate) *PhotoCreateBulk {
+	return &PhotoCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Photo.
+func (c *PhotoClient) Update() *PhotoUpdate {
+	mutation := newPhotoMutation(c.config, OpUpdate)
+	return &PhotoUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *PhotoClient) UpdateOne(ph *Photo) *PhotoUpdateOne {
+	mutation := newPhotoMutation(c.config, OpUpdateOne, withPhoto(ph))
+	return &PhotoUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *PhotoClient) UpdateOneID(id int) *PhotoUpdateOne {
+	mutation := newPhotoMutation(c.config, OpUpdateOne, withPhotoID(id))
+	return &PhotoUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Photo.
+func (c *PhotoClient) Delete() *PhotoDelete {
+	mutation := newPhotoMutation(c.config, OpDelete)
+	return &PhotoDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a delete builder for the given entity.
+func (c *PhotoClient) DeleteOne(ph *Photo) *PhotoDeleteOne {
+	return c.DeleteOneID(ph.ID)
+}
+
+// DeleteOneID returns a delete builder for the given id.
+func (c *PhotoClient) DeleteOneID(id int) *PhotoDeleteOne {
+	builder := c.Delete().Where(photo.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &PhotoDeleteOne{builder}
+}
+
+// Query returns a query builder for Photo.
+func (c *PhotoClient) Query() *PhotoQuery {
+	return &PhotoQuery{
+		config: c.config,
+	}
+}
+
+// Get returns a Photo entity by its id.
+func (c *PhotoClient) Get(ctx context.Context, id int) (*Photo, error) {
+	return c.Query().Where(photo.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *PhotoClient) GetX(ctx context.Context, id int) *Photo {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *PhotoClient) Hooks() []Hook {
+	return c.hooks.Photo
 }
 
 // RoleClient is a client for the Role schema.
@@ -806,6 +1097,22 @@ func (c *UserClient) QueryName(u *User) *NamesQuery {
 	return query
 }
 
+// QueryEntitlements queries the entitlements edge of a User.
+func (c *UserClient) QueryEntitlements(u *User) *EntitlementQuery {
+	query := &EntitlementQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := u.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(entitlement.Table, entitlement.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.EntitlementsTable, user.EntitlementsColumn),
+		)
+		fromV = sqlgraph.Neighbors(u.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryRoles queries the roles edge of a User.
 func (c *UserClient) QueryRoles(u *User) *RoleQuery {
 	query := &RoleQuery{config: c.config}
@@ -815,6 +1122,54 @@ func (c *UserClient) QueryRoles(u *User) *RoleQuery {
 			sqlgraph.From(user.Table, user.FieldID, id),
 			sqlgraph.To(role.Table, role.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, user.RolesTable, user.RolesColumn),
+		)
+		fromV = sqlgraph.Neighbors(u.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryImses queries the imses edge of a User.
+func (c *UserClient) QueryImses(u *User) *IMSQuery {
+	query := &IMSQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := u.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(ims.Table, ims.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.ImsesTable, user.ImsesColumn),
+		)
+		fromV = sqlgraph.Neighbors(u.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryPhoneNumbers queries the phone_numbers edge of a User.
+func (c *UserClient) QueryPhoneNumbers(u *User) *PhoneNumberQuery {
+	query := &PhoneNumberQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := u.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(phonenumber.Table, phonenumber.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.PhoneNumbersTable, user.PhoneNumbersColumn),
+		)
+		fromV = sqlgraph.Neighbors(u.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryPhotos queries the photos edge of a User.
+func (c *UserClient) QueryPhotos(u *User) *PhotoQuery {
+	query := &PhotoQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := u.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(photo.Table, photo.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.PhotosTable, user.PhotosColumn),
 		)
 		fromV = sqlgraph.Neighbors(u.driver.Dialect(), step)
 		return fromV, nil

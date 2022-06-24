@@ -16,7 +16,7 @@ import (
 func userLoadEntFields(q *ent.UserQuery, scimFields, excludedFields []string) {
 	fields := make(map[string]struct{})
 	if len(scimFields) == 0 {
-		scimFields = []string{resource.UserActiveKey, resource.UserAddressesKey, resource.UserDisplayNameKey, resource.UserEmailsKey, resource.UserEntitlementsKey, resource.UserExternalIDKey, resource.UserGroupsKey, resource.UserIDKey, resource.UserIMSKey, resource.UserLocaleKey, resource.UserNameKey, resource.UserNickNameKey, resource.UserPasswordKey, resource.UserPhoneNumbersKey, resource.UserPreferredLanguageKey, resource.UserProfileURLKey, resource.UserRolesKey, resource.UserTimezoneKey, resource.UserTitleKey, resource.UserUserNameKey, resource.UserUserTypeKey, resource.UserX509CertificatesKey}
+		scimFields = []string{resource.UserActiveKey, resource.UserAddressesKey, resource.UserDisplayNameKey, resource.UserEmailsKey, resource.UserEntitlementsKey, resource.UserExternalIDKey, resource.UserGroupsKey, resource.UserIDKey, resource.UserIMSKey, resource.UserLocaleKey, resource.UserNameKey, resource.UserNickNameKey, resource.UserPasswordKey, resource.UserPhoneNumbersKey, resource.UserPhotosKey, resource.UserPreferredLanguageKey, resource.UserProfileURLKey, resource.UserRolesKey, resource.UserTimezoneKey, resource.UserTitleKey, resource.UserUserNameKey, resource.UserUserTypeKey, resource.UserX509CertificatesKey}
 	}
 
 	for _, name := range scimFields {
@@ -53,6 +53,7 @@ func userLoadEntFields(q *ent.UserQuery, scimFields, excludedFields []string) {
 		case resource.UserPasswordKey:
 			selectNames = append(selectNames, user.FieldPassword)
 		case resource.UserPhoneNumbersKey:
+		case resource.UserPhotosKey:
 		case resource.UserPreferredLanguageKey:
 			selectNames = append(selectNames, user.FieldPreferredLanguage)
 		case resource.UserProfileURLKey:

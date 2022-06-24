@@ -39,6 +39,7 @@ var (
 		{Name: "type", Type: field.TypeString},
 		{Name: "primary", Type: field.TypeBool},
 		{Name: "entitlement_user", Type: field.TypeUUID, Nullable: true},
+		{Name: "user_entitlements", Type: field.TypeUUID, Nullable: true},
 	}
 	// EntitlementsTable holds the schema information for the "entitlements" table.
 	EntitlementsTable = &schema.Table{
@@ -49,6 +50,12 @@ var (
 			{
 				Symbol:     "entitlements_users_user",
 				Columns:    []*schema.Column{EntitlementsColumns[5]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+			{
+				Symbol:     "entitlements_users_entitlements",
+				Columns:    []*schema.Column{EntitlementsColumns[6]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -82,6 +89,29 @@ var (
 			},
 		},
 	}
+	// ImSsColumns holds the columns for the "im_ss" table.
+	ImSsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "display", Type: field.TypeString, Nullable: true},
+		{Name: "primary", Type: field.TypeBool, Nullable: true},
+		{Name: "type", Type: field.TypeString, Nullable: true},
+		{Name: "value", Type: field.TypeString, Nullable: true},
+		{Name: "user_imses", Type: field.TypeUUID, Nullable: true},
+	}
+	// ImSsTable holds the schema information for the "im_ss" table.
+	ImSsTable = &schema.Table{
+		Name:       "im_ss",
+		Columns:    ImSsColumns,
+		PrimaryKey: []*schema.Column{ImSsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "im_ss_users_imses",
+				Columns:    []*schema.Column{ImSsColumns[5]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+	}
 	// NamesColumns holds the columns for the "names" table.
 	NamesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -107,13 +137,59 @@ var (
 			},
 		},
 	}
+	// PhoneNumbersColumns holds the columns for the "phone_numbers" table.
+	PhoneNumbersColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "display", Type: field.TypeString, Nullable: true},
+		{Name: "primary", Type: field.TypeBool, Nullable: true},
+		{Name: "type", Type: field.TypeString, Nullable: true},
+		{Name: "value", Type: field.TypeString, Nullable: true},
+		{Name: "user_phone_numbers", Type: field.TypeUUID, Nullable: true},
+	}
+	// PhoneNumbersTable holds the schema information for the "phone_numbers" table.
+	PhoneNumbersTable = &schema.Table{
+		Name:       "phone_numbers",
+		Columns:    PhoneNumbersColumns,
+		PrimaryKey: []*schema.Column{PhoneNumbersColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "phone_numbers_users_phone_numbers",
+				Columns:    []*schema.Column{PhoneNumbersColumns[5]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+	}
+	// PhotosColumns holds the columns for the "photos" table.
+	PhotosColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "display", Type: field.TypeString, Nullable: true},
+		{Name: "primary", Type: field.TypeBool, Nullable: true},
+		{Name: "type", Type: field.TypeString, Nullable: true},
+		{Name: "value", Type: field.TypeString, Nullable: true},
+		{Name: "user_photos", Type: field.TypeUUID, Nullable: true},
+	}
+	// PhotosTable holds the schema information for the "photos" table.
+	PhotosTable = &schema.Table{
+		Name:       "photos",
+		Columns:    PhotosColumns,
+		PrimaryKey: []*schema.Column{PhotosColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "photos_users_photos",
+				Columns:    []*schema.Column{PhotosColumns[5]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+	}
 	// RolesColumns holds the columns for the "roles" table.
 	RolesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "display", Type: field.TypeString, Nullable: true},
 		{Name: "primary", Type: field.TypeBool, Nullable: true},
 		{Name: "type", Type: field.TypeString, Nullable: true},
-		{Name: "value", Type: field.TypeString},
+		{Name: "value", Type: field.TypeString, Nullable: true},
 		{Name: "user_roles", Type: field.TypeUUID, Nullable: true},
 	}
 	// RolesTable holds the schema information for the "roles" table.
@@ -166,7 +242,10 @@ var (
 		EmailsTable,
 		EntitlementsTable,
 		GroupsTable,
+		ImSsTable,
 		NamesTable,
+		PhoneNumbersTable,
+		PhotosTable,
 		RolesTable,
 		UsersTable,
 	}
@@ -175,9 +254,13 @@ var (
 func init() {
 	EmailsTable.ForeignKeys[0].RefTable = UsersTable
 	EntitlementsTable.ForeignKeys[0].RefTable = UsersTable
+	EntitlementsTable.ForeignKeys[1].RefTable = UsersTable
 	GroupsTable.ForeignKeys[0].RefTable = GroupsTable
 	GroupsTable.ForeignKeys[1].RefTable = UsersTable
+	ImSsTable.ForeignKeys[0].RefTable = UsersTable
 	NamesTable.ForeignKeys[0].RefTable = UsersTable
+	PhoneNumbersTable.ForeignKeys[0].RefTable = UsersTable
+	PhotosTable.ForeignKeys[0].RefTable = UsersTable
 	RolesTable.ForeignKeys[0].RefTable = UsersTable
 	UsersTable.ForeignKeys[0].RefTable = GroupsTable
 }

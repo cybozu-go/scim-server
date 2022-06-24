@@ -27,7 +27,10 @@ type hooks struct {
 	Email       []ent.Hook
 	Entitlement []ent.Hook
 	Group       []ent.Hook
+	IMS         []ent.Hook
 	Names       []ent.Hook
+	PhoneNumber []ent.Hook
+	Photo       []ent.Hook
 	Role        []ent.Hook
 	User        []ent.Hook
 }
