@@ -211,7 +211,7 @@ func (b *Backend) createEmails(in *resource.User, h hash.Hash) ([]*ent.Email, er
 
 	inbound := in.Emails()
 	sort.Slice(inbound, func(i, j int) bool {
-		return inbound[i].Value() <= inbound[i].Value()
+		return inbound[i].Value() <= inbound[j].Value()
 	})
 
 	var hasPrimary bool
