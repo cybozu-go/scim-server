@@ -70,6 +70,7 @@ func userLoadEntFields(q *ent.UserQuery, scimFields, excludedFields []string) {
 		case resource.UserX509CertificatesKey:
 		}
 	}
+	selectNames = append(selectNames, user.FieldEtag)
 	q.Select(selectNames...)
 }
 
@@ -85,6 +86,7 @@ func UserResourceFromEnt(in *ent.User) (*resource.User, error) {
 	meta, err := b.Meta().
 		ResourceType("User").
 		Location(userLocation(in.ID.String())).
+		Version(in.Etag).
 		Build()
 	if err != nil {
 		return nil, fmt.Errorf("failed to build meta information for User")

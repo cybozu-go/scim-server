@@ -246,6 +246,13 @@ func generateSchema(object *codegen.Object) error {
 		}
 		o.R(`,`)
 	}
+
+	// For Users and Groups, we need to store/create ETags
+	switch object.Name(true) {
+	case `User`, `Group`:
+		o.L(`field.String("etag").NotEmpty(),`)
+	default:
+	}
 	o.L(`}`)
 	o.L(`}`)
 
@@ -342,6 +349,11 @@ func generateUtilities(object *codegen.Object) error {
 		}
 		o.L(`}`)
 		o.L(`}`)
+		// there are some fields that MUST exist
+		switch object.Name(true) {
+		case `User`, `Group`:
+			o.L(`selectNames = append(selectNames, %s.FieldEtag)`, object.Name(false))
+		}
 		o.L(`q.Select(selectNames...)`)
 		o.L(`}`)
 	}
@@ -362,6 +374,7 @@ func generateUtilities(object *codegen.Object) error {
 		o.LL(`meta, err := b.Meta().`)
 		o.L(`ResourceType(%q).`, object.Name(true))
 		o.L(`Location(%sLocation(in.ID.String())).`, object.Name(false))
+		o.L(`Version(in.Etag).`)
 		o.L(`Build()`)
 		o.L(`if err != nil {`)
 		o.L(`return nil, fmt.Errorf("failed to build meta information for %s")`, object.Name(true))
@@ -369,6 +382,7 @@ func generateUtilities(object *codegen.Object) error {
 		o.LL(`builder.`)
 		o.L(`Meta(meta)`)
 	}
+
 	for _, field := range object.Fields() {
 		if field.Name(false) == "schemas" {
 			continue

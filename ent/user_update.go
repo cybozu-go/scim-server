@@ -262,6 +262,12 @@ func (uu *UserUpdate) ClearUserType() *UserUpdate {
 	return uu
 }
 
+// SetEtag sets the "etag" field.
+func (uu *UserUpdate) SetEtag(s string) *UserUpdate {
+	uu.mutation.SetEtag(s)
+	return uu
+}
+
 // AddGroupIDs adds the "groups" edge to the Group entity by IDs.
 func (uu *UserUpdate) AddGroupIDs(ids ...uuid.UUID) *UserUpdate {
 	uu.mutation.AddGroupIDs(ids...)
@@ -627,6 +633,11 @@ func (uu *UserUpdate) check() error {
 			return &ValidationError{Name: "userName", err: fmt.Errorf(`ent: validator failed for field "User.userName": %w`, err)}
 		}
 	}
+	if v, ok := uu.mutation.Etag(); ok {
+		if err := user.EtagValidator(v); err != nil {
+			return &ValidationError{Name: "etag", err: fmt.Errorf(`ent: validator failed for field "User.etag": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -798,12 +809,19 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Column: user.FieldUserType,
 		})
 	}
+	if value, ok := uu.mutation.Etag(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: user.FieldEtag,
+		})
+	}
 	if uu.mutation.GroupsCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
+			Rel:     sqlgraph.M2M,
 			Inverse: false,
 			Table:   user.GroupsTable,
-			Columns: []string{user.GroupsColumn},
+			Columns: user.GroupsPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{
@@ -816,10 +834,10 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if nodes := uu.mutation.RemovedGroupsIDs(); len(nodes) > 0 && !uu.mutation.GroupsCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
+			Rel:     sqlgraph.M2M,
 			Inverse: false,
 			Table:   user.GroupsTable,
-			Columns: []string{user.GroupsColumn},
+			Columns: user.GroupsPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{
@@ -835,10 +853,10 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if nodes := uu.mutation.GroupsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
+			Rel:     sqlgraph.M2M,
 			Inverse: false,
 			Table:   user.GroupsTable,
-			Columns: []string{user.GroupsColumn},
+			Columns: user.GroupsPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{
@@ -1475,6 +1493,12 @@ func (uuo *UserUpdateOne) ClearUserType() *UserUpdateOne {
 	return uuo
 }
 
+// SetEtag sets the "etag" field.
+func (uuo *UserUpdateOne) SetEtag(s string) *UserUpdateOne {
+	uuo.mutation.SetEtag(s)
+	return uuo
+}
+
 // AddGroupIDs adds the "groups" edge to the Group entity by IDs.
 func (uuo *UserUpdateOne) AddGroupIDs(ids ...uuid.UUID) *UserUpdateOne {
 	uuo.mutation.AddGroupIDs(ids...)
@@ -1847,6 +1871,11 @@ func (uuo *UserUpdateOne) check() error {
 			return &ValidationError{Name: "userName", err: fmt.Errorf(`ent: validator failed for field "User.userName": %w`, err)}
 		}
 	}
+	if v, ok := uuo.mutation.Etag(); ok {
+		if err := user.EtagValidator(v); err != nil {
+			return &ValidationError{Name: "etag", err: fmt.Errorf(`ent: validator failed for field "User.etag": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -2035,12 +2064,19 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 			Column: user.FieldUserType,
 		})
 	}
+	if value, ok := uuo.mutation.Etag(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: user.FieldEtag,
+		})
+	}
 	if uuo.mutation.GroupsCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
+			Rel:     sqlgraph.M2M,
 			Inverse: false,
 			Table:   user.GroupsTable,
-			Columns: []string{user.GroupsColumn},
+			Columns: user.GroupsPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{
@@ -2053,10 +2089,10 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 	}
 	if nodes := uuo.mutation.RemovedGroupsIDs(); len(nodes) > 0 && !uuo.mutation.GroupsCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
+			Rel:     sqlgraph.M2M,
 			Inverse: false,
 			Table:   user.GroupsTable,
-			Columns: []string{user.GroupsColumn},
+			Columns: user.GroupsPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{
@@ -2072,10 +2108,10 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 	}
 	if nodes := uuo.mutation.GroupsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
+			Rel:     sqlgraph.M2M,
 			Inverse: false,
 			Table:   user.GroupsTable,
-			Columns: []string{user.GroupsColumn},
+			Columns: user.GroupsPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{

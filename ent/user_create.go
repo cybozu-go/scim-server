@@ -188,6 +188,12 @@ func (uc *UserCreate) SetNillableUserType(s *string) *UserCreate {
 	return uc
 }
 
+// SetEtag sets the "etag" field.
+func (uc *UserCreate) SetEtag(s string) *UserCreate {
+	uc.mutation.SetEtag(s)
+	return uc
+}
+
 // SetID sets the "id" field.
 func (uc *UserCreate) SetID(u uuid.UUID) *UserCreate {
 	uc.mutation.SetID(u)
@@ -414,6 +420,14 @@ func (uc *UserCreate) check() error {
 			return &ValidationError{Name: "userName", err: fmt.Errorf(`ent: validator failed for field "User.userName": %w`, err)}
 		}
 	}
+	if _, ok := uc.mutation.Etag(); !ok {
+		return &ValidationError{Name: "etag", err: errors.New(`ent: missing required field "User.etag"`)}
+	}
+	if v, ok := uc.mutation.Etag(); ok {
+		if err := user.EtagValidator(v); err != nil {
+			return &ValidationError{Name: "etag", err: fmt.Errorf(`ent: validator failed for field "User.etag": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -546,12 +560,20 @@ func (uc *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 		})
 		_node.UserType = value
 	}
+	if value, ok := uc.mutation.Etag(); ok {
+		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: user.FieldEtag,
+		})
+		_node.Etag = value
+	}
 	if nodes := uc.mutation.GroupsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
+			Rel:     sqlgraph.M2M,
 			Inverse: false,
 			Table:   user.GroupsTable,
-			Columns: []string{user.GroupsColumn},
+			Columns: user.GroupsPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{

@@ -8,7 +8,8 @@ import (
 // Edges of the Group.
 func (Group) Edges() []ent.Edge {
 	return []ent.Edge{
-		edge.To("users", User.Type),
+		edge.From("users", User.Type).
+			Ref("groups"),
 		edge.To("children", Group.Type).
 			From("parent").
 			Unique(),

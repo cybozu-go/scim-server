@@ -6,8 +6,14 @@ package server
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
+	"hash"
 	"math/big"
+	"os"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -45,6 +51,14 @@ var _ = roleContainsPredicate
 var _ = roleEqualsPredicate
 var _ = rolePresencePredicate
 
+var entTrace bool
+
+func init() {
+	if v, err := strconv.ParseBool(os.Getenv(`SCIM_ENT_TRACE`)); err != nil {
+		entTrace = v
+	}
+}
+
 func splitScimField(s string) (string, string, error) {
 	i := strings.IndexByte(s, '.')
 	if i == -1 {
@@ -59,15 +73,20 @@ func splitScimField(s string) (string, string, error) {
 }
 
 type Backend struct {
-	db  *ent.Client
-	spc *resource.ServiceProviderConfig
-	rts []*resource.ResourceType
+	db       *ent.Client
+	spc      *resource.ServiceProviderConfig
+	rts      []*resource.ResourceType
+	etagSalt []byte
 }
 
 func New(connspec string, spc *resource.ServiceProviderConfig) (*Backend, error) {
 	client, err := ent.Open(dialect.SQLite, connspec)
 	if err != nil {
 		return nil, fmt.Errorf(`failed to open database: %w`, err)
+	}
+
+	if entTrace {
+		client = client.Debug()
 	}
 
 	if err := client.Schema.Create(context.Background()); err != nil {
@@ -99,10 +118,14 @@ func New(connspec string, spc *resource.ServiceProviderConfig) (*Backend, error)
 			MustBuild(),
 	}
 
+	salt := make([]byte, 0, 256)
+	_, _ = rand.Read(salt)
+
 	return &Backend{
-		db:  client,
-		spc: spc,
-		rts: rts,
+		db:       client,
+		spc:      spc,
+		rts:      rts,
+		etagSalt: salt,
 	}, nil
 }
 
@@ -141,25 +164,36 @@ func randomString(n int) string {
 	return b.String()
 }
 
-func (b *Backend) createRoles(in *resource.User) ([]*ent.Role, error) {
-	roles := make([]*ent.Role, len(in.Roles()))
+func (b *Backend) createRoles(in *resource.User, h hash.Hash) ([]*ent.Role, error) {
+	inbound := in.Roles()
+	sort.Slice(inbound, func(i, j int) bool {
+		return inbound[i].Value() < inbound[j].Value()
+	})
+
+	roles := make([]*ent.Role, len(inbound))
 	var hasPrimary bool
-	for i, v := range in.Roles() {
+	for i, v := range inbound {
 		roleCreateCall := b.db.Role.Create()
 		roleCreateCall.SetValue(v.Value())
+		fmt.Fprint(h, v.Value())
 
 		if v.HasDisplay() {
 			roleCreateCall.SetDisplay(v.Display())
+			fmt.Fprint(h, v.Display())
 		}
 		if v.HasType() {
 			roleCreateCall.SetType(v.Type())
+			fmt.Fprint(h, v.Type())
 		}
 		if sv := v.Primary(); sv {
 			if hasPrimary {
 				return nil, fmt.Errorf(`invalid user.roles: multiple roles have been set to primary`)
 			}
 			roleCreateCall.SetPrimary(true)
+			fmt.Fprint(h, []byte{1})
 			hasPrimary = true
+		} else {
+			fmt.Fprint(h, []byte{0})
 		}
 
 		role, err := roleCreateCall.Save(context.TODO())
@@ -171,25 +205,38 @@ func (b *Backend) createRoles(in *resource.User) ([]*ent.Role, error) {
 	}
 	return roles, nil
 }
-func (b *Backend) createEmails(in *resource.User) ([]*ent.Email, error) {
+
+func (b *Backend) createEmails(in *resource.User, h hash.Hash) ([]*ent.Email, error) {
 	emails := make([]*ent.Email, len(in.Emails()))
+
+	inbound := in.Emails()
+	sort.Slice(inbound, func(i, j int) bool {
+		return inbound[i].Value() <= inbound[i].Value()
+	})
+
 	var hasPrimary bool
-	for i, v := range in.Emails() {
+	for i, v := range inbound {
 		emailCreateCall := b.db.Email.Create()
 		emailCreateCall.SetValue(v.Value())
+		fmt.Fprint(h, v.Value())
 
 		if v.HasDisplay() {
 			emailCreateCall.SetDisplay(v.Display())
+			fmt.Fprint(h, v.Display())
 		}
 		if v.HasType() {
 			emailCreateCall.SetType(v.Type())
+			fmt.Fprint(h, v.Type())
 		}
 		if sv := v.Primary(); sv {
 			if hasPrimary {
 				return nil, fmt.Errorf(`invalid user.emails: multiple emails have been set to primary`)
 			}
 			emailCreateCall.SetPrimary(true)
+			fmt.Fprint(h, []byte{1})
 			hasPrimary = true
+		} else {
+			fmt.Fprint(h, []byte{0})
 		}
 
 		email, err := emailCreateCall.Save(context.TODO())
@@ -202,25 +249,34 @@ func (b *Backend) createEmails(in *resource.User) ([]*ent.Email, error) {
 	return emails, nil
 }
 
-func (b *Backend) createName(v *resource.Names) (*ent.Names, error) {
+func (b *Backend) createName(v *resource.Names, h hash.Hash) (*ent.Names, error) {
+
 	nameCreateCall := b.db.Names.Create()
 	if v.HasFamilyName() {
 		nameCreateCall.SetFamilyName(v.FamilyName())
+		fmt.Fprint(h, v.FamilyName())
 	}
+
 	if v.HasFormatted() {
 		nameCreateCall.SetFormatted(v.Formatted())
+		fmt.Fprint(h, v.Formatted())
 	}
+
 	if v.HasGivenName() {
 		nameCreateCall.SetGivenName(v.GivenName())
+		fmt.Fprint(h, v.GivenName())
 	}
 	if v.HasHonorificPrefix() {
 		nameCreateCall.SetHonorificPrefix(v.HonorificPrefix())
+		fmt.Fprint(h, v.HonorificPrefix())
 	}
 	if v.HasHonorificSuffix() {
 		nameCreateCall.SetHonorificSuffix(v.HonorificSuffix())
+		fmt.Fprint(h, v.HonorificSuffix())
 	}
 	if v.HasMiddleName() {
 		nameCreateCall.SetMiddleName(v.MiddleName())
+		fmt.Fprint(h, v.MiddleName())
 	}
 
 	name, err := nameCreateCall.Save(context.TODO())
@@ -232,9 +288,6 @@ func (b *Backend) createName(v *resource.Names) (*ent.Names, error) {
 }
 
 func (b *Backend) CreateUser(in *resource.User) (*resource.User, error) {
-	// TODO generate ETag
-	// Note: use W/"...." Etags is probably better
-
 	// Generate a random password if none is given
 	password := in.Password()
 	if password == "" {
@@ -247,38 +300,48 @@ func (b *Backend) CreateUser(in *resource.User) (*resource.User, error) {
 		password = norm
 	}
 
+	h := sha256.New()
+	fmt.Fprint(h, b.etagSalt)
+
 	createUserCall := b.db.User.Create().
 		SetUserName(in.UserName()).
 		SetPassword(password)
+	fmt.Fprint(h, in.UserName())
 
 	// optional fields
 	if in.HasDisplayName() {
 		createUserCall.SetDisplayName(in.DisplayName())
+		fmt.Fprint(h, in.DisplayName())
 	}
 
 	if in.HasExternalID() {
 		createUserCall.SetExternalID(in.ExternalID())
+		fmt.Fprint(h, in.DisplayName())
 	}
 
 	if in.HasUserType() {
 		createUserCall.SetUserType(in.UserType())
+		fmt.Fprint(h, in.UserType())
 	}
 
 	if in.HasPreferredLanguage() {
 		createUserCall.SetPreferredLanguage(in.PreferredLanguage())
+		fmt.Fprint(h, in.PreferredLanguage())
 	}
 
 	if in.HasLocale() {
 		createUserCall.SetLocale(in.Locale())
+		fmt.Fprint(h, in.Locale())
 	}
 
 	if in.HasTimezone() {
 		createUserCall.SetTimezone(in.Timezone())
+		fmt.Fprint(h, in.Timezone())
 	}
 
 	var roles []*ent.Role
 	if in.HasRoles() {
-		created, err := b.createRoles(in)
+		created, err := b.createRoles(in, h)
 		if err != nil {
 			return nil, fmt.Errorf(`failed to create roles: %w`, err)
 		}
@@ -288,7 +351,7 @@ func (b *Backend) CreateUser(in *resource.User) (*resource.User, error) {
 
 	var emails []*ent.Email
 	if in.HasEmails() {
-		created, err := b.createEmails(in)
+		created, err := b.createEmails(in, h)
 		if err != nil {
 			return nil, fmt.Errorf(`failed to create emails: %w`, err)
 		}
@@ -298,13 +361,15 @@ func (b *Backend) CreateUser(in *resource.User) (*resource.User, error) {
 
 	var name []*ent.Names
 	if in.HasName() {
-		created, err := b.createName(in.Name())
+		created, err := b.createName(in.Name(), h)
 		if err != nil {
 			return nil, fmt.Errorf(`failed to create name: %w`, err)
 		}
 		createUserCall.AddName(created)
 		name = []*ent.Names{created}
 	}
+
+	createUserCall.SetEtag(fmt.Sprintf(`W/%q`, base64.RawStdEncoding.EncodeToString(h.Sum(nil))))
 
 	// now save the data
 	u, err := createUserCall.
@@ -351,10 +416,14 @@ func (b *Backend) ReplaceUser(id string, in *resource.User) (*resource.User, err
 		return nil, fmt.Errorf(`failed to parse ID: %w`, err)
 	}
 
+	h := sha256.New()
+	fmt.Fprint(h, b.etagSalt)
+
 	// TODO: is it possible to just grab the ID or check existence?
 	u, err := b.db.User.Query().
 		Where(user.IDEQ(parsedUUID)).
 		Only(context.TODO())
+
 	if err != nil {
 		return nil, fmt.Errorf(`failed to retrieve user: %w`, err)
 	}
@@ -364,29 +433,49 @@ func (b *Backend) ReplaceUser(id string, in *resource.User) (*resource.User, err
 		ClearName()
 
 	// optional fields
+	if in.HasDisplayName() {
+		replaceUserCall.SetDisplayName(in.DisplayName())
+		fmt.Fprint(h, in.DisplayName())
+	}
+
 	if in.HasExternalID() {
 		replaceUserCall.SetExternalID(in.ExternalID())
+		fmt.Fprint(h, in.ExternalID())
 	}
 
 	if in.HasUserType() {
 		replaceUserCall.SetUserType(in.UserType())
+		fmt.Fprint(h, in.UserType())
 	}
 
 	if in.HasPreferredLanguage() {
 		replaceUserCall.SetPreferredLanguage(in.PreferredLanguage())
+		fmt.Fprint(h, in.PreferredLanguage())
 	}
 
 	if in.HasLocale() {
 		replaceUserCall.SetLocale(in.Locale())
+		fmt.Fprint(h, in.Locale())
 	}
 
 	if in.HasTimezone() {
 		replaceUserCall.SetTimezone(in.Timezone())
+		fmt.Fprint(h, in.Timezone())
+	}
+
+	var roles []*ent.Role
+	if in.HasRoles() {
+		created, err := b.createRoles(in, h)
+		if err != nil {
+			return nil, fmt.Errorf(`failed to create roles: %w`, err)
+		}
+		replaceUserCall.AddRoles(created...)
+		roles = created
 	}
 
 	var emails []*ent.Email
 	if in.HasEmails() {
-		created, err := b.createEmails(in)
+		created, err := b.createEmails(in, h)
 		if err != nil {
 			return nil, fmt.Errorf(`failed to create emails: %w`, err)
 		}
@@ -396,7 +485,7 @@ func (b *Backend) ReplaceUser(id string, in *resource.User) (*resource.User, err
 
 	var name []*ent.Names
 	if in.HasName() {
-		created, err := b.createName(in.Name())
+		created, err := b.createName(in.Name(), h)
 		if err != nil {
 			return nil, fmt.Errorf(`failed to create name: %w`, err)
 		}
@@ -404,7 +493,11 @@ func (b *Backend) ReplaceUser(id string, in *resource.User) (*resource.User, err
 		name = []*ent.Names{created}
 	}
 
-	if _, err := replaceUserCall.Save(context.TODO()); err != nil {
+	replaceUserCall.SetEtag(fmt.Sprintf(`W/%q`, base64.RawStdEncoding.EncodeToString(h.Sum(nil))))
+
+	u2, err := replaceUserCall.
+		Save(context.TODO())
+	if err != nil {
 		return nil, fmt.Errorf(`failed to update user: %w`, err)
 	}
 
@@ -413,10 +506,11 @@ func (b *Backend) ReplaceUser(id string, in *resource.User) (*resource.User, err
 	// We could either populate u.Edges ourselves or re-fetch the
 	// user via a query+eager-loading.
 	// For the time being, we're just going to populate it ourselves
-	u.Edges.Emails = emails
-	u.Edges.Name = name
+	u2.Edges.Emails = emails
+	u2.Edges.Name = name
+	u2.Edges.Roles = roles
 
-	return UserResourceFromEnt(u)
+	return UserResourceFromEnt(u2)
 }
 
 func (b *Backend) DeleteUser(id string) error {
@@ -451,6 +545,14 @@ func (b *Backend) memberIDs(members []*resource.GroupMember) ([]uuid.UUID, []uui
 		}
 	}
 
+	sort.Slice(userMembers, func(i, j int) bool {
+		return userMembers[i].String() < userMembers[j].String()
+	})
+
+	sort.Slice(groupMembers, func(i, j int) bool {
+		return groupMembers[i].String() < groupMembers[j].String()
+	})
+
 	return userMembers, groupMembers, nil
 }
 
@@ -462,6 +564,10 @@ func (b *Backend) CreateGroup(in *resource.Group) (*resource.Group, error) {
 
 	createGroupCall := b.db.Group.Create().
 		SetDisplayName(in.DisplayName())
+
+	h := sha256.New()
+	fmt.Fprint(h, b.etagSalt)
+
 	if len(userMembers) > 0 {
 		createGroupCall.AddUserIDs(userMembers...)
 	}
@@ -470,25 +576,29 @@ func (b *Backend) CreateGroup(in *resource.Group) (*resource.Group, error) {
 		createGroupCall.AddChildIDs(groupMembers...)
 	}
 
+	createGroupCall.SetEtag(fmt.Sprintf(`W/%q`, base64.RawStdEncoding.EncodeToString(h.Sum(nil))))
 	g, err := createGroupCall.
 		Save(context.TODO())
 	if err != nil {
 		return nil, fmt.Errorf(`failed to save data: %w`, err)
 	}
 
-	var builder resource.Builder
+	// Unfortunately we're going to have to load the actual members here
+	// because that's how we transform the data
 
-	return builder.Group().
-		ID(g.ID.String()).
-		DisplayName(in.DisplayName()).
-		Members(in.Members()...).
-		Meta(
-			builder.Meta().
-				ResourceType(`Group`).
-				Location(`https://foobar.com/scim/v2/Groups/` + g.ID.String()).
-				MustBuild(),
-		).
-		Build()
+	children, err := b.db.Group.Query().Where(group.HasParentWith(group.ID(g.ID))).All(context.TODO())
+	if err != nil {
+		return nil, fmt.Errorf(`failed to load children for group`)
+	}
+	g.Edges.Children = children
+
+	users, err := b.db.User.Query().Where(user.HasGroupsWith(group.ID(g.ID))).All(context.TODO())
+	if err != nil {
+		return nil, fmt.Errorf(`failed to load member users for group`)
+	}
+	g.Edges.Users = users
+
+	return GroupResourceFromEnt(g)
 }
 
 // XXX passing these boolean variables is so ugly

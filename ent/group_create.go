@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -45,6 +46,12 @@ func (gc *GroupCreate) SetNillableExternalID(s *string) *GroupCreate {
 	if s != nil {
 		gc.SetExternalID(*s)
 	}
+	return gc
+}
+
+// SetEtag sets the "etag" field.
+func (gc *GroupCreate) SetEtag(s string) *GroupCreate {
+	gc.mutation.SetEtag(s)
 	return gc
 }
 
@@ -190,6 +197,14 @@ func (gc *GroupCreate) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (gc *GroupCreate) check() error {
+	if _, ok := gc.mutation.Etag(); !ok {
+		return &ValidationError{Name: "etag", err: errors.New(`ent: missing required field "Group.etag"`)}
+	}
+	if v, ok := gc.mutation.Etag(); ok {
+		if err := group.EtagValidator(v); err != nil {
+			return &ValidationError{Name: "etag", err: fmt.Errorf(`ent: validator failed for field "Group.etag": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -242,12 +257,20 @@ func (gc *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 		})
 		_node.ExternalID = value
 	}
+	if value, ok := gc.mutation.Etag(); ok {
+		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: group.FieldEtag,
+		})
+		_node.Etag = value
+	}
 	if nodes := gc.mutation.UsersIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
 			Table:   group.UsersTable,
-			Columns: []string{group.UsersColumn},
+			Columns: group.UsersPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{

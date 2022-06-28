@@ -20,11 +20,12 @@ type Group struct {
 	DisplayName string `json:"displayName,omitempty"`
 	// ExternalID holds the value of the "externalID" field.
 	ExternalID string `json:"externalID,omitempty"`
+	// Etag holds the value of the "etag" field.
+	Etag string `json:"etag,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the GroupQuery when eager-loading is set.
 	Edges          GroupEdges `json:"edges"`
 	group_children *uuid.UUID
-	user_groups    *uuid.UUID
 }
 
 // GroupEdges holds the relations/edges for other nodes in the graph.
@@ -77,13 +78,11 @@ func (*Group) scanValues(columns []string) ([]interface{}, error) {
 	values := make([]interface{}, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case group.FieldDisplayName, group.FieldExternalID:
+		case group.FieldDisplayName, group.FieldExternalID, group.FieldEtag:
 			values[i] = new(sql.NullString)
 		case group.FieldID:
 			values[i] = new(uuid.UUID)
 		case group.ForeignKeys[0]: // group_children
-			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
-		case group.ForeignKeys[1]: // user_groups
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		default:
 			return nil, fmt.Errorf("unexpected column %q for type Group", columns[i])
@@ -118,19 +117,18 @@ func (gr *Group) assignValues(columns []string, values []interface{}) error {
 			} else if value.Valid {
 				gr.ExternalID = value.String
 			}
+		case group.FieldEtag:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field etag", values[i])
+			} else if value.Valid {
+				gr.Etag = value.String
+			}
 		case group.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullScanner); !ok {
 				return fmt.Errorf("unexpected type %T for field group_children", values[i])
 			} else if value.Valid {
 				gr.group_children = new(uuid.UUID)
 				*gr.group_children = *value.S.(*uuid.UUID)
-			}
-		case group.ForeignKeys[1]:
-			if value, ok := values[i].(*sql.NullScanner); !ok {
-				return fmt.Errorf("unexpected type %T for field user_groups", values[i])
-			} else if value.Valid {
-				gr.user_groups = new(uuid.UUID)
-				*gr.user_groups = *value.S.(*uuid.UUID)
 			}
 		}
 	}
@@ -179,6 +177,8 @@ func (gr *Group) String() string {
 	builder.WriteString(gr.DisplayName)
 	builder.WriteString(", externalID=")
 	builder.WriteString(gr.ExternalID)
+	builder.WriteString(", etag=")
+	builder.WriteString(gr.Etag)
 	builder.WriteByte(')')
 	return builder.String()
 }

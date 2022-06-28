@@ -15,6 +15,10 @@ import (
 func init() {
 	groupFields := schema.Group{}.Fields()
 	_ = groupFields
+	// groupDescEtag is the schema descriptor for etag field.
+	groupDescEtag := groupFields[3].Descriptor()
+	// group.EtagValidator is a validator for the "etag" field. It is called by the builders before save.
+	group.EtagValidator = groupDescEtag.Validators[0].(func(string) error)
 	// groupDescID is the schema descriptor for id field.
 	groupDescID := groupFields[2].Descriptor()
 	// group.DefaultID holds the default value on creation for the id field.
@@ -29,6 +33,10 @@ func init() {
 	userDescUserName := userFields[11].Descriptor()
 	// user.UserNameValidator is a validator for the "userName" field. It is called by the builders before save.
 	user.UserNameValidator = userDescUserName.Validators[0].(func(string) error)
+	// userDescEtag is the schema descriptor for etag field.
+	userDescEtag := userFields[13].Descriptor()
+	// user.EtagValidator is a validator for the "etag" field. It is called by the builders before save.
+	user.EtagValidator = userDescEtag.Validators[0].(func(string) error)
 	// userDescID is the schema descriptor for id field.
 	userDescID := userFields[3].Descriptor()
 	// user.DefaultID holds the default value on creation for the id field.

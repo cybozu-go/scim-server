@@ -15,5 +15,6 @@ func (Group) Fields() []ent.Field {
 		field.String("displayName").Optional(),
 		field.String("externalID").Optional(),
 		field.UUID("id", uuid.UUID{}).Default(uuid.New),
+		field.String("etag").NotEmpty(),
 	}
 }

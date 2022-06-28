@@ -69,6 +69,12 @@ func (gu *GroupUpdate) ClearExternalID() *GroupUpdate {
 	return gu
 }
 
+// SetEtag sets the "etag" field.
+func (gu *GroupUpdate) SetEtag(s string) *GroupUpdate {
+	gu.mutation.SetEtag(s)
+	return gu
+}
+
 // AddUserIDs adds the "users" edge to the User entity by IDs.
 func (gu *GroupUpdate) AddUserIDs(ids ...uuid.UUID) *GroupUpdate {
 	gu.mutation.AddUserIDs(ids...)
@@ -178,12 +184,18 @@ func (gu *GroupUpdate) Save(ctx context.Context) (int, error) {
 		affected int
 	)
 	if len(gu.hooks) == 0 {
+		if err = gu.check(); err != nil {
+			return 0, err
+		}
 		affected, err = gu.sqlSave(ctx)
 	} else {
 		var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
 			mutation, ok := m.(*GroupMutation)
 			if !ok {
 				return nil, fmt.Errorf("unexpected mutation type %T", m)
+			}
+			if err = gu.check(); err != nil {
+				return 0, err
 			}
 			gu.mutation = mutation
 			affected, err = gu.sqlSave(ctx)
@@ -223,6 +235,16 @@ func (gu *GroupUpdate) ExecX(ctx context.Context) {
 	if err := gu.Exec(ctx); err != nil {
 		panic(err)
 	}
+}
+
+// check runs all checks and user-defined validators on the builder.
+func (gu *GroupUpdate) check() error {
+	if v, ok := gu.mutation.Etag(); ok {
+		if err := group.EtagValidator(v); err != nil {
+			return &ValidationError{Name: "etag", err: fmt.Errorf(`ent: validator failed for field "Group.etag": %w`, err)}
+		}
+	}
+	return nil
 }
 
 func (gu *GroupUpdate) sqlSave(ctx context.Context) (n int, err error) {
@@ -269,12 +291,19 @@ func (gu *GroupUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Column: group.FieldExternalID,
 		})
 	}
+	if value, ok := gu.mutation.Etag(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: group.FieldEtag,
+		})
+	}
 	if gu.mutation.UsersCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
 			Table:   group.UsersTable,
-			Columns: []string{group.UsersColumn},
+			Columns: group.UsersPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{
@@ -287,10 +316,10 @@ func (gu *GroupUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if nodes := gu.mutation.RemovedUsersIDs(); len(nodes) > 0 && !gu.mutation.UsersCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
 			Table:   group.UsersTable,
-			Columns: []string{group.UsersColumn},
+			Columns: group.UsersPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{
@@ -306,10 +335,10 @@ func (gu *GroupUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if nodes := gu.mutation.UsersIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
 			Table:   group.UsersTable,
-			Columns: []string{group.UsersColumn},
+			Columns: group.UsersPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{
@@ -471,6 +500,12 @@ func (guo *GroupUpdateOne) ClearExternalID() *GroupUpdateOne {
 	return guo
 }
 
+// SetEtag sets the "etag" field.
+func (guo *GroupUpdateOne) SetEtag(s string) *GroupUpdateOne {
+	guo.mutation.SetEtag(s)
+	return guo
+}
+
 // AddUserIDs adds the "users" edge to the User entity by IDs.
 func (guo *GroupUpdateOne) AddUserIDs(ids ...uuid.UUID) *GroupUpdateOne {
 	guo.mutation.AddUserIDs(ids...)
@@ -587,12 +622,18 @@ func (guo *GroupUpdateOne) Save(ctx context.Context) (*Group, error) {
 		node *Group
 	)
 	if len(guo.hooks) == 0 {
+		if err = guo.check(); err != nil {
+			return nil, err
+		}
 		node, err = guo.sqlSave(ctx)
 	} else {
 		var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
 			mutation, ok := m.(*GroupMutation)
 			if !ok {
 				return nil, fmt.Errorf("unexpected mutation type %T", m)
+			}
+			if err = guo.check(); err != nil {
+				return nil, err
 			}
 			guo.mutation = mutation
 			node, err = guo.sqlSave(ctx)
@@ -632,6 +673,16 @@ func (guo *GroupUpdateOne) ExecX(ctx context.Context) {
 	if err := guo.Exec(ctx); err != nil {
 		panic(err)
 	}
+}
+
+// check runs all checks and user-defined validators on the builder.
+func (guo *GroupUpdateOne) check() error {
+	if v, ok := guo.mutation.Etag(); ok {
+		if err := group.EtagValidator(v); err != nil {
+			return &ValidationError{Name: "etag", err: fmt.Errorf(`ent: validator failed for field "Group.etag": %w`, err)}
+		}
+	}
+	return nil
 }
 
 func (guo *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error) {
@@ -695,12 +746,19 @@ func (guo *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error
 			Column: group.FieldExternalID,
 		})
 	}
+	if value, ok := guo.mutation.Etag(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: group.FieldEtag,
+		})
+	}
 	if guo.mutation.UsersCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
 			Table:   group.UsersTable,
-			Columns: []string{group.UsersColumn},
+			Columns: group.UsersPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{
@@ -713,10 +771,10 @@ func (guo *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error
 	}
 	if nodes := guo.mutation.RemovedUsersIDs(); len(nodes) > 0 && !guo.mutation.UsersCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
 			Table:   group.UsersTable,
-			Columns: []string{group.UsersColumn},
+			Columns: group.UsersPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{
@@ -732,10 +790,10 @@ func (guo *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error
 	}
 	if nodes := guo.mutation.UsersIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
 			Table:   group.UsersTable,
-			Columns: []string{group.UsersColumn},
+			Columns: group.UsersPrimaryKey,
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{
