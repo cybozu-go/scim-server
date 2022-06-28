@@ -509,7 +509,7 @@ func generateUtilities(object *codegen.Object) error {
 				for _, subField := range subObject.Fields() {
 					o.L(`case resource.%s%sKey:`, subObjectName, subField.Name(true))
 					o.L(`//nolint:forcetypeassert`)
-					o.L(`return %s.Has%sWith(%s.%sEQ(val.(%s))), nil`, packageName(object.Name(false)), field.Name(true), strings.ToLower(singularName(field.Name(false))), subField.Name(true), subField.Type())
+					o.L(`return %s.Has%sWith(%s.%sEQ(val.(%s))), nil`, object.Name(false), field.Name(true), strings.ToLower(singularName(field.Name(false))), subField.Name(true), subField.Type())
 				}
 				o.L(`default:`)
 				o.L(`return nil, fmt.Errorf("invalid filter specification: invalid subfield for %%q", field)`)

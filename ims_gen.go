@@ -45,7 +45,7 @@ func IMSEntFieldFromSCIM(s string) string {
 	}
 }
 
-func imSStartsWithPredicate(q *ent.IMSQuery, scimField string, val interface{}) (predicate.IMS, error) {
+func imsStartsWithPredicate(q *ent.IMSQuery, scimField string, val interface{}) (predicate.IMS, error) {
 	_ = q
 	field, subfield, err := splitScimField(scimField)
 	if err != nil {
@@ -76,7 +76,7 @@ func imSStartsWithPredicate(q *ent.IMSQuery, scimField string, val interface{}) 
 	}
 }
 
-func imSEndsWithPredicate(q *ent.IMSQuery, scimField string, val interface{}) (predicate.IMS, error) {
+func imsEndsWithPredicate(q *ent.IMSQuery, scimField string, val interface{}) (predicate.IMS, error) {
 	_ = q
 	field, subfield, err := splitScimField(scimField)
 	if err != nil {
@@ -107,7 +107,7 @@ func imSEndsWithPredicate(q *ent.IMSQuery, scimField string, val interface{}) (p
 	}
 }
 
-func imSContainsPredicate(q *ent.IMSQuery, scimField string, val interface{}) (predicate.IMS, error) {
+func imsContainsPredicate(q *ent.IMSQuery, scimField string, val interface{}) (predicate.IMS, error) {
 	_ = q
 	field, subfield, err := splitScimField(scimField)
 	if err != nil {
@@ -138,7 +138,7 @@ func imSContainsPredicate(q *ent.IMSQuery, scimField string, val interface{}) (p
 	}
 }
 
-func imSEqualsPredicate(q *ent.IMSQuery, scimField string, val interface{}) (predicate.IMS, error) {
+func imsEqualsPredicate(q *ent.IMSQuery, scimField string, val interface{}) (predicate.IMS, error) {
 	_ = q
 	field, subfield, err := splitScimField(scimField)
 	if err != nil {
@@ -169,7 +169,7 @@ func imSEqualsPredicate(q *ent.IMSQuery, scimField string, val interface{}) (pre
 	}
 }
 
-func imSPresencePredicate(scimField string) predicate.IMS {
+func imsPresencePredicate(scimField string) predicate.IMS {
 	switch scimField {
 	case resource.IMSDisplayKey:
 		return ims.And(ims.DisplayNotNil(), ims.DisplayNEQ(""))
