@@ -33,28 +33,12 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-//FIXME
 var _ = groupPresencePredicate
-var _ = emailPresencePredicate
-var _ = emailStartsWithPredicate
-var _ = emailEndsWithPredicate
-var _ = emailContainsPredicate
-var _ = emailEqualsPredicate
-var _ = namesPresencePredicate
-var _ = namesStartsWithPredicate
-var _ = namesEndsWithPredicate
-var _ = namesContainsPredicate
-var _ = namesEqualsPredicate
-var _ = roleStartsWithPredicate
-var _ = roleEndsWithPredicate
-var _ = roleContainsPredicate
-var _ = roleEqualsPredicate
-var _ = rolePresencePredicate
 
 var entTrace bool
 
 func init() {
-	if v, err := strconv.ParseBool(os.Getenv(`SCIM_ENT_TRACE`)); err != nil {
+	if v, err := strconv.ParseBool(os.Getenv(`SCIM_ENT_TRACE`)); err == nil {
 		entTrace = v
 	}
 }
@@ -206,6 +190,49 @@ func (b *Backend) createRoles(in *resource.User, h hash.Hash) ([]*ent.Role, erro
 	return roles, nil
 }
 
+func (b *Backend) createPhoneNumbers(in *resource.User, h hash.Hash) ([]*ent.PhoneNumber, error) {
+	emails := make([]*ent.PhoneNumber, len(in.PhoneNumbers()))
+
+	inbound := in.PhoneNumbers()
+	sort.Slice(inbound, func(i, j int) bool {
+		return inbound[i].Value() <= inbound[j].Value()
+	})
+
+	var hasPrimary bool
+	for i, v := range inbound {
+		emailCreateCall := b.db.PhoneNumber.Create()
+		emailCreateCall.SetValue(v.Value())
+		fmt.Fprint(h, v.Value())
+
+		if v.HasDisplay() {
+			emailCreateCall.SetDisplay(v.Display())
+			fmt.Fprint(h, v.Display())
+		}
+		if v.HasType() {
+			emailCreateCall.SetType(v.Type())
+			fmt.Fprint(h, v.Type())
+		}
+		if sv := v.Primary(); sv {
+			if hasPrimary {
+				return nil, fmt.Errorf(`invalid user.emails: multiple emails have been set to primary`)
+			}
+			emailCreateCall.SetPrimary(true)
+			fmt.Fprint(h, []byte{1})
+			hasPrimary = true
+		} else {
+			fmt.Fprint(h, []byte{0})
+		}
+
+		email, err := emailCreateCall.Save(context.TODO())
+		if err != nil {
+			return nil, fmt.Errorf(`failed to save email %d: %w`, i, err)
+		}
+
+		emails[i] = email
+	}
+	return emails, nil
+}
+
 func (b *Backend) createEmails(in *resource.User, h hash.Hash) ([]*ent.Email, error) {
 	emails := make([]*ent.Email, len(in.Emails()))
 
@@ -250,7 +277,6 @@ func (b *Backend) createEmails(in *resource.User, h hash.Hash) ([]*ent.Email, er
 }
 
 func (b *Backend) createName(v *resource.Names, h hash.Hash) (*ent.Names, error) {
-
 	nameCreateCall := b.db.Names.Create()
 	if v.HasFamilyName() {
 		nameCreateCall.SetFamilyName(v.FamilyName())
@@ -369,6 +395,16 @@ func (b *Backend) CreateUser(in *resource.User) (*resource.User, error) {
 		name = []*ent.Names{created}
 	}
 
+	var phoneNumbers []*ent.PhoneNumber
+	if in.HasPhoneNumbers() {
+		created, err := b.createPhoneNumbers(in, h)
+		if err != nil {
+			return nil, fmt.Errorf(`failed to create name: %w`, err)
+		}
+		createUserCall.AddPhoneNumbers(created...)
+		phoneNumbers = created
+	}
+
 	createUserCall.SetEtag(fmt.Sprintf(`W/%q`, base64.RawStdEncoding.EncodeToString(h.Sum(nil))))
 
 	// now save the data
@@ -386,6 +422,7 @@ func (b *Backend) CreateUser(in *resource.User) (*resource.User, error) {
 	u.Edges.Emails = emails
 	u.Edges.Name = name
 	u.Edges.Roles = roles
+	u.Edges.PhoneNumbers = phoneNumbers
 
 	return UserResourceFromEnt(u)
 }

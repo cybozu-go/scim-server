@@ -1,13 +1,10 @@
 package server
 
 import (
-	"fmt"
 	"reflect"
 
-	"entgo.io/ent/dialect/sql"
 	"github.com/cybozu-go/scim-server/ent"
 	"github.com/cybozu-go/scim-server/ent/email"
-	"github.com/cybozu-go/scim-server/ent/predicate"
 	"github.com/cybozu-go/scim/resource"
 )
 
@@ -42,140 +39,5 @@ func EmailEntFieldFromSCIM(s string) string {
 		return email.FieldValue
 	default:
 		return s
-	}
-}
-
-func emailStartsWithPredicate(q *ent.EmailQuery, scimField string, val interface{}) (predicate.Email, error) {
-	_ = q
-	field, subfield, err := splitScimField(scimField)
-	if err != nil {
-		return nil, err
-	}
-	_ = subfield // TODO: remove later
-	switch field {
-	case resource.EmailDisplayKey:
-		entFieldName := EmailEntFieldFromSCIM(scimField)
-		return predicate.Email(func(s *sql.Selector) {
-			//nolint:forcetypeassert
-			s.Where(sql.HasPrefix(s.C(entFieldName), val.(string)))
-		}), nil
-	case resource.EmailTypeKey:
-		entFieldName := EmailEntFieldFromSCIM(scimField)
-		return predicate.Email(func(s *sql.Selector) {
-			//nolint:forcetypeassert
-			s.Where(sql.HasPrefix(s.C(entFieldName), val.(string)))
-		}), nil
-	case resource.EmailValueKey:
-		entFieldName := EmailEntFieldFromSCIM(scimField)
-		return predicate.Email(func(s *sql.Selector) {
-			//nolint:forcetypeassert
-			s.Where(sql.HasPrefix(s.C(entFieldName), val.(string)))
-		}), nil
-	default:
-		return nil, fmt.Errorf("invalid filter field specification")
-	}
-}
-
-func emailEndsWithPredicate(q *ent.EmailQuery, scimField string, val interface{}) (predicate.Email, error) {
-	_ = q
-	field, subfield, err := splitScimField(scimField)
-	if err != nil {
-		return nil, err
-	}
-	_ = subfield // TODO: remove later
-	switch field {
-	case resource.EmailDisplayKey:
-		entFieldName := EmailEntFieldFromSCIM(scimField)
-		return predicate.Email(func(s *sql.Selector) {
-			//nolint:forcetypeassert
-			s.Where(sql.HasSuffix(s.C(entFieldName), val.(string)))
-		}), nil
-	case resource.EmailTypeKey:
-		entFieldName := EmailEntFieldFromSCIM(scimField)
-		return predicate.Email(func(s *sql.Selector) {
-			//nolint:forcetypeassert
-			s.Where(sql.HasSuffix(s.C(entFieldName), val.(string)))
-		}), nil
-	case resource.EmailValueKey:
-		entFieldName := EmailEntFieldFromSCIM(scimField)
-		return predicate.Email(func(s *sql.Selector) {
-			//nolint:forcetypeassert
-			s.Where(sql.HasSuffix(s.C(entFieldName), val.(string)))
-		}), nil
-	default:
-		return nil, fmt.Errorf("invalid filter field specification")
-	}
-}
-
-func emailContainsPredicate(q *ent.EmailQuery, scimField string, val interface{}) (predicate.Email, error) {
-	_ = q
-	field, subfield, err := splitScimField(scimField)
-	if err != nil {
-		return nil, err
-	}
-	_ = subfield // TODO: remove later
-	switch field {
-	case resource.EmailDisplayKey:
-		entFieldName := EmailEntFieldFromSCIM(scimField)
-		return predicate.Email(func(s *sql.Selector) {
-			//nolint:forcetypeassert
-			s.Where(sql.Contains(s.C(entFieldName), val.(string)))
-		}), nil
-	case resource.EmailTypeKey:
-		entFieldName := EmailEntFieldFromSCIM(scimField)
-		return predicate.Email(func(s *sql.Selector) {
-			//nolint:forcetypeassert
-			s.Where(sql.Contains(s.C(entFieldName), val.(string)))
-		}), nil
-	case resource.EmailValueKey:
-		entFieldName := EmailEntFieldFromSCIM(scimField)
-		return predicate.Email(func(s *sql.Selector) {
-			//nolint:forcetypeassert
-			s.Where(sql.Contains(s.C(entFieldName), val.(string)))
-		}), nil
-	default:
-		return nil, fmt.Errorf("invalid filter field specification")
-	}
-}
-
-func emailEqualsPredicate(q *ent.EmailQuery, scimField string, val interface{}) (predicate.Email, error) {
-	_ = q
-	field, subfield, err := splitScimField(scimField)
-	if err != nil {
-		return nil, err
-	}
-	_ = subfield // TODO: remove later
-	switch field {
-	case resource.EmailDisplayKey:
-		entFieldName := EmailEntFieldFromSCIM(scimField)
-		return predicate.Email(func(s *sql.Selector) {
-			//nolint:forcetypeassert
-			s.Where(sql.EQ(s.C(entFieldName), val.(string)))
-		}), nil
-	case resource.EmailTypeKey:
-		entFieldName := EmailEntFieldFromSCIM(scimField)
-		return predicate.Email(func(s *sql.Selector) {
-			//nolint:forcetypeassert
-			s.Where(sql.EQ(s.C(entFieldName), val.(string)))
-		}), nil
-	case resource.EmailValueKey:
-		entFieldName := EmailEntFieldFromSCIM(scimField)
-		return predicate.Email(func(s *sql.Selector) {
-			//nolint:forcetypeassert
-			s.Where(sql.EQ(s.C(entFieldName), val.(string)))
-		}), nil
-	default:
-		return nil, fmt.Errorf("invalid filter field specification")
-	}
-}
-
-func emailPresencePredicate(scimField string) predicate.Email {
-	switch scimField {
-	case resource.EmailDisplayKey:
-		return email.And(email.DisplayNotNil(), email.DisplayNEQ(""))
-	case resource.EmailTypeKey:
-		return email.And(email.TypeNotNil(), email.TypeNEQ(""))
-	default:
-		return nil
 	}
 }

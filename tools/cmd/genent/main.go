@@ -464,94 +464,107 @@ func generateUtilities(object *codegen.Object) error {
 	o.L(`}`)
 	o.L(`}`)
 
-	for _, pred := range []struct {
-		Name   string
-		Method string
-	}{
-		{Name: `StartsWith`, Method: `HasPrefix`},
-		{Name: `EndsWith`, Method: `HasSuffix`},
-		{Name: `Contains`, Method: `Contains`},
-		{Name: `Equals`, Method: `EQ`},
-	} {
-		o.LL(`func %[1]s%[2]sPredicate(q *ent.%[3]sQuery, scimField string, val interface{}) (predicate.%[3]s, error) {`, object.Name(false), pred.Name, object.Name(true))
-		o.L(`_ = q`) // in case the predicate doesn't actually need to use the query object
-		// The scim field may either be a flat (simple) field or a nested field.
-		o.L(`field, subfield, err := splitScimField(scimField)`)
-		o.L(`if err != nil {`)
-		o.L(`return nil, err`)
-		o.L(`}`)
-		o.L(`_ = subfield // TODO: remove later`)
+	switch object.Name(true) {
+	case `User`, `Group`:
+		for _, pred := range []struct {
+			Name   string
+			Method string
+		}{
+			{Name: `StartsWith`, Method: `HasPrefix`},
+			{Name: `EndsWith`, Method: `HasSuffix`},
+			{Name: `Contains`, Method: `Contains`},
+			{Name: `Equals`, Method: `EQ`},
+		} {
+			o.LL(`func %[1]s%[2]sPredicate(q *ent.%[3]sQuery, scimField string, val interface{}) (predicate.%[3]s, error) {`, object.Name(false), pred.Name, object.Name(true))
+			o.L(`_ = q`) // in case the predicate doesn't actually need to use the query object
+			// The scim field may either be a flat (simple) field or a nested field.
+			o.L(`field, subfield, err := splitScimField(scimField)`)
+			o.L(`if err != nil {`)
+			o.L(`return nil, err`)
+			o.L(`}`)
+			o.L(`_ = subfield // TODO: remove later`)
 
-		o.L(`switch field {`)
+			o.L(`switch field {`)
+			for _, field := range object.Fields() {
+				switch field.Name(false) {
+				case `schemas`:
+					continue
+				default:
+				}
+
+				switch field.Type() {
+				// predicates against a list actually means "... if any of the values match"
+				// so things like `roles.value eq "foo"` means `if any of the role.value is equal to "foo"`
+				case "[]*Role", "[]*Email", "[]*PhoneNumber":
+					o.L(`case resource.%s%sKey:`, object.Name(true), field.Name(true))
+					// It's going to be a relation, so add a query that goes into the separate entity
+					o.L(`switch subfield {`)
+
+					// TODO don't hardcode
+					// We know at this point that this type is something like []*Foo, so extract the Foo
+					// and get the object definition
+					subObjectName := strings.TrimPrefix(field.Type(), `[]*`)
+					subObject, ok := objects[subObjectName]
+					if !ok {
+						return fmt.Errorf(`could not find object %q`, subObjectName)
+					}
+					for _, subField := range subObject.Fields() {
+						switch pred.Method {
+						case `EQ`:
+							// anything goes
+						default:
+							// only strings allowed
+							if subField.Type() != `string` {
+								continue
+							}
+						}
+
+						o.L(`case resource.%s%sKey:`, subObjectName, subField.Name(true))
+						o.L(`//nolint:forcetypeassert`)
+						o.L(`return %s.Has%sWith(%s.%s%s(val.(%s))), nil`, object.Name(false), field.Name(true), strings.ToLower(singularName(field.Name(false))), subField.Name(true), pred.Method, subField.Type())
+					}
+					o.L(`default:`)
+					o.L(`return nil, fmt.Errorf("invalid filter specification: invalid subfield for %%q", field)`)
+					o.L(`}`)
+				case "string":
+					o.L(`case resource.%s%sKey:`, object.Name(true), field.Name(true))
+					// We can't just use ${Field}HasPrefix here, because we're going to
+					// receive the field name as a parameter
+					o.L(`entFieldName := %sEntFieldFromSCIM(scimField)`, object.Name(true))
+					o.L(`return predicate.%[1]s(func(s *sql.Selector) {`, object.Name(true))
+					o.L(`//nolint:forcetypeassert`)
+					o.L(`s.Where(sql.%s(s.C(entFieldName), val.(%s)))`, pred.Method, field.Type())
+					o.L(`}), nil`)
+				}
+			}
+			o.L(`default:`)
+			o.L(`return nil, fmt.Errorf("invalid filter field specification")`)
+			o.L(`}`)
+			o.L(`}`)
+		}
+
+		o.LL(`func %sPresencePredicate(scimField string) predicate.%s {`, object.Name(false), object.Name(true))
+		o.L(`switch scimField {`)
 		for _, field := range object.Fields() {
 			switch field.Name(false) {
 			case `schemas`:
 				continue
 			default:
 			}
-
-			switch field.Type() {
-			// predicates against a list actually means "... if any of the values match"
-			// so things like `roles.value eq "foo"` means `if any of the role.value is equal to "foo"`
-			case "[]*Role", "[]*Email":
-				o.L(`case resource.%s%sKey:`, object.Name(true), field.Name(true))
-				// It's going to be a relation, so add a query that goes into the separate entity
-				o.L(`switch subfield {`)
-
-				// TODO don't hardcode
-				// We know at this point that this type is something like []*Foo, so extract the Foo
-				// and get the object definition
-				subObjectName := strings.TrimPrefix(field.Type(), `[]*`)
-				subObject, ok := objects[subObjectName]
-				if !ok {
-					return fmt.Errorf(`could not find object %q`, subObjectName)
-				}
-				for _, subField := range subObject.Fields() {
-					o.L(`case resource.%s%sKey:`, subObjectName, subField.Name(true))
-					o.L(`//nolint:forcetypeassert`)
-					o.L(`return %s.Has%sWith(%s.%sEQ(val.(%s))), nil`, object.Name(false), field.Name(true), strings.ToLower(singularName(field.Name(false))), subField.Name(true), subField.Type())
-				}
-				o.L(`default:`)
-				o.L(`return nil, fmt.Errorf("invalid filter specification: invalid subfield for %%q", field)`)
-				o.L(`}`)
-			case "string":
-				o.L(`case resource.%s%sKey:`, object.Name(true), field.Name(true))
-				// We can't just use ${Field}HasPrefix here, because we're going to
-				// receive the field name as a parameter
-				o.L(`entFieldName := %sEntFieldFromSCIM(scimField)`, object.Name(true))
-				o.L(`return predicate.%[1]s(func(s *sql.Selector) {`, object.Name(true))
-				o.L(`//nolint:forcetypeassert`)
-				o.L(`s.Where(sql.%s(s.C(entFieldName), val.(%s)))`, pred.Method, field.Type())
-				o.L(`}), nil`)
+			if field.Type() != "string" {
+				continue
 			}
+			if field.IsRequired() {
+				continue
+			}
+			o.L(`case resource.%s%sKey:`, object.Name(true), field.Name(true))
+			o.L(`return %[1]s.And(%[1]s.%[2]sNotNil(), %[1]s.%[2]sNEQ(""))`, packageName(object.Name(false)), field.Name(true))
 		}
 		o.L(`default:`)
-		o.L(`return nil, fmt.Errorf("invalid filter field specification")`)
+		o.L(`return nil`)
 		o.L(`}`)
 		o.L(`}`)
 	}
-
-	o.LL(`func %sPresencePredicate(scimField string) predicate.%s {`, object.Name(false), object.Name(true))
-	o.L(`switch scimField {`)
-	for _, field := range object.Fields() {
-		switch field.Name(false) {
-		case `schemas`:
-			continue
-		default:
-		}
-		if field.Type() != "string" {
-			continue
-		}
-		if field.IsRequired() {
-			continue
-		}
-		o.L(`case resource.%s%sKey:`, object.Name(true), field.Name(true))
-		o.L(`return %[1]s.And(%[1]s.%[2]sNotNil(), %[1]s.%[2]sNEQ(""))`, packageName(object.Name(false)), field.Name(true))
-	}
-	o.L(`default:`)
-	o.L(`return nil`)
-	o.L(`}`)
-	o.L(`}`)
 
 	fn := fmt.Sprintf(`%s_gen.go`, relationFilename(object.Name(false)))
 	if err := o.WriteFile(fn, codegen.WithFormatCode(true)); err != nil {

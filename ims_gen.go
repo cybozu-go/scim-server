@@ -1,13 +1,10 @@
 package server
 
 import (
-	"fmt"
 	"reflect"
 
-	"entgo.io/ent/dialect/sql"
 	"github.com/cybozu-go/scim-server/ent"
 	"github.com/cybozu-go/scim-server/ent/ims"
-	"github.com/cybozu-go/scim-server/ent/predicate"
 	"github.com/cybozu-go/scim/resource"
 )
 
@@ -42,142 +39,5 @@ func IMSEntFieldFromSCIM(s string) string {
 		return ims.FieldValue
 	default:
 		return s
-	}
-}
-
-func imsStartsWithPredicate(q *ent.IMSQuery, scimField string, val interface{}) (predicate.IMS, error) {
-	_ = q
-	field, subfield, err := splitScimField(scimField)
-	if err != nil {
-		return nil, err
-	}
-	_ = subfield // TODO: remove later
-	switch field {
-	case resource.IMSDisplayKey:
-		entFieldName := IMSEntFieldFromSCIM(scimField)
-		return predicate.IMS(func(s *sql.Selector) {
-			//nolint:forcetypeassert
-			s.Where(sql.HasPrefix(s.C(entFieldName), val.(string)))
-		}), nil
-	case resource.IMSTypeKey:
-		entFieldName := IMSEntFieldFromSCIM(scimField)
-		return predicate.IMS(func(s *sql.Selector) {
-			//nolint:forcetypeassert
-			s.Where(sql.HasPrefix(s.C(entFieldName), val.(string)))
-		}), nil
-	case resource.IMSValueKey:
-		entFieldName := IMSEntFieldFromSCIM(scimField)
-		return predicate.IMS(func(s *sql.Selector) {
-			//nolint:forcetypeassert
-			s.Where(sql.HasPrefix(s.C(entFieldName), val.(string)))
-		}), nil
-	default:
-		return nil, fmt.Errorf("invalid filter field specification")
-	}
-}
-
-func imsEndsWithPredicate(q *ent.IMSQuery, scimField string, val interface{}) (predicate.IMS, error) {
-	_ = q
-	field, subfield, err := splitScimField(scimField)
-	if err != nil {
-		return nil, err
-	}
-	_ = subfield // TODO: remove later
-	switch field {
-	case resource.IMSDisplayKey:
-		entFieldName := IMSEntFieldFromSCIM(scimField)
-		return predicate.IMS(func(s *sql.Selector) {
-			//nolint:forcetypeassert
-			s.Where(sql.HasSuffix(s.C(entFieldName), val.(string)))
-		}), nil
-	case resource.IMSTypeKey:
-		entFieldName := IMSEntFieldFromSCIM(scimField)
-		return predicate.IMS(func(s *sql.Selector) {
-			//nolint:forcetypeassert
-			s.Where(sql.HasSuffix(s.C(entFieldName), val.(string)))
-		}), nil
-	case resource.IMSValueKey:
-		entFieldName := IMSEntFieldFromSCIM(scimField)
-		return predicate.IMS(func(s *sql.Selector) {
-			//nolint:forcetypeassert
-			s.Where(sql.HasSuffix(s.C(entFieldName), val.(string)))
-		}), nil
-	default:
-		return nil, fmt.Errorf("invalid filter field specification")
-	}
-}
-
-func imsContainsPredicate(q *ent.IMSQuery, scimField string, val interface{}) (predicate.IMS, error) {
-	_ = q
-	field, subfield, err := splitScimField(scimField)
-	if err != nil {
-		return nil, err
-	}
-	_ = subfield // TODO: remove later
-	switch field {
-	case resource.IMSDisplayKey:
-		entFieldName := IMSEntFieldFromSCIM(scimField)
-		return predicate.IMS(func(s *sql.Selector) {
-			//nolint:forcetypeassert
-			s.Where(sql.Contains(s.C(entFieldName), val.(string)))
-		}), nil
-	case resource.IMSTypeKey:
-		entFieldName := IMSEntFieldFromSCIM(scimField)
-		return predicate.IMS(func(s *sql.Selector) {
-			//nolint:forcetypeassert
-			s.Where(sql.Contains(s.C(entFieldName), val.(string)))
-		}), nil
-	case resource.IMSValueKey:
-		entFieldName := IMSEntFieldFromSCIM(scimField)
-		return predicate.IMS(func(s *sql.Selector) {
-			//nolint:forcetypeassert
-			s.Where(sql.Contains(s.C(entFieldName), val.(string)))
-		}), nil
-	default:
-		return nil, fmt.Errorf("invalid filter field specification")
-	}
-}
-
-func imsEqualsPredicate(q *ent.IMSQuery, scimField string, val interface{}) (predicate.IMS, error) {
-	_ = q
-	field, subfield, err := splitScimField(scimField)
-	if err != nil {
-		return nil, err
-	}
-	_ = subfield // TODO: remove later
-	switch field {
-	case resource.IMSDisplayKey:
-		entFieldName := IMSEntFieldFromSCIM(scimField)
-		return predicate.IMS(func(s *sql.Selector) {
-			//nolint:forcetypeassert
-			s.Where(sql.EQ(s.C(entFieldName), val.(string)))
-		}), nil
-	case resource.IMSTypeKey:
-		entFieldName := IMSEntFieldFromSCIM(scimField)
-		return predicate.IMS(func(s *sql.Selector) {
-			//nolint:forcetypeassert
-			s.Where(sql.EQ(s.C(entFieldName), val.(string)))
-		}), nil
-	case resource.IMSValueKey:
-		entFieldName := IMSEntFieldFromSCIM(scimField)
-		return predicate.IMS(func(s *sql.Selector) {
-			//nolint:forcetypeassert
-			s.Where(sql.EQ(s.C(entFieldName), val.(string)))
-		}), nil
-	default:
-		return nil, fmt.Errorf("invalid filter field specification")
-	}
-}
-
-func imsPresencePredicate(scimField string) predicate.IMS {
-	switch scimField {
-	case resource.IMSDisplayKey:
-		return ims.And(ims.DisplayNotNil(), ims.DisplayNEQ(""))
-	case resource.IMSTypeKey:
-		return ims.And(ims.TypeNotNil(), ims.TypeNEQ(""))
-	case resource.IMSValueKey:
-		return ims.And(ims.ValueNotNil(), ims.ValueNEQ(""))
-	default:
-		return nil
 	}
 }
