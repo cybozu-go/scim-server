@@ -35,6 +35,8 @@ const (
 	FieldUserName = "user_name"
 	// FieldUserType holds the string denoting the usertype field in the database.
 	FieldUserType = "user_type"
+	// FieldEtag holds the string denoting the etag field in the database.
+	FieldEtag = "etag"
 	// EdgeGroups holds the string denoting the groups edge name in mutations.
 	EdgeGroups = "groups"
 	// EdgeEmails holds the string denoting the emails edge name in mutations.
@@ -53,13 +55,11 @@ const (
 	EdgePhotos = "photos"
 	// Table holds the table name of the user in the database.
 	Table = "users"
-	// GroupsTable is the table that holds the groups relation/edge.
-	GroupsTable = "groups"
+	// GroupsTable is the table that holds the groups relation/edge. The primary key declared below.
+	GroupsTable = "user_groups"
 	// GroupsInverseTable is the table name for the Group entity.
 	// It exists in this package in order to avoid circular dependency with the "group" package.
 	GroupsInverseTable = "groups"
-	// GroupsColumn is the table column denoting the groups relation/edge.
-	GroupsColumn = "user_groups"
 	// EmailsTable is the table that holds the emails relation/edge.
 	EmailsTable = "emails"
 	// EmailsInverseTable is the table name for the Email entity.
@@ -126,23 +126,19 @@ var Columns = []string{
 	FieldTitle,
 	FieldUserName,
 	FieldUserType,
+	FieldEtag,
 }
 
-// ForeignKeys holds the SQL foreign-keys that are owned by the "users"
-// table and are not defined as standalone fields in the schema.
-var ForeignKeys = []string{
-	"group_users",
-}
+var (
+	// GroupsPrimaryKey and GroupsColumn2 are the table columns denoting the
+	// primary key for the groups relation (M2M).
+	GroupsPrimaryKey = []string{"user_id", "group_id"}
+)
 
 // ValidColumn reports if the column name is valid (part of the table columns).
 func ValidColumn(column string) bool {
 	for i := range Columns {
 		if column == Columns[i] {
-			return true
-		}
-	}
-	for i := range ForeignKeys {
-		if column == ForeignKeys[i] {
 			return true
 		}
 	}
@@ -154,6 +150,8 @@ var (
 	PasswordValidator func(string) error
 	// UserNameValidator is a validator for the "userName" field. It is called by the builders before save.
 	UserNameValidator func(string) error
+	// EtagValidator is a validator for the "etag" field. It is called by the builders before save.
+	EtagValidator func(string) error
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() uuid.UUID
 )

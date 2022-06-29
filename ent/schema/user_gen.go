@@ -25,5 +25,6 @@ func (User) Fields() []ent.Field {
 		field.String("title").Optional(),
 		field.String("userName").Unique().NotEmpty(),
 		field.String("userType").Optional(),
+		field.String("etag").NotEmpty(),
 	}
 }

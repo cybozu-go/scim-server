@@ -37,6 +37,7 @@ func groupLoadEntFields(q *ent.GroupQuery, scimFields, excludedFields []string) 
 		case resource.GroupMetaKey:
 		}
 	}
+	selectNames = append(selectNames, group.FieldEtag)
 	q.Select(selectNames...)
 }
 
@@ -52,6 +53,7 @@ func GroupResourceFromEnt(in *ent.Group) (*resource.Group, error) {
 	meta, err := b.Meta().
 		ResourceType("Group").
 		Location(groupLocation(in.ID.String())).
+		Version(in.Etag).
 		Build()
 	if err != nil {
 		return nil, fmt.Errorf("failed to build meta information for Group")

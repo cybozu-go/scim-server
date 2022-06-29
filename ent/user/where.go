@@ -176,6 +176,13 @@ func UserType(v string) predicate.User {
 	})
 }
 
+// Etag applies equality check predicate on the "etag" field. It's identical to EtagEQ.
+func Etag(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldEtag), v))
+	})
+}
+
 // ActiveEQ applies the EQ predicate on the "active" field.
 func ActiveEQ(v bool) predicate.User {
 	return predicate.User(func(s *sql.Selector) {
@@ -1565,13 +1572,124 @@ func UserTypeContainsFold(v string) predicate.User {
 	})
 }
 
+// EtagEQ applies the EQ predicate on the "etag" field.
+func EtagEQ(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldEtag), v))
+	})
+}
+
+// EtagNEQ applies the NEQ predicate on the "etag" field.
+func EtagNEQ(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldEtag), v))
+	})
+}
+
+// EtagIn applies the In predicate on the "etag" field.
+func EtagIn(vs ...string) predicate.User {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.User(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.In(s.C(FieldEtag), v...))
+	})
+}
+
+// EtagNotIn applies the NotIn predicate on the "etag" field.
+func EtagNotIn(vs ...string) predicate.User {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.User(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.NotIn(s.C(FieldEtag), v...))
+	})
+}
+
+// EtagGT applies the GT predicate on the "etag" field.
+func EtagGT(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.GT(s.C(FieldEtag), v))
+	})
+}
+
+// EtagGTE applies the GTE predicate on the "etag" field.
+func EtagGTE(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.GTE(s.C(FieldEtag), v))
+	})
+}
+
+// EtagLT applies the LT predicate on the "etag" field.
+func EtagLT(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.LT(s.C(FieldEtag), v))
+	})
+}
+
+// EtagLTE applies the LTE predicate on the "etag" field.
+func EtagLTE(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.LTE(s.C(FieldEtag), v))
+	})
+}
+
+// EtagContains applies the Contains predicate on the "etag" field.
+func EtagContains(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.Contains(s.C(FieldEtag), v))
+	})
+}
+
+// EtagHasPrefix applies the HasPrefix predicate on the "etag" field.
+func EtagHasPrefix(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.HasPrefix(s.C(FieldEtag), v))
+	})
+}
+
+// EtagHasSuffix applies the HasSuffix predicate on the "etag" field.
+func EtagHasSuffix(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.HasSuffix(s.C(FieldEtag), v))
+	})
+}
+
+// EtagEqualFold applies the EqualFold predicate on the "etag" field.
+func EtagEqualFold(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EqualFold(s.C(FieldEtag), v))
+	})
+}
+
+// EtagContainsFold applies the ContainsFold predicate on the "etag" field.
+func EtagContainsFold(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.ContainsFold(s.C(FieldEtag), v))
+	})
+}
+
 // HasGroups applies the HasEdge predicate on the "groups" edge.
 func HasGroups() predicate.User {
 	return predicate.User(func(s *sql.Selector) {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(Table, FieldID),
 			sqlgraph.To(GroupsTable, FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, GroupsTable, GroupsColumn),
+			sqlgraph.Edge(sqlgraph.M2M, false, GroupsTable, GroupsPrimaryKey...),
 		)
 		sqlgraph.HasNeighbors(s, step)
 	})
@@ -1583,7 +1701,7 @@ func HasGroupsWith(preds ...predicate.Group) predicate.User {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(Table, FieldID),
 			sqlgraph.To(GroupsInverseTable, FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, GroupsTable, GroupsColumn),
+			sqlgraph.Edge(sqlgraph.M2M, false, GroupsTable, GroupsPrimaryKey...),
 		)
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {

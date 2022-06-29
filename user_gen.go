@@ -7,6 +7,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/cybozu-go/scim-server/ent"
 	"github.com/cybozu-go/scim-server/ent/email"
+	"github.com/cybozu-go/scim-server/ent/phonenumber"
 	"github.com/cybozu-go/scim-server/ent/predicate"
 	"github.com/cybozu-go/scim-server/ent/role"
 	"github.com/cybozu-go/scim-server/ent/user"
@@ -70,6 +71,7 @@ func userLoadEntFields(q *ent.UserQuery, scimFields, excludedFields []string) {
 		case resource.UserX509CertificatesKey:
 		}
 	}
+	selectNames = append(selectNames, user.FieldEtag)
 	q.Select(selectNames...)
 }
 
@@ -85,6 +87,7 @@ func UserResourceFromEnt(in *ent.User) (*resource.User, error) {
 	meta, err := b.Meta().
 		ResourceType("User").
 		Location(userLocation(in.ID.String())).
+		Version(in.Etag).
 		Build()
 	if err != nil {
 		return nil, fmt.Errorf("failed to build meta information for User")
@@ -195,16 +198,13 @@ func userStartsWithPredicate(q *ent.UserQuery, scimField string, val interface{}
 		switch subfield {
 		case resource.EmailDisplayKey:
 			//nolint:forcetypeassert
-			return user.HasEmailsWith(email.DisplayEQ(val.(string))), nil
-		case resource.EmailPrimaryKey:
-			//nolint:forcetypeassert
-			return user.HasEmailsWith(email.PrimaryEQ(val.(bool))), nil
+			return user.HasEmailsWith(email.DisplayHasPrefix(val.(string))), nil
 		case resource.EmailTypeKey:
 			//nolint:forcetypeassert
-			return user.HasEmailsWith(email.TypeEQ(val.(string))), nil
+			return user.HasEmailsWith(email.TypeHasPrefix(val.(string))), nil
 		case resource.EmailValueKey:
 			//nolint:forcetypeassert
-			return user.HasEmailsWith(email.ValueEQ(val.(string))), nil
+			return user.HasEmailsWith(email.ValueHasPrefix(val.(string))), nil
 		default:
 			return nil, fmt.Errorf("invalid filter specification: invalid subfield for %q", field)
 		}
@@ -238,6 +238,20 @@ func userStartsWithPredicate(q *ent.UserQuery, scimField string, val interface{}
 			//nolint:forcetypeassert
 			s.Where(sql.HasPrefix(s.C(entFieldName), val.(string)))
 		}), nil
+	case resource.UserPhoneNumbersKey:
+		switch subfield {
+		case resource.PhoneNumberDisplayKey:
+			//nolint:forcetypeassert
+			return user.HasPhoneNumbersWith(phonenumber.DisplayHasPrefix(val.(string))), nil
+		case resource.PhoneNumberTypeKey:
+			//nolint:forcetypeassert
+			return user.HasPhoneNumbersWith(phonenumber.TypeHasPrefix(val.(string))), nil
+		case resource.PhoneNumberValueKey:
+			//nolint:forcetypeassert
+			return user.HasPhoneNumbersWith(phonenumber.ValueHasPrefix(val.(string))), nil
+		default:
+			return nil, fmt.Errorf("invalid filter specification: invalid subfield for %q", field)
+		}
 	case resource.UserPreferredLanguageKey:
 		entFieldName := UserEntFieldFromSCIM(scimField)
 		return predicate.User(func(s *sql.Selector) {
@@ -254,16 +268,13 @@ func userStartsWithPredicate(q *ent.UserQuery, scimField string, val interface{}
 		switch subfield {
 		case resource.RoleDisplayKey:
 			//nolint:forcetypeassert
-			return user.HasRolesWith(role.DisplayEQ(val.(string))), nil
-		case resource.RolePrimaryKey:
-			//nolint:forcetypeassert
-			return user.HasRolesWith(role.PrimaryEQ(val.(bool))), nil
+			return user.HasRolesWith(role.DisplayHasPrefix(val.(string))), nil
 		case resource.RoleTypeKey:
 			//nolint:forcetypeassert
-			return user.HasRolesWith(role.TypeEQ(val.(string))), nil
+			return user.HasRolesWith(role.TypeHasPrefix(val.(string))), nil
 		case resource.RoleValueKey:
 			//nolint:forcetypeassert
-			return user.HasRolesWith(role.ValueEQ(val.(string))), nil
+			return user.HasRolesWith(role.ValueHasPrefix(val.(string))), nil
 		default:
 			return nil, fmt.Errorf("invalid filter specification: invalid subfield for %q", field)
 		}
@@ -314,16 +325,13 @@ func userEndsWithPredicate(q *ent.UserQuery, scimField string, val interface{}) 
 		switch subfield {
 		case resource.EmailDisplayKey:
 			//nolint:forcetypeassert
-			return user.HasEmailsWith(email.DisplayEQ(val.(string))), nil
-		case resource.EmailPrimaryKey:
-			//nolint:forcetypeassert
-			return user.HasEmailsWith(email.PrimaryEQ(val.(bool))), nil
+			return user.HasEmailsWith(email.DisplayHasSuffix(val.(string))), nil
 		case resource.EmailTypeKey:
 			//nolint:forcetypeassert
-			return user.HasEmailsWith(email.TypeEQ(val.(string))), nil
+			return user.HasEmailsWith(email.TypeHasSuffix(val.(string))), nil
 		case resource.EmailValueKey:
 			//nolint:forcetypeassert
-			return user.HasEmailsWith(email.ValueEQ(val.(string))), nil
+			return user.HasEmailsWith(email.ValueHasSuffix(val.(string))), nil
 		default:
 			return nil, fmt.Errorf("invalid filter specification: invalid subfield for %q", field)
 		}
@@ -357,6 +365,20 @@ func userEndsWithPredicate(q *ent.UserQuery, scimField string, val interface{}) 
 			//nolint:forcetypeassert
 			s.Where(sql.HasSuffix(s.C(entFieldName), val.(string)))
 		}), nil
+	case resource.UserPhoneNumbersKey:
+		switch subfield {
+		case resource.PhoneNumberDisplayKey:
+			//nolint:forcetypeassert
+			return user.HasPhoneNumbersWith(phonenumber.DisplayHasSuffix(val.(string))), nil
+		case resource.PhoneNumberTypeKey:
+			//nolint:forcetypeassert
+			return user.HasPhoneNumbersWith(phonenumber.TypeHasSuffix(val.(string))), nil
+		case resource.PhoneNumberValueKey:
+			//nolint:forcetypeassert
+			return user.HasPhoneNumbersWith(phonenumber.ValueHasSuffix(val.(string))), nil
+		default:
+			return nil, fmt.Errorf("invalid filter specification: invalid subfield for %q", field)
+		}
 	case resource.UserPreferredLanguageKey:
 		entFieldName := UserEntFieldFromSCIM(scimField)
 		return predicate.User(func(s *sql.Selector) {
@@ -373,16 +395,13 @@ func userEndsWithPredicate(q *ent.UserQuery, scimField string, val interface{}) 
 		switch subfield {
 		case resource.RoleDisplayKey:
 			//nolint:forcetypeassert
-			return user.HasRolesWith(role.DisplayEQ(val.(string))), nil
-		case resource.RolePrimaryKey:
-			//nolint:forcetypeassert
-			return user.HasRolesWith(role.PrimaryEQ(val.(bool))), nil
+			return user.HasRolesWith(role.DisplayHasSuffix(val.(string))), nil
 		case resource.RoleTypeKey:
 			//nolint:forcetypeassert
-			return user.HasRolesWith(role.TypeEQ(val.(string))), nil
+			return user.HasRolesWith(role.TypeHasSuffix(val.(string))), nil
 		case resource.RoleValueKey:
 			//nolint:forcetypeassert
-			return user.HasRolesWith(role.ValueEQ(val.(string))), nil
+			return user.HasRolesWith(role.ValueHasSuffix(val.(string))), nil
 		default:
 			return nil, fmt.Errorf("invalid filter specification: invalid subfield for %q", field)
 		}
@@ -433,16 +452,13 @@ func userContainsPredicate(q *ent.UserQuery, scimField string, val interface{}) 
 		switch subfield {
 		case resource.EmailDisplayKey:
 			//nolint:forcetypeassert
-			return user.HasEmailsWith(email.DisplayEQ(val.(string))), nil
-		case resource.EmailPrimaryKey:
-			//nolint:forcetypeassert
-			return user.HasEmailsWith(email.PrimaryEQ(val.(bool))), nil
+			return user.HasEmailsWith(email.DisplayContains(val.(string))), nil
 		case resource.EmailTypeKey:
 			//nolint:forcetypeassert
-			return user.HasEmailsWith(email.TypeEQ(val.(string))), nil
+			return user.HasEmailsWith(email.TypeContains(val.(string))), nil
 		case resource.EmailValueKey:
 			//nolint:forcetypeassert
-			return user.HasEmailsWith(email.ValueEQ(val.(string))), nil
+			return user.HasEmailsWith(email.ValueContains(val.(string))), nil
 		default:
 			return nil, fmt.Errorf("invalid filter specification: invalid subfield for %q", field)
 		}
@@ -476,6 +492,20 @@ func userContainsPredicate(q *ent.UserQuery, scimField string, val interface{}) 
 			//nolint:forcetypeassert
 			s.Where(sql.Contains(s.C(entFieldName), val.(string)))
 		}), nil
+	case resource.UserPhoneNumbersKey:
+		switch subfield {
+		case resource.PhoneNumberDisplayKey:
+			//nolint:forcetypeassert
+			return user.HasPhoneNumbersWith(phonenumber.DisplayContains(val.(string))), nil
+		case resource.PhoneNumberTypeKey:
+			//nolint:forcetypeassert
+			return user.HasPhoneNumbersWith(phonenumber.TypeContains(val.(string))), nil
+		case resource.PhoneNumberValueKey:
+			//nolint:forcetypeassert
+			return user.HasPhoneNumbersWith(phonenumber.ValueContains(val.(string))), nil
+		default:
+			return nil, fmt.Errorf("invalid filter specification: invalid subfield for %q", field)
+		}
 	case resource.UserPreferredLanguageKey:
 		entFieldName := UserEntFieldFromSCIM(scimField)
 		return predicate.User(func(s *sql.Selector) {
@@ -492,16 +522,13 @@ func userContainsPredicate(q *ent.UserQuery, scimField string, val interface{}) 
 		switch subfield {
 		case resource.RoleDisplayKey:
 			//nolint:forcetypeassert
-			return user.HasRolesWith(role.DisplayEQ(val.(string))), nil
-		case resource.RolePrimaryKey:
-			//nolint:forcetypeassert
-			return user.HasRolesWith(role.PrimaryEQ(val.(bool))), nil
+			return user.HasRolesWith(role.DisplayContains(val.(string))), nil
 		case resource.RoleTypeKey:
 			//nolint:forcetypeassert
-			return user.HasRolesWith(role.TypeEQ(val.(string))), nil
+			return user.HasRolesWith(role.TypeContains(val.(string))), nil
 		case resource.RoleValueKey:
 			//nolint:forcetypeassert
-			return user.HasRolesWith(role.ValueEQ(val.(string))), nil
+			return user.HasRolesWith(role.ValueContains(val.(string))), nil
 		default:
 			return nil, fmt.Errorf("invalid filter specification: invalid subfield for %q", field)
 		}
@@ -595,6 +622,23 @@ func userEqualsPredicate(q *ent.UserQuery, scimField string, val interface{}) (p
 			//nolint:forcetypeassert
 			s.Where(sql.EQ(s.C(entFieldName), val.(string)))
 		}), nil
+	case resource.UserPhoneNumbersKey:
+		switch subfield {
+		case resource.PhoneNumberDisplayKey:
+			//nolint:forcetypeassert
+			return user.HasPhoneNumbersWith(phonenumber.DisplayEQ(val.(string))), nil
+		case resource.PhoneNumberPrimaryKey:
+			//nolint:forcetypeassert
+			return user.HasPhoneNumbersWith(phonenumber.PrimaryEQ(val.(bool))), nil
+		case resource.PhoneNumberTypeKey:
+			//nolint:forcetypeassert
+			return user.HasPhoneNumbersWith(phonenumber.TypeEQ(val.(string))), nil
+		case resource.PhoneNumberValueKey:
+			//nolint:forcetypeassert
+			return user.HasPhoneNumbersWith(phonenumber.ValueEQ(val.(string))), nil
+		default:
+			return nil, fmt.Errorf("invalid filter specification: invalid subfield for %q", field)
+		}
 	case resource.UserPreferredLanguageKey:
 		entFieldName := UserEntFieldFromSCIM(scimField)
 		return predicate.User(func(s *sql.Selector) {

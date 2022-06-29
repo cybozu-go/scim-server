@@ -40,10 +40,11 @@ type User struct {
 	UserName string `json:"userName,omitempty"`
 	// UserType holds the value of the "userType" field.
 	UserType string `json:"userType,omitempty"`
+	// Etag holds the value of the "etag" field.
+	Etag string `json:"etag,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the UserQuery when eager-loading is set.
-	Edges       UserEdges `json:"edges"`
-	group_users *uuid.UUID
+	Edges UserEdges `json:"edges"`
 }
 
 // UserEdges holds the relations/edges for other nodes in the graph.
@@ -148,12 +149,10 @@ func (*User) scanValues(columns []string) ([]interface{}, error) {
 		switch columns[i] {
 		case user.FieldActive:
 			values[i] = new(sql.NullBool)
-		case user.FieldDisplayName, user.FieldExternalID, user.FieldLocale, user.FieldNickName, user.FieldPassword, user.FieldPreferredLanguage, user.FieldProfileURL, user.FieldTimezone, user.FieldTitle, user.FieldUserName, user.FieldUserType:
+		case user.FieldDisplayName, user.FieldExternalID, user.FieldLocale, user.FieldNickName, user.FieldPassword, user.FieldPreferredLanguage, user.FieldProfileURL, user.FieldTimezone, user.FieldTitle, user.FieldUserName, user.FieldUserType, user.FieldEtag:
 			values[i] = new(sql.NullString)
 		case user.FieldID:
 			values[i] = new(uuid.UUID)
-		case user.ForeignKeys[0]: // group_users
-			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		default:
 			return nil, fmt.Errorf("unexpected column %q for type User", columns[i])
 		}
@@ -247,12 +246,11 @@ func (u *User) assignValues(columns []string, values []interface{}) error {
 			} else if value.Valid {
 				u.UserType = value.String
 			}
-		case user.ForeignKeys[0]:
-			if value, ok := values[i].(*sql.NullScanner); !ok {
-				return fmt.Errorf("unexpected type %T for field group_users", values[i])
+		case user.FieldEtag:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field etag", values[i])
 			} else if value.Valid {
-				u.group_users = new(uuid.UUID)
-				*u.group_users = *value.S.(*uuid.UUID)
+				u.Etag = value.String
 			}
 		}
 	}
@@ -345,6 +343,8 @@ func (u *User) String() string {
 	builder.WriteString(u.UserName)
 	builder.WriteString(", userType=")
 	builder.WriteString(u.UserType)
+	builder.WriteString(", etag=")
+	builder.WriteString(u.Etag)
 	builder.WriteByte(')')
 	return builder.String()
 }

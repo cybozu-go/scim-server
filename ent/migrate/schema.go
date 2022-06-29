@@ -66,8 +66,8 @@ var (
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "display_name", Type: field.TypeString, Nullable: true},
 		{Name: "external_id", Type: field.TypeString, Nullable: true},
+		{Name: "etag", Type: field.TypeString},
 		{Name: "group_children", Type: field.TypeUUID, Nullable: true},
-		{Name: "user_groups", Type: field.TypeUUID, Nullable: true},
 	}
 	// GroupsTable holds the schema information for the "groups" table.
 	GroupsTable = &schema.Table{
@@ -77,14 +77,8 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "groups_groups_children",
-				Columns:    []*schema.Column{GroupsColumns[3]},
-				RefColumns: []*schema.Column{GroupsColumns[0]},
-				OnDelete:   schema.SetNull,
-			},
-			{
-				Symbol:     "groups_users_groups",
 				Columns:    []*schema.Column{GroupsColumns[4]},
-				RefColumns: []*schema.Column{UsersColumns[0]},
+				RefColumns: []*schema.Column{GroupsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 		},
@@ -221,19 +215,36 @@ var (
 		{Name: "title", Type: field.TypeString, Nullable: true},
 		{Name: "user_name", Type: field.TypeString, Unique: true},
 		{Name: "user_type", Type: field.TypeString, Nullable: true},
-		{Name: "group_users", Type: field.TypeUUID, Nullable: true},
+		{Name: "etag", Type: field.TypeString},
 	}
 	// UsersTable holds the schema information for the "users" table.
 	UsersTable = &schema.Table{
 		Name:       "users",
 		Columns:    UsersColumns,
 		PrimaryKey: []*schema.Column{UsersColumns[0]},
+	}
+	// UserGroupsColumns holds the columns for the "user_groups" table.
+	UserGroupsColumns = []*schema.Column{
+		{Name: "user_id", Type: field.TypeUUID},
+		{Name: "group_id", Type: field.TypeUUID},
+	}
+	// UserGroupsTable holds the schema information for the "user_groups" table.
+	UserGroupsTable = &schema.Table{
+		Name:       "user_groups",
+		Columns:    UserGroupsColumns,
+		PrimaryKey: []*schema.Column{UserGroupsColumns[0], UserGroupsColumns[1]},
 		ForeignKeys: []*schema.ForeignKey{
 			{
-				Symbol:     "users_groups_users",
-				Columns:    []*schema.Column{UsersColumns[13]},
+				Symbol:     "user_groups_user_id",
+				Columns:    []*schema.Column{UserGroupsColumns[0]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.Cascade,
+			},
+			{
+				Symbol:     "user_groups_group_id",
+				Columns:    []*schema.Column{UserGroupsColumns[1]},
 				RefColumns: []*schema.Column{GroupsColumns[0]},
-				OnDelete:   schema.SetNull,
+				OnDelete:   schema.Cascade,
 			},
 		},
 	}
@@ -248,6 +259,7 @@ var (
 		PhotosTable,
 		RolesTable,
 		UsersTable,
+		UserGroupsTable,
 	}
 )
 
@@ -256,11 +268,11 @@ func init() {
 	EntitlementsTable.ForeignKeys[0].RefTable = UsersTable
 	EntitlementsTable.ForeignKeys[1].RefTable = UsersTable
 	GroupsTable.ForeignKeys[0].RefTable = GroupsTable
-	GroupsTable.ForeignKeys[1].RefTable = UsersTable
 	ImSsTable.ForeignKeys[0].RefTable = UsersTable
 	NamesTable.ForeignKeys[0].RefTable = UsersTable
 	PhoneNumbersTable.ForeignKeys[0].RefTable = UsersTable
 	PhotosTable.ForeignKeys[0].RefTable = UsersTable
 	RolesTable.ForeignKeys[0].RefTable = UsersTable
-	UsersTable.ForeignKeys[0].RefTable = GroupsTable
+	UserGroupsTable.ForeignKeys[0].RefTable = UsersTable
+	UserGroupsTable.ForeignKeys[1].RefTable = GroupsTable
 }

@@ -1126,6 +1126,7 @@ type GroupMutation struct {
 	id              *uuid.UUID
 	displayName     *string
 	externalID      *string
+	etag            *string
 	clearedFields   map[string]struct{}
 	users           map[uuid.UUID]struct{}
 	removedusers    map[uuid.UUID]struct{}
@@ -1342,6 +1343,42 @@ func (m *GroupMutation) ResetExternalID() {
 	delete(m.clearedFields, group.FieldExternalID)
 }
 
+// SetEtag sets the "etag" field.
+func (m *GroupMutation) SetEtag(s string) {
+	m.etag = &s
+}
+
+// Etag returns the value of the "etag" field in the mutation.
+func (m *GroupMutation) Etag() (r string, exists bool) {
+	v := m.etag
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEtag returns the old "etag" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldEtag(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEtag is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEtag requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEtag: %w", err)
+	}
+	return oldValue.Etag, nil
+}
+
+// ResetEtag resets all changes to the "etag" field.
+func (m *GroupMutation) ResetEtag() {
+	m.etag = nil
+}
+
 // AddUserIDs adds the "users" edge to the User entity by ids.
 func (m *GroupMutation) AddUserIDs(ids ...uuid.UUID) {
 	if m.users == nil {
@@ -1508,12 +1545,15 @@ func (m *GroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GroupMutation) Fields() []string {
-	fields := make([]string, 0, 2)
+	fields := make([]string, 0, 3)
 	if m.displayName != nil {
 		fields = append(fields, group.FieldDisplayName)
 	}
 	if m.externalID != nil {
 		fields = append(fields, group.FieldExternalID)
+	}
+	if m.etag != nil {
+		fields = append(fields, group.FieldEtag)
 	}
 	return fields
 }
@@ -1527,6 +1567,8 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.DisplayName()
 	case group.FieldExternalID:
 		return m.ExternalID()
+	case group.FieldEtag:
+		return m.Etag()
 	}
 	return nil, false
 }
@@ -1540,6 +1582,8 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldDisplayName(ctx)
 	case group.FieldExternalID:
 		return m.OldExternalID(ctx)
+	case group.FieldEtag:
+		return m.OldEtag(ctx)
 	}
 	return nil, fmt.Errorf("unknown Group field %s", name)
 }
@@ -1562,6 +1606,13 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetExternalID(v)
+		return nil
+	case group.FieldEtag:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEtag(v)
 		return nil
 	}
 	return fmt.Errorf("unknown Group field %s", name)
@@ -1632,6 +1683,9 @@ func (m *GroupMutation) ResetField(name string) error {
 		return nil
 	case group.FieldExternalID:
 		m.ResetExternalID()
+		return nil
+	case group.FieldEtag:
+		m.ResetEtag()
 		return nil
 	}
 	return fmt.Errorf("unknown Group field %s", name)
@@ -4689,6 +4743,7 @@ type UserMutation struct {
 	title                *string
 	userName             *string
 	userType             *string
+	etag                 *string
 	clearedFields        map[string]struct{}
 	groups               map[uuid.UUID]struct{}
 	removedgroups        map[uuid.UUID]struct{}
@@ -5398,6 +5453,42 @@ func (m *UserMutation) ResetUserType() {
 	delete(m.clearedFields, user.FieldUserType)
 }
 
+// SetEtag sets the "etag" field.
+func (m *UserMutation) SetEtag(s string) {
+	m.etag = &s
+}
+
+// Etag returns the value of the "etag" field in the mutation.
+func (m *UserMutation) Etag() (r string, exists bool) {
+	v := m.etag
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEtag returns the old "etag" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldEtag(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEtag is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEtag requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEtag: %w", err)
+	}
+	return oldValue.Etag, nil
+}
+
+// ResetEtag resets all changes to the "etag" field.
+func (m *UserMutation) ResetEtag() {
+	m.etag = nil
+}
+
 // AddGroupIDs adds the "groups" edge to the Group entity by ids.
 func (m *UserMutation) AddGroupIDs(ids ...uuid.UUID) {
 	if m.groups == nil {
@@ -5849,7 +5940,7 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 12)
+	fields := make([]string, 0, 13)
 	if m.active != nil {
 		fields = append(fields, user.FieldActive)
 	}
@@ -5886,6 +5977,9 @@ func (m *UserMutation) Fields() []string {
 	if m.userType != nil {
 		fields = append(fields, user.FieldUserType)
 	}
+	if m.etag != nil {
+		fields = append(fields, user.FieldEtag)
+	}
 	return fields
 }
 
@@ -5918,6 +6012,8 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.UserName()
 	case user.FieldUserType:
 		return m.UserType()
+	case user.FieldEtag:
+		return m.Etag()
 	}
 	return nil, false
 }
@@ -5951,6 +6047,8 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldUserName(ctx)
 	case user.FieldUserType:
 		return m.OldUserType(ctx)
+	case user.FieldEtag:
+		return m.OldEtag(ctx)
 	}
 	return nil, fmt.Errorf("unknown User field %s", name)
 }
@@ -6043,6 +6141,13 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetUserType(v)
+		return nil
+	case user.FieldEtag:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEtag(v)
 		return nil
 	}
 	return fmt.Errorf("unknown User field %s", name)
@@ -6197,6 +6302,9 @@ func (m *UserMutation) ResetField(name string) error {
 		return nil
 	case user.FieldUserType:
 		m.ResetUserType()
+		return nil
+	case user.FieldEtag:
+		m.ResetEtag()
 		return nil
 	}
 	return fmt.Errorf("unknown User field %s", name)
