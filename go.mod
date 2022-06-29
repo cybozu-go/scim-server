@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	entgo.io/ent v0.10.1
-	github.com/cybozu-go/scim v0.0.0-20220628233026-eaad9ac92963
+	github.com/cybozu-go/scim v0.0.0-20220629002526-fc08eb8ecd08
 	github.com/google/uuid v1.3.0
 	github.com/lestrrat-go/rungroup v0.0.0-20220304094823-8e9bd0a89f18
 	github.com/mattn/go-sqlite3 v1.14.10
