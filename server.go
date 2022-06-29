@@ -33,7 +33,11 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+// TODO: remove these when they have been incorporated
 var _ = groupPresencePredicate
+var _ = createIMS
+var _ = createPhotos
+var _ = createEntitlements
 
 var entTrace bool
 
