@@ -35,9 +35,9 @@ import (
 
 // TODO: remove these when they have been incorporated
 var _ = groupPresencePredicate
-var _ = createIMS
-var _ = createPhotos
-var _ = createEntitlements
+var _ = (&Backend{}).createIMS
+var _ = (&Backend{}).createEntitlements
+var _ = (&Backend{}).createPhotos
 
 var entTrace bool
 
