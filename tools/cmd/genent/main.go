@@ -566,6 +566,65 @@ func generateUtilities(object *codegen.Object) error {
 		o.L(`}`)
 	}
 
+	if object.Name(true) == `User` {
+		// Email, Roles, PhoneNumbers, Certficates, Entitlement, IMS, Photo
+		// all require the same type of helpers
+		for _, field := range object.Fields() {
+			switch field.Name(true) {
+			case `Emails`, `Roles`, `PhoneNumbers`, `Entitlements`, `IMS`, `Photos`:
+			// TODO: add `X509Certificates` laster
+			default:
+				continue
+			}
+
+			typ := singularName(field.Name(true))
+			if typ == `X509Certificate` {
+				typ = `Certificate`
+			}
+			o.LL(`func (b *Backend) create%s(in *resource.User, h hash.Hash) ([]*ent.%s, error) {`, field.Name(true), typ)
+			o.L(`list := make([]*ent.%s, len(in.%s()))`, singularName(field.Name(true)), field.Name(true))
+			o.L(`inbound := in.%s()`, field.Name(true))
+			o.L(`sort.Slice(inbound, func(i, j int) bool {`)
+			o.L(`return inbound[i].Value() <= inbound[j].Value()`)
+			o.L(`})`)
+
+			o.LL(`var hasPrimary bool`)
+			o.L(`for i, v := range inbound {`)
+			o.L(`createCall := b.db.%s.Create()`, singularName(field.Name(true)))
+			o.L(`createCall.SetValue(v.Value())`)
+			o.L(`fmt.Fprint(h, v.Value())`)
+			o.LL(`if v.HasDisplay() {`)
+			o.L(`createCall.SetDisplay(v.Display())`)
+			o.L(`fmt.Fprint(h, v.Display())`)
+			o.L(`}`)
+			o.LL(`if v.HasType() {`)
+			o.L(`createCall.SetType(v.Type())`)
+			o.L(`fmt.Fprint(h, v.Type())`)
+			o.L(`}`)
+
+			o.LL(`if sv := v.Primary(); sv {`)
+			o.L(`if hasPrimary {`)
+			o.L(`return nil, fmt.Errorf("invalid user.%[1]s: multiple %[1]s have been set to primary")`, field.JSON())
+			o.L(`}`)
+			o.L(`createCall.SetPrimary(true)`)
+			o.L(`fmt.Fprint(h, []byte{1})`)
+			o.L(`hasPrimary = true`)
+			o.L(`} else {`)
+			o.L(`fmt.Fprint(h, []byte{0})`)
+			o.L(`}`)
+
+			o.LL(`r, err := createCall.Save(context.TODO())`)
+			o.L(`if err != nil {`)
+			o.L(`return nil, fmt.Errorf("failed to save email %%d: %%w", i, err)`)
+			o.L(`}`)
+
+			o.LL(`list[i] = r`)
+			o.L(`}`)
+			o.L(`return list, nil`)
+			o.L(`}`)
+		}
+	}
+
 	fn := fmt.Sprintf(`%s_gen.go`, relationFilename(object.Name(false)))
 	if err := o.WriteFile(fn, codegen.WithFormatCode(true)); err != nil {
 		if cfe, ok := err.(codegen.CodeFormatError); ok {

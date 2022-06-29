@@ -1,8 +1,11 @@
 package server
 
 import (
+	"context"
 	"fmt"
+	"hash"
 	"reflect"
+	"sort"
 
 	"entgo.io/ent/dialect/sql"
 	"github.com/cybozu-go/scim-server/ent"
@@ -722,4 +725,268 @@ func userPresencePredicate(scimField string) predicate.User {
 	default:
 		return nil
 	}
+}
+
+func (b *Backend) createEmails(in *resource.User, h hash.Hash) ([]*ent.Email, error) {
+	list := make([]*ent.Email, len(in.Emails()))
+	inbound := in.Emails()
+	sort.Slice(inbound, func(i, j int) bool {
+		return inbound[i].Value() <= inbound[j].Value()
+	})
+
+	var hasPrimary bool
+	for i, v := range inbound {
+		createCall := b.db.Email.Create()
+		createCall.SetValue(v.Value())
+		fmt.Fprint(h, v.Value())
+
+		if v.HasDisplay() {
+			createCall.SetDisplay(v.Display())
+			fmt.Fprint(h, v.Display())
+		}
+
+		if v.HasType() {
+			createCall.SetType(v.Type())
+			fmt.Fprint(h, v.Type())
+		}
+
+		if sv := v.Primary(); sv {
+			if hasPrimary {
+				return nil, fmt.Errorf("invalid user.emails: multiple emails have been set to primary")
+			}
+			createCall.SetPrimary(true)
+			fmt.Fprint(h, []byte{1})
+			hasPrimary = true
+		} else {
+			fmt.Fprint(h, []byte{0})
+		}
+
+		r, err := createCall.Save(context.TODO())
+		if err != nil {
+			return nil, fmt.Errorf("failed to save email %d: %w", i, err)
+		}
+
+		list[i] = r
+	}
+	return list, nil
+}
+
+func (b *Backend) createEntitlements(in *resource.User, h hash.Hash) ([]*ent.Entitlement, error) {
+	list := make([]*ent.Entitlement, len(in.Entitlements()))
+	inbound := in.Entitlements()
+	sort.Slice(inbound, func(i, j int) bool {
+		return inbound[i].Value() <= inbound[j].Value()
+	})
+
+	var hasPrimary bool
+	for i, v := range inbound {
+		createCall := b.db.Entitlement.Create()
+		createCall.SetValue(v.Value())
+		fmt.Fprint(h, v.Value())
+
+		if v.HasDisplay() {
+			createCall.SetDisplay(v.Display())
+			fmt.Fprint(h, v.Display())
+		}
+
+		if v.HasType() {
+			createCall.SetType(v.Type())
+			fmt.Fprint(h, v.Type())
+		}
+
+		if sv := v.Primary(); sv {
+			if hasPrimary {
+				return nil, fmt.Errorf("invalid user.entitlements: multiple entitlements have been set to primary")
+			}
+			createCall.SetPrimary(true)
+			fmt.Fprint(h, []byte{1})
+			hasPrimary = true
+		} else {
+			fmt.Fprint(h, []byte{0})
+		}
+
+		r, err := createCall.Save(context.TODO())
+		if err != nil {
+			return nil, fmt.Errorf("failed to save email %d: %w", i, err)
+		}
+
+		list[i] = r
+	}
+	return list, nil
+}
+
+func (b *Backend) createIMS(in *resource.User, h hash.Hash) ([]*ent.IMS, error) {
+	list := make([]*ent.IMS, len(in.IMS()))
+	inbound := in.IMS()
+	sort.Slice(inbound, func(i, j int) bool {
+		return inbound[i].Value() <= inbound[j].Value()
+	})
+
+	var hasPrimary bool
+	for i, v := range inbound {
+		createCall := b.db.IMS.Create()
+		createCall.SetValue(v.Value())
+		fmt.Fprint(h, v.Value())
+
+		if v.HasDisplay() {
+			createCall.SetDisplay(v.Display())
+			fmt.Fprint(h, v.Display())
+		}
+
+		if v.HasType() {
+			createCall.SetType(v.Type())
+			fmt.Fprint(h, v.Type())
+		}
+
+		if sv := v.Primary(); sv {
+			if hasPrimary {
+				return nil, fmt.Errorf("invalid user.ims: multiple ims have been set to primary")
+			}
+			createCall.SetPrimary(true)
+			fmt.Fprint(h, []byte{1})
+			hasPrimary = true
+		} else {
+			fmt.Fprint(h, []byte{0})
+		}
+
+		r, err := createCall.Save(context.TODO())
+		if err != nil {
+			return nil, fmt.Errorf("failed to save email %d: %w", i, err)
+		}
+
+		list[i] = r
+	}
+	return list, nil
+}
+
+func (b *Backend) createPhoneNumbers(in *resource.User, h hash.Hash) ([]*ent.PhoneNumber, error) {
+	list := make([]*ent.PhoneNumber, len(in.PhoneNumbers()))
+	inbound := in.PhoneNumbers()
+	sort.Slice(inbound, func(i, j int) bool {
+		return inbound[i].Value() <= inbound[j].Value()
+	})
+
+	var hasPrimary bool
+	for i, v := range inbound {
+		createCall := b.db.PhoneNumber.Create()
+		createCall.SetValue(v.Value())
+		fmt.Fprint(h, v.Value())
+
+		if v.HasDisplay() {
+			createCall.SetDisplay(v.Display())
+			fmt.Fprint(h, v.Display())
+		}
+
+		if v.HasType() {
+			createCall.SetType(v.Type())
+			fmt.Fprint(h, v.Type())
+		}
+
+		if sv := v.Primary(); sv {
+			if hasPrimary {
+				return nil, fmt.Errorf("invalid user.phoneNumbers: multiple phoneNumbers have been set to primary")
+			}
+			createCall.SetPrimary(true)
+			fmt.Fprint(h, []byte{1})
+			hasPrimary = true
+		} else {
+			fmt.Fprint(h, []byte{0})
+		}
+
+		r, err := createCall.Save(context.TODO())
+		if err != nil {
+			return nil, fmt.Errorf("failed to save email %d: %w", i, err)
+		}
+
+		list[i] = r
+	}
+	return list, nil
+}
+
+func (b *Backend) createPhotos(in *resource.User, h hash.Hash) ([]*ent.Photo, error) {
+	list := make([]*ent.Photo, len(in.Photos()))
+	inbound := in.Photos()
+	sort.Slice(inbound, func(i, j int) bool {
+		return inbound[i].Value() <= inbound[j].Value()
+	})
+
+	var hasPrimary bool
+	for i, v := range inbound {
+		createCall := b.db.Photo.Create()
+		createCall.SetValue(v.Value())
+		fmt.Fprint(h, v.Value())
+
+		if v.HasDisplay() {
+			createCall.SetDisplay(v.Display())
+			fmt.Fprint(h, v.Display())
+		}
+
+		if v.HasType() {
+			createCall.SetType(v.Type())
+			fmt.Fprint(h, v.Type())
+		}
+
+		if sv := v.Primary(); sv {
+			if hasPrimary {
+				return nil, fmt.Errorf("invalid user.photos: multiple photos have been set to primary")
+			}
+			createCall.SetPrimary(true)
+			fmt.Fprint(h, []byte{1})
+			hasPrimary = true
+		} else {
+			fmt.Fprint(h, []byte{0})
+		}
+
+		r, err := createCall.Save(context.TODO())
+		if err != nil {
+			return nil, fmt.Errorf("failed to save email %d: %w", i, err)
+		}
+
+		list[i] = r
+	}
+	return list, nil
+}
+
+func (b *Backend) createRoles(in *resource.User, h hash.Hash) ([]*ent.Role, error) {
+	list := make([]*ent.Role, len(in.Roles()))
+	inbound := in.Roles()
+	sort.Slice(inbound, func(i, j int) bool {
+		return inbound[i].Value() <= inbound[j].Value()
+	})
+
+	var hasPrimary bool
+	for i, v := range inbound {
+		createCall := b.db.Role.Create()
+		createCall.SetValue(v.Value())
+		fmt.Fprint(h, v.Value())
+
+		if v.HasDisplay() {
+			createCall.SetDisplay(v.Display())
+			fmt.Fprint(h, v.Display())
+		}
+
+		if v.HasType() {
+			createCall.SetType(v.Type())
+			fmt.Fprint(h, v.Type())
+		}
+
+		if sv := v.Primary(); sv {
+			if hasPrimary {
+				return nil, fmt.Errorf("invalid user.roles: multiple roles have been set to primary")
+			}
+			createCall.SetPrimary(true)
+			fmt.Fprint(h, []byte{1})
+			hasPrimary = true
+		} else {
+			fmt.Fprint(h, []byte{0})
+		}
+
+		r, err := createCall.Save(context.TODO())
+		if err != nil {
+			return nil, fmt.Errorf("failed to save email %d: %w", i, err)
+		}
+
+		list[i] = r
+	}
+	return list, nil
 }
