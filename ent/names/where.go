@@ -4,6 +4,7 @@ package names
 
 import (
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/cybozu-go/scim-server/ent/predicate"
 )
 
@@ -879,6 +880,34 @@ func MiddleNameEqualFold(v string) predicate.Names {
 func MiddleNameContainsFold(v string) predicate.Names {
 	return predicate.Names(func(s *sql.Selector) {
 		s.Where(sql.ContainsFold(s.C(FieldMiddleName), v))
+	})
+}
+
+// HasUser applies the HasEdge predicate on the "user" edge.
+func HasUser() predicate.Names {
+	return predicate.Names(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.To(UserTable, FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, true, UserTable, UserColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasUserWith applies the HasEdge predicate on the "user" edge with a given conditions (other predicates).
+func HasUserWith(preds ...predicate.User) predicate.Names {
+	return predicate.Names(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.To(UserInverseTable, FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, true, UserTable, UserColumn),
+		)
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
 	})
 }
 

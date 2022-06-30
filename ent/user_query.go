@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/cybozu-go/scim-server/ent/address"
 	"github.com/cybozu-go/scim-server/ent/email"
 	"github.com/cybozu-go/scim-server/ent/entitlement"
 	"github.com/cybozu-go/scim-server/ent/group"
@@ -22,6 +23,7 @@ import (
 	"github.com/cybozu-go/scim-server/ent/predicate"
 	"github.com/cybozu-go/scim-server/ent/role"
 	"github.com/cybozu-go/scim-server/ent/user"
+	"github.com/cybozu-go/scim-server/ent/x509certificate"
 	"github.com/google/uuid"
 )
 
@@ -35,14 +37,16 @@ type UserQuery struct {
 	fields     []string
 	predicates []predicate.User
 	// eager-loading edges.
-	withGroups       *GroupQuery
-	withEmails       *EmailQuery
-	withName         *NamesQuery
-	withEntitlements *EntitlementQuery
-	withRoles        *RoleQuery
-	withImses        *IMSQuery
-	withPhoneNumbers *PhoneNumberQuery
-	withPhotos       *PhotoQuery
+	withAddresses        *AddressQuery
+	withGroups           *GroupQuery
+	withEmails           *EmailQuery
+	withName             *NamesQuery
+	withEntitlements     *EntitlementQuery
+	withRoles            *RoleQuery
+	withImses            *IMSQuery
+	withPhoneNumbers     *PhoneNumberQuery
+	withPhotos           *PhotoQuery
+	withX509Certificates *X509CertificateQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -77,6 +81,28 @@ func (uq *UserQuery) Unique(unique bool) *UserQuery {
 func (uq *UserQuery) Order(o ...OrderFunc) *UserQuery {
 	uq.order = append(uq.order, o...)
 	return uq
+}
+
+// QueryAddresses chains the current query on the "addresses" edge.
+func (uq *UserQuery) QueryAddresses() *AddressQuery {
+	query := &AddressQuery{config: uq.config}
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := uq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := uq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(address.Table, address.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.AddressesTable, user.AddressesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(uq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // QueryGroups chains the current query on the "groups" edge.
@@ -137,7 +163,7 @@ func (uq *UserQuery) QueryName() *NamesQuery {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(user.Table, user.FieldID, selector),
 			sqlgraph.To(names.Table, names.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, user.NameTable, user.NameColumn),
+			sqlgraph.Edge(sqlgraph.O2O, false, user.NameTable, user.NameColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(uq.driver.Dialect(), step)
 		return fromU, nil
@@ -248,6 +274,28 @@ func (uq *UserQuery) QueryPhotos() *PhotoQuery {
 			sqlgraph.From(user.Table, user.FieldID, selector),
 			sqlgraph.To(photo.Table, photo.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, user.PhotosTable, user.PhotosColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(uq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryX509Certificates chains the current query on the "x509Certificates" edge.
+func (uq *UserQuery) QueryX509Certificates() *X509CertificateQuery {
+	query := &X509CertificateQuery{config: uq.config}
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := uq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := uq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(x509certificate.Table, x509certificate.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.X509CertificatesTable, user.X509CertificatesColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(uq.driver.Dialect(), step)
 		return fromU, nil
@@ -431,24 +479,37 @@ func (uq *UserQuery) Clone() *UserQuery {
 		return nil
 	}
 	return &UserQuery{
-		config:           uq.config,
-		limit:            uq.limit,
-		offset:           uq.offset,
-		order:            append([]OrderFunc{}, uq.order...),
-		predicates:       append([]predicate.User{}, uq.predicates...),
-		withGroups:       uq.withGroups.Clone(),
-		withEmails:       uq.withEmails.Clone(),
-		withName:         uq.withName.Clone(),
-		withEntitlements: uq.withEntitlements.Clone(),
-		withRoles:        uq.withRoles.Clone(),
-		withImses:        uq.withImses.Clone(),
-		withPhoneNumbers: uq.withPhoneNumbers.Clone(),
-		withPhotos:       uq.withPhotos.Clone(),
+		config:               uq.config,
+		limit:                uq.limit,
+		offset:               uq.offset,
+		order:                append([]OrderFunc{}, uq.order...),
+		predicates:           append([]predicate.User{}, uq.predicates...),
+		withAddresses:        uq.withAddresses.Clone(),
+		withGroups:           uq.withGroups.Clone(),
+		withEmails:           uq.withEmails.Clone(),
+		withName:             uq.withName.Clone(),
+		withEntitlements:     uq.withEntitlements.Clone(),
+		withRoles:            uq.withRoles.Clone(),
+		withImses:            uq.withImses.Clone(),
+		withPhoneNumbers:     uq.withPhoneNumbers.Clone(),
+		withPhotos:           uq.withPhotos.Clone(),
+		withX509Certificates: uq.withX509Certificates.Clone(),
 		// clone intermediate query.
 		sql:    uq.sql.Clone(),
 		path:   uq.path,
 		unique: uq.unique,
 	}
+}
+
+// WithAddresses tells the query-builder to eager-load the nodes that are connected to
+// the "addresses" edge. The optional arguments are used to configure the query builder of the edge.
+func (uq *UserQuery) WithAddresses(opts ...func(*AddressQuery)) *UserQuery {
+	query := &AddressQuery{config: uq.config}
+	for _, opt := range opts {
+		opt(query)
+	}
+	uq.withAddresses = query
+	return uq
 }
 
 // WithGroups tells the query-builder to eager-load the nodes that are connected to
@@ -539,6 +600,17 @@ func (uq *UserQuery) WithPhotos(opts ...func(*PhotoQuery)) *UserQuery {
 	return uq
 }
 
+// WithX509Certificates tells the query-builder to eager-load the nodes that are connected to
+// the "x509Certificates" edge. The optional arguments are used to configure the query builder of the edge.
+func (uq *UserQuery) WithX509Certificates(opts ...func(*X509CertificateQuery)) *UserQuery {
+	query := &X509CertificateQuery{config: uq.config}
+	for _, opt := range opts {
+		opt(query)
+	}
+	uq.withX509Certificates = query
+	return uq
+}
+
 // GroupBy is used to group vertices by one or more fields/columns.
 // It is often used with aggregate functions, like: count, max, mean, min, sum.
 //
@@ -604,7 +676,8 @@ func (uq *UserQuery) sqlAll(ctx context.Context) ([]*User, error) {
 	var (
 		nodes       = []*User{}
 		_spec       = uq.querySpec()
-		loadedTypes = [8]bool{
+		loadedTypes = [10]bool{
+			uq.withAddresses != nil,
 			uq.withGroups != nil,
 			uq.withEmails != nil,
 			uq.withName != nil,
@@ -613,6 +686,7 @@ func (uq *UserQuery) sqlAll(ctx context.Context) ([]*User, error) {
 			uq.withImses != nil,
 			uq.withPhoneNumbers != nil,
 			uq.withPhotos != nil,
+			uq.withX509Certificates != nil,
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]interface{}, error) {
@@ -633,6 +707,35 @@ func (uq *UserQuery) sqlAll(ctx context.Context) ([]*User, error) {
 	}
 	if len(nodes) == 0 {
 		return nodes, nil
+	}
+
+	if query := uq.withAddresses; query != nil {
+		fks := make([]driver.Value, 0, len(nodes))
+		nodeids := make(map[uuid.UUID]*User)
+		for i := range nodes {
+			fks = append(fks, nodes[i].ID)
+			nodeids[nodes[i].ID] = nodes[i]
+			nodes[i].Edges.Addresses = []*Address{}
+		}
+		query.withFKs = true
+		query.Where(predicate.Address(func(s *sql.Selector) {
+			s.Where(sql.InValues(user.AddressesColumn, fks...))
+		}))
+		neighbors, err := query.All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, n := range neighbors {
+			fk := n.user_addresses
+			if fk == nil {
+				return nil, fmt.Errorf(`foreign-key "user_addresses" is nil for node %v`, n.ID)
+			}
+			node, ok := nodeids[*fk]
+			if !ok {
+				return nil, fmt.Errorf(`unexpected foreign-key "user_addresses" returned %v for node %v`, *fk, n.ID)
+			}
+			node.Edges.Addresses = append(node.Edges.Addresses, n)
+		}
 	}
 
 	if query := uq.withGroups; query != nil {
@@ -735,7 +838,6 @@ func (uq *UserQuery) sqlAll(ctx context.Context) ([]*User, error) {
 		for i := range nodes {
 			fks = append(fks, nodes[i].ID)
 			nodeids[nodes[i].ID] = nodes[i]
-			nodes[i].Edges.Name = []*Names{}
 		}
 		query.withFKs = true
 		query.Where(predicate.Names(func(s *sql.Selector) {
@@ -754,7 +856,7 @@ func (uq *UserQuery) sqlAll(ctx context.Context) ([]*User, error) {
 			if !ok {
 				return nil, fmt.Errorf(`unexpected foreign-key "user_name" returned %v for node %v`, *fk, n.ID)
 			}
-			node.Edges.Name = append(node.Edges.Name, n)
+			node.Edges.Name = n
 		}
 	}
 
@@ -900,6 +1002,35 @@ func (uq *UserQuery) sqlAll(ctx context.Context) ([]*User, error) {
 				return nil, fmt.Errorf(`unexpected foreign-key "user_photos" returned %v for node %v`, *fk, n.ID)
 			}
 			node.Edges.Photos = append(node.Edges.Photos, n)
+		}
+	}
+
+	if query := uq.withX509Certificates; query != nil {
+		fks := make([]driver.Value, 0, len(nodes))
+		nodeids := make(map[uuid.UUID]*User)
+		for i := range nodes {
+			fks = append(fks, nodes[i].ID)
+			nodeids[nodes[i].ID] = nodes[i]
+			nodes[i].Edges.X509Certificates = []*X509Certificate{}
+		}
+		query.withFKs = true
+		query.Where(predicate.X509Certificate(func(s *sql.Selector) {
+			s.Where(sql.InValues(user.X509CertificatesColumn, fks...))
+		}))
+		neighbors, err := query.All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, n := range neighbors {
+			fk := n.user_x509certificates
+			if fk == nil {
+				return nil, fmt.Errorf(`foreign-key "user_x509certificates" is nil for node %v`, n.ID)
+			}
+			node, ok := nodeids[*fk]
+			if !ok {
+				return nil, fmt.Errorf(`unexpected foreign-key "user_x509certificates" returned %v for node %v`, *fk, n.ID)
+			}
+			node.Edges.X509Certificates = append(node.Edges.X509Certificates, n)
 		}
 	}
 

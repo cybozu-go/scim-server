@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"entgo.io/ent/dialect/sql"
+	"github.com/cybozu-go/scim-server/ent/names"
 	"github.com/cybozu-go/scim-server/ent/user"
 	"github.com/google/uuid"
 )
@@ -49,12 +50,14 @@ type User struct {
 
 // UserEdges holds the relations/edges for other nodes in the graph.
 type UserEdges struct {
+	// Addresses holds the value of the addresses edge.
+	Addresses []*Address `json:"addresses,omitempty"`
 	// Groups holds the value of the groups edge.
 	Groups []*Group `json:"groups,omitempty"`
 	// Emails holds the value of the emails edge.
 	Emails []*Email `json:"emails,omitempty"`
 	// Name holds the value of the name edge.
-	Name []*Names `json:"name,omitempty"`
+	Name *Names `json:"name,omitempty"`
 	// Entitlements holds the value of the entitlements edge.
 	Entitlements []*Entitlement `json:"entitlements,omitempty"`
 	// Roles holds the value of the roles edge.
@@ -65,15 +68,26 @@ type UserEdges struct {
 	PhoneNumbers []*PhoneNumber `json:"phone_numbers,omitempty"`
 	// Photos holds the value of the photos edge.
 	Photos []*Photo `json:"photos,omitempty"`
+	// X509Certificates holds the value of the x509Certificates edge.
+	X509Certificates []*X509Certificate `json:"x509Certificates,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [8]bool
+	loadedTypes [10]bool
+}
+
+// AddressesOrErr returns the Addresses value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) AddressesOrErr() ([]*Address, error) {
+	if e.loadedTypes[0] {
+		return e.Addresses, nil
+	}
+	return nil, &NotLoadedError{edge: "addresses"}
 }
 
 // GroupsOrErr returns the Groups value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) GroupsOrErr() ([]*Group, error) {
-	if e.loadedTypes[0] {
+	if e.loadedTypes[1] {
 		return e.Groups, nil
 	}
 	return nil, &NotLoadedError{edge: "groups"}
@@ -82,16 +96,21 @@ func (e UserEdges) GroupsOrErr() ([]*Group, error) {
 // EmailsOrErr returns the Emails value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) EmailsOrErr() ([]*Email, error) {
-	if e.loadedTypes[1] {
+	if e.loadedTypes[2] {
 		return e.Emails, nil
 	}
 	return nil, &NotLoadedError{edge: "emails"}
 }
 
 // NameOrErr returns the Name value or an error if the edge
-// was not loaded in eager-loading.
-func (e UserEdges) NameOrErr() ([]*Names, error) {
-	if e.loadedTypes[2] {
+// was not loaded in eager-loading, or loaded but was not found.
+func (e UserEdges) NameOrErr() (*Names, error) {
+	if e.loadedTypes[3] {
+		if e.Name == nil {
+			// The edge name was loaded in eager-loading,
+			// but was not found.
+			return nil, &NotFoundError{label: names.Label}
+		}
 		return e.Name, nil
 	}
 	return nil, &NotLoadedError{edge: "name"}
@@ -100,7 +119,7 @@ func (e UserEdges) NameOrErr() ([]*Names, error) {
 // EntitlementsOrErr returns the Entitlements value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) EntitlementsOrErr() ([]*Entitlement, error) {
-	if e.loadedTypes[3] {
+	if e.loadedTypes[4] {
 		return e.Entitlements, nil
 	}
 	return nil, &NotLoadedError{edge: "entitlements"}
@@ -109,7 +128,7 @@ func (e UserEdges) EntitlementsOrErr() ([]*Entitlement, error) {
 // RolesOrErr returns the Roles value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) RolesOrErr() ([]*Role, error) {
-	if e.loadedTypes[4] {
+	if e.loadedTypes[5] {
 		return e.Roles, nil
 	}
 	return nil, &NotLoadedError{edge: "roles"}
@@ -118,7 +137,7 @@ func (e UserEdges) RolesOrErr() ([]*Role, error) {
 // ImsesOrErr returns the Imses value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) ImsesOrErr() ([]*IMS, error) {
-	if e.loadedTypes[5] {
+	if e.loadedTypes[6] {
 		return e.Imses, nil
 	}
 	return nil, &NotLoadedError{edge: "imses"}
@@ -127,7 +146,7 @@ func (e UserEdges) ImsesOrErr() ([]*IMS, error) {
 // PhoneNumbersOrErr returns the PhoneNumbers value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) PhoneNumbersOrErr() ([]*PhoneNumber, error) {
-	if e.loadedTypes[6] {
+	if e.loadedTypes[7] {
 		return e.PhoneNumbers, nil
 	}
 	return nil, &NotLoadedError{edge: "phone_numbers"}
@@ -136,10 +155,19 @@ func (e UserEdges) PhoneNumbersOrErr() ([]*PhoneNumber, error) {
 // PhotosOrErr returns the Photos value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) PhotosOrErr() ([]*Photo, error) {
-	if e.loadedTypes[7] {
+	if e.loadedTypes[8] {
 		return e.Photos, nil
 	}
 	return nil, &NotLoadedError{edge: "photos"}
+}
+
+// X509CertificatesOrErr returns the X509Certificates value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) X509CertificatesOrErr() ([]*X509Certificate, error) {
+	if e.loadedTypes[9] {
+		return e.X509Certificates, nil
+	}
+	return nil, &NotLoadedError{edge: "x509Certificates"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -257,6 +285,11 @@ func (u *User) assignValues(columns []string, values []interface{}) error {
 	return nil
 }
 
+// QueryAddresses queries the "addresses" edge of the User entity.
+func (u *User) QueryAddresses() *AddressQuery {
+	return (&UserClient{config: u.config}).QueryAddresses(u)
+}
+
 // QueryGroups queries the "groups" edge of the User entity.
 func (u *User) QueryGroups() *GroupQuery {
 	return (&UserClient{config: u.config}).QueryGroups(u)
@@ -295,6 +328,11 @@ func (u *User) QueryPhoneNumbers() *PhoneNumberQuery {
 // QueryPhotos queries the "photos" edge of the User entity.
 func (u *User) QueryPhotos() *PhotoQuery {
 	return (&UserClient{config: u.config}).QueryPhotos(u)
+}
+
+// QueryX509Certificates queries the "x509Certificates" edge of the User entity.
+func (u *User) QueryX509Certificates() *X509CertificateQuery {
+	return (&UserClient{config: u.config}).QueryX509Certificates(u)
 }
 
 // Update returns a builder for updating this User.

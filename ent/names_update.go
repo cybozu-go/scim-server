@@ -12,6 +12,8 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/cybozu-go/scim-server/ent/names"
 	"github.com/cybozu-go/scim-server/ent/predicate"
+	"github.com/cybozu-go/scim-server/ent/user"
+	"github.com/google/uuid"
 )
 
 // NamesUpdate is the builder for updating Names entities.
@@ -147,9 +149,34 @@ func (nu *NamesUpdate) ClearMiddleName() *NamesUpdate {
 	return nu
 }
 
+// SetUserID sets the "user" edge to the User entity by ID.
+func (nu *NamesUpdate) SetUserID(id uuid.UUID) *NamesUpdate {
+	nu.mutation.SetUserID(id)
+	return nu
+}
+
+// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
+func (nu *NamesUpdate) SetNillableUserID(id *uuid.UUID) *NamesUpdate {
+	if id != nil {
+		nu = nu.SetUserID(*id)
+	}
+	return nu
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (nu *NamesUpdate) SetUser(u *User) *NamesUpdate {
+	return nu.SetUserID(u.ID)
+}
+
 // Mutation returns the NamesMutation object of the builder.
 func (nu *NamesUpdate) Mutation() *NamesMutation {
 	return nu.mutation
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (nu *NamesUpdate) ClearUser() *NamesUpdate {
+	nu.mutation.ClearUser()
+	return nu
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -302,6 +329,41 @@ func (nu *NamesUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Column: names.FieldMiddleName,
 		})
 	}
+	if nu.mutation.UserCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: true,
+			Table:   names.UserTable,
+			Columns: []string{names.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := nu.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: true,
+			Table:   names.UserTable,
+			Columns: []string{names.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if n, err = sqlgraph.UpdateNodes(ctx, nu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{names.Label}
@@ -441,9 +503,34 @@ func (nuo *NamesUpdateOne) ClearMiddleName() *NamesUpdateOne {
 	return nuo
 }
 
+// SetUserID sets the "user" edge to the User entity by ID.
+func (nuo *NamesUpdateOne) SetUserID(id uuid.UUID) *NamesUpdateOne {
+	nuo.mutation.SetUserID(id)
+	return nuo
+}
+
+// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
+func (nuo *NamesUpdateOne) SetNillableUserID(id *uuid.UUID) *NamesUpdateOne {
+	if id != nil {
+		nuo = nuo.SetUserID(*id)
+	}
+	return nuo
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (nuo *NamesUpdateOne) SetUser(u *User) *NamesUpdateOne {
+	return nuo.SetUserID(u.ID)
+}
+
 // Mutation returns the NamesMutation object of the builder.
 func (nuo *NamesUpdateOne) Mutation() *NamesMutation {
 	return nuo.mutation
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (nuo *NamesUpdateOne) ClearUser() *NamesUpdateOne {
+	nuo.mutation.ClearUser()
+	return nuo
 }
 
 // Select allows selecting one or more fields (columns) of the returned entity.
@@ -619,6 +706,41 @@ func (nuo *NamesUpdateOne) sqlSave(ctx context.Context) (_node *Names, err error
 			Type:   field.TypeString,
 			Column: names.FieldMiddleName,
 		})
+	}
+	if nuo.mutation.UserCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: true,
+			Table:   names.UserTable,
+			Columns: []string{names.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := nuo.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: true,
+			Table:   names.UserTable,
+			Columns: []string{names.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &Names{config: nuo.config}
 	_spec.Assign = _node.assignValues

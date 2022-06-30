@@ -4,14 +4,11 @@ package ent
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/cybozu-go/scim-server/ent/entitlement"
-	"github.com/cybozu-go/scim-server/ent/user"
-	"github.com/google/uuid"
 )
 
 // EntitlementCreate is the builder for creating a Entitlement entity.
@@ -21,21 +18,17 @@ type EntitlementCreate struct {
 	hooks    []Hook
 }
 
-// SetValue sets the "value" field.
-func (ec *EntitlementCreate) SetValue(s string) *EntitlementCreate {
-	ec.mutation.SetValue(s)
-	return ec
-}
-
 // SetDisplay sets the "display" field.
 func (ec *EntitlementCreate) SetDisplay(s string) *EntitlementCreate {
 	ec.mutation.SetDisplay(s)
 	return ec
 }
 
-// SetType sets the "type" field.
-func (ec *EntitlementCreate) SetType(s string) *EntitlementCreate {
-	ec.mutation.SetType(s)
+// SetNillableDisplay sets the "display" field if the given value is not nil.
+func (ec *EntitlementCreate) SetNillableDisplay(s *string) *EntitlementCreate {
+	if s != nil {
+		ec.SetDisplay(*s)
+	}
 	return ec
 }
 
@@ -45,23 +38,40 @@ func (ec *EntitlementCreate) SetPrimary(b bool) *EntitlementCreate {
 	return ec
 }
 
-// SetUserID sets the "user" edge to the User entity by ID.
-func (ec *EntitlementCreate) SetUserID(id uuid.UUID) *EntitlementCreate {
-	ec.mutation.SetUserID(id)
-	return ec
-}
-
-// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
-func (ec *EntitlementCreate) SetNillableUserID(id *uuid.UUID) *EntitlementCreate {
-	if id != nil {
-		ec = ec.SetUserID(*id)
+// SetNillablePrimary sets the "primary" field if the given value is not nil.
+func (ec *EntitlementCreate) SetNillablePrimary(b *bool) *EntitlementCreate {
+	if b != nil {
+		ec.SetPrimary(*b)
 	}
 	return ec
 }
 
-// SetUser sets the "user" edge to the User entity.
-func (ec *EntitlementCreate) SetUser(u *User) *EntitlementCreate {
-	return ec.SetUserID(u.ID)
+// SetType sets the "type" field.
+func (ec *EntitlementCreate) SetType(s string) *EntitlementCreate {
+	ec.mutation.SetType(s)
+	return ec
+}
+
+// SetNillableType sets the "type" field if the given value is not nil.
+func (ec *EntitlementCreate) SetNillableType(s *string) *EntitlementCreate {
+	if s != nil {
+		ec.SetType(*s)
+	}
+	return ec
+}
+
+// SetValue sets the "value" field.
+func (ec *EntitlementCreate) SetValue(s string) *EntitlementCreate {
+	ec.mutation.SetValue(s)
+	return ec
+}
+
+// SetNillableValue sets the "value" field if the given value is not nil.
+func (ec *EntitlementCreate) SetNillableValue(s *string) *EntitlementCreate {
+	if s != nil {
+		ec.SetValue(*s)
+	}
+	return ec
 }
 
 // Mutation returns the EntitlementMutation object of the builder.
@@ -134,18 +144,6 @@ func (ec *EntitlementCreate) ExecX(ctx context.Context) {
 
 // check runs all checks and user-defined validators on the builder.
 func (ec *EntitlementCreate) check() error {
-	if _, ok := ec.mutation.Value(); !ok {
-		return &ValidationError{Name: "value", err: errors.New(`ent: missing required field "Entitlement.value"`)}
-	}
-	if _, ok := ec.mutation.Display(); !ok {
-		return &ValidationError{Name: "display", err: errors.New(`ent: missing required field "Entitlement.display"`)}
-	}
-	if _, ok := ec.mutation.GetType(); !ok {
-		return &ValidationError{Name: "type", err: errors.New(`ent: missing required field "Entitlement.type"`)}
-	}
-	if _, ok := ec.mutation.Primary(); !ok {
-		return &ValidationError{Name: "primary", err: errors.New(`ent: missing required field "Entitlement.primary"`)}
-	}
 	return nil
 }
 
@@ -173,14 +171,6 @@ func (ec *EntitlementCreate) createSpec() (*Entitlement, *sqlgraph.CreateSpec) {
 			},
 		}
 	)
-	if value, ok := ec.mutation.Value(); ok {
-		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: entitlement.FieldValue,
-		})
-		_node.Value = value
-	}
 	if value, ok := ec.mutation.Display(); ok {
 		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
 			Type:   field.TypeString,
@@ -188,14 +178,6 @@ func (ec *EntitlementCreate) createSpec() (*Entitlement, *sqlgraph.CreateSpec) {
 			Column: entitlement.FieldDisplay,
 		})
 		_node.Display = value
-	}
-	if value, ok := ec.mutation.GetType(); ok {
-		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: entitlement.FieldType,
-		})
-		_node.Type = value
 	}
 	if value, ok := ec.mutation.Primary(); ok {
 		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
@@ -205,25 +187,21 @@ func (ec *EntitlementCreate) createSpec() (*Entitlement, *sqlgraph.CreateSpec) {
 		})
 		_node.Primary = value
 	}
-	if nodes := ec.mutation.UserIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: false,
-			Table:   entitlement.UserTable,
-			Columns: []string{entitlement.UserColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeUUID,
-					Column: user.FieldID,
-				},
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_node.entitlement_user = &nodes[0]
-		_spec.Edges = append(_spec.Edges, edge)
+	if value, ok := ec.mutation.GetType(); ok {
+		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: entitlement.FieldType,
+		})
+		_node.Type = value
+	}
+	if value, ok := ec.mutation.Value(); ok {
+		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: entitlement.FieldValue,
+		})
+		_node.Value = value
 	}
 	return _node, _spec
 }

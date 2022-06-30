@@ -8,6 +8,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"github.com/cybozu-go/scim-server/ent/names"
+	"github.com/cybozu-go/scim-server/ent/user"
 	"github.com/google/uuid"
 )
 
@@ -28,7 +29,33 @@ type Names struct {
 	HonorificSuffix string `json:"honorificSuffix,omitempty"`
 	// MiddleName holds the value of the "middleName" field.
 	MiddleName string `json:"middleName,omitempty"`
-	user_name  *uuid.UUID
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the NamesQuery when eager-loading is set.
+	Edges     NamesEdges `json:"edges"`
+	user_name *uuid.UUID
+}
+
+// NamesEdges holds the relations/edges for other nodes in the graph.
+type NamesEdges struct {
+	// User holds the value of the user edge.
+	User *User `json:"user,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// UserOrErr returns the User value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e NamesEdges) UserOrErr() (*User, error) {
+	if e.loadedTypes[0] {
+		if e.User == nil {
+			// The edge user was loaded in eager-loading,
+			// but was not found.
+			return nil, &NotFoundError{label: user.Label}
+		}
+		return e.User, nil
+	}
+	return nil, &NotLoadedError{edge: "user"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -109,6 +136,11 @@ func (n *Names) assignValues(columns []string, values []interface{}) error {
 		}
 	}
 	return nil
+}
+
+// QueryUser queries the "user" edge of the Names entity.
+func (n *Names) QueryUser() *UserQuery {
+	return (&NamesClient{config: n.config}).QueryUser(n)
 }
 
 // Update returns a builder for updating this Names.

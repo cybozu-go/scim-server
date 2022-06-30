@@ -9,6 +9,7 @@ import (
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/cybozu-go/scim-server/ent/address"
 	"github.com/cybozu-go/scim-server/ent/email"
 	"github.com/cybozu-go/scim-server/ent/entitlement"
 	"github.com/cybozu-go/scim-server/ent/group"
@@ -18,6 +19,7 @@ import (
 	"github.com/cybozu-go/scim-server/ent/photo"
 	"github.com/cybozu-go/scim-server/ent/role"
 	"github.com/cybozu-go/scim-server/ent/user"
+	"github.com/cybozu-go/scim-server/ent/x509certificate"
 	"github.com/google/uuid"
 )
 
@@ -208,6 +210,21 @@ func (uc *UserCreate) SetNillableID(u *uuid.UUID) *UserCreate {
 	return uc
 }
 
+// AddAddressIDs adds the "addresses" edge to the Address entity by IDs.
+func (uc *UserCreate) AddAddressIDs(ids ...int) *UserCreate {
+	uc.mutation.AddAddressIDs(ids...)
+	return uc
+}
+
+// AddAddresses adds the "addresses" edges to the Address entity.
+func (uc *UserCreate) AddAddresses(a ...*Address) *UserCreate {
+	ids := make([]int, len(a))
+	for i := range a {
+		ids[i] = a[i].ID
+	}
+	return uc.AddAddressIDs(ids...)
+}
+
 // AddGroupIDs adds the "groups" edge to the Group entity by IDs.
 func (uc *UserCreate) AddGroupIDs(ids ...uuid.UUID) *UserCreate {
 	uc.mutation.AddGroupIDs(ids...)
@@ -238,19 +255,23 @@ func (uc *UserCreate) AddEmails(e ...*Email) *UserCreate {
 	return uc.AddEmailIDs(ids...)
 }
 
-// AddNameIDs adds the "name" edge to the Names entity by IDs.
-func (uc *UserCreate) AddNameIDs(ids ...int) *UserCreate {
-	uc.mutation.AddNameIDs(ids...)
+// SetNameID sets the "name" edge to the Names entity by ID.
+func (uc *UserCreate) SetNameID(id int) *UserCreate {
+	uc.mutation.SetNameID(id)
 	return uc
 }
 
-// AddName adds the "name" edges to the Names entity.
-func (uc *UserCreate) AddName(n ...*Names) *UserCreate {
-	ids := make([]int, len(n))
-	for i := range n {
-		ids[i] = n[i].ID
+// SetNillableNameID sets the "name" edge to the Names entity by ID if the given value is not nil.
+func (uc *UserCreate) SetNillableNameID(id *int) *UserCreate {
+	if id != nil {
+		uc = uc.SetNameID(*id)
 	}
-	return uc.AddNameIDs(ids...)
+	return uc
+}
+
+// SetName sets the "name" edge to the Names entity.
+func (uc *UserCreate) SetName(n *Names) *UserCreate {
+	return uc.SetNameID(n.ID)
 }
 
 // AddEntitlementIDs adds the "entitlements" edge to the Entitlement entity by IDs.
@@ -326,6 +347,21 @@ func (uc *UserCreate) AddPhotos(p ...*Photo) *UserCreate {
 		ids[i] = p[i].ID
 	}
 	return uc.AddPhotoIDs(ids...)
+}
+
+// AddX509CertificateIDs adds the "x509Certificates" edge to the X509Certificate entity by IDs.
+func (uc *UserCreate) AddX509CertificateIDs(ids ...int) *UserCreate {
+	uc.mutation.AddX509CertificateIDs(ids...)
+	return uc
+}
+
+// AddX509Certificates adds the "x509Certificates" edges to the X509Certificate entity.
+func (uc *UserCreate) AddX509Certificates(x ...*X509Certificate) *UserCreate {
+	ids := make([]int, len(x))
+	for i := range x {
+		ids[i] = x[i].ID
+	}
+	return uc.AddX509CertificateIDs(ids...)
 }
 
 // Mutation returns the UserMutation object of the builder.
@@ -568,6 +604,25 @@ func (uc *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 		})
 		_node.Etag = value
 	}
+	if nodes := uc.mutation.AddressesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.AddressesTable,
+			Columns: []string{user.AddressesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: address.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
 	if nodes := uc.mutation.GroupsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
@@ -608,7 +663,7 @@ func (uc *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	}
 	if nodes := uc.mutation.NameIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
+			Rel:     sqlgraph.O2O,
 			Inverse: false,
 			Table:   user.NameTable,
 			Columns: []string{user.NameColumn},
@@ -712,6 +767,25 @@ func (uc *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 				IDSpec: &sqlgraph.FieldSpec{
 					Type:   field.TypeInt,
 					Column: photo.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := uc.mutation.X509CertificatesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.X509CertificatesTable,
+			Columns: []string{user.X509CertificatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: x509certificate.FieldID,
 				},
 			},
 		}

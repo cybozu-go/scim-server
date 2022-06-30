@@ -9,6 +9,8 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/cybozu-go/scim-server/ent/names"
+	"github.com/cybozu-go/scim-server/ent/user"
+	"github.com/google/uuid"
 )
 
 // NamesCreate is the builder for creating a Names entity.
@@ -100,6 +102,25 @@ func (nc *NamesCreate) SetNillableMiddleName(s *string) *NamesCreate {
 		nc.SetMiddleName(*s)
 	}
 	return nc
+}
+
+// SetUserID sets the "user" edge to the User entity by ID.
+func (nc *NamesCreate) SetUserID(id uuid.UUID) *NamesCreate {
+	nc.mutation.SetUserID(id)
+	return nc
+}
+
+// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
+func (nc *NamesCreate) SetNillableUserID(id *uuid.UUID) *NamesCreate {
+	if id != nil {
+		nc = nc.SetUserID(*id)
+	}
+	return nc
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (nc *NamesCreate) SetUser(u *User) *NamesCreate {
+	return nc.SetUserID(u.ID)
 }
 
 // Mutation returns the NamesMutation object of the builder.
@@ -246,6 +267,26 @@ func (nc *NamesCreate) createSpec() (*Names, *sqlgraph.CreateSpec) {
 			Column: names.FieldMiddleName,
 		})
 		_node.MiddleName = value
+	}
+	if nodes := nc.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: true,
+			Table:   names.UserTable,
+			Columns: []string{names.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.user_name = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

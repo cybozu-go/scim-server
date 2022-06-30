@@ -10,6 +10,7 @@ import (
 	"github.com/cybozu-go/scim-server/ent/migrate"
 	"github.com/google/uuid"
 
+	"github.com/cybozu-go/scim-server/ent/address"
 	"github.com/cybozu-go/scim-server/ent/email"
 	"github.com/cybozu-go/scim-server/ent/entitlement"
 	"github.com/cybozu-go/scim-server/ent/group"
@@ -19,6 +20,7 @@ import (
 	"github.com/cybozu-go/scim-server/ent/photo"
 	"github.com/cybozu-go/scim-server/ent/role"
 	"github.com/cybozu-go/scim-server/ent/user"
+	"github.com/cybozu-go/scim-server/ent/x509certificate"
 
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
@@ -30,6 +32,8 @@ type Client struct {
 	config
 	// Schema is the client for creating, migrating and dropping schema.
 	Schema *migrate.Schema
+	// Address is the client for interacting with the Address builders.
+	Address *AddressClient
 	// Email is the client for interacting with the Email builders.
 	Email *EmailClient
 	// Entitlement is the client for interacting with the Entitlement builders.
@@ -48,6 +52,8 @@ type Client struct {
 	Role *RoleClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
+	// X509Certificate is the client for interacting with the X509Certificate builders.
+	X509Certificate *X509CertificateClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -61,6 +67,7 @@ func NewClient(opts ...Option) *Client {
 
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
+	c.Address = NewAddressClient(c.config)
 	c.Email = NewEmailClient(c.config)
 	c.Entitlement = NewEntitlementClient(c.config)
 	c.Group = NewGroupClient(c.config)
@@ -70,6 +77,7 @@ func (c *Client) init() {
 	c.Photo = NewPhotoClient(c.config)
 	c.Role = NewRoleClient(c.config)
 	c.User = NewUserClient(c.config)
+	c.X509Certificate = NewX509CertificateClient(c.config)
 }
 
 // Open opens a database/sql.DB specified by the driver name and
@@ -101,17 +109,19 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:         ctx,
-		config:      cfg,
-		Email:       NewEmailClient(cfg),
-		Entitlement: NewEntitlementClient(cfg),
-		Group:       NewGroupClient(cfg),
-		IMS:         NewIMSClient(cfg),
-		Names:       NewNamesClient(cfg),
-		PhoneNumber: NewPhoneNumberClient(cfg),
-		Photo:       NewPhotoClient(cfg),
-		Role:        NewRoleClient(cfg),
-		User:        NewUserClient(cfg),
+		ctx:             ctx,
+		config:          cfg,
+		Address:         NewAddressClient(cfg),
+		Email:           NewEmailClient(cfg),
+		Entitlement:     NewEntitlementClient(cfg),
+		Group:           NewGroupClient(cfg),
+		IMS:             NewIMSClient(cfg),
+		Names:           NewNamesClient(cfg),
+		PhoneNumber:     NewPhoneNumberClient(cfg),
+		Photo:           NewPhotoClient(cfg),
+		Role:            NewRoleClient(cfg),
+		User:            NewUserClient(cfg),
+		X509Certificate: NewX509CertificateClient(cfg),
 	}, nil
 }
 
@@ -129,24 +139,26 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:         ctx,
-		config:      cfg,
-		Email:       NewEmailClient(cfg),
-		Entitlement: NewEntitlementClient(cfg),
-		Group:       NewGroupClient(cfg),
-		IMS:         NewIMSClient(cfg),
-		Names:       NewNamesClient(cfg),
-		PhoneNumber: NewPhoneNumberClient(cfg),
-		Photo:       NewPhotoClient(cfg),
-		Role:        NewRoleClient(cfg),
-		User:        NewUserClient(cfg),
+		ctx:             ctx,
+		config:          cfg,
+		Address:         NewAddressClient(cfg),
+		Email:           NewEmailClient(cfg),
+		Entitlement:     NewEntitlementClient(cfg),
+		Group:           NewGroupClient(cfg),
+		IMS:             NewIMSClient(cfg),
+		Names:           NewNamesClient(cfg),
+		PhoneNumber:     NewPhoneNumberClient(cfg),
+		Photo:           NewPhotoClient(cfg),
+		Role:            NewRoleClient(cfg),
+		User:            NewUserClient(cfg),
+		X509Certificate: NewX509CertificateClient(cfg),
 	}, nil
 }
 
 // Debug returns a new debug-client. It's used to get verbose logging on specific operations.
 //
 //	client.Debug().
-//		Email.
+//		Address.
 //		Query().
 //		Count(ctx)
 //
@@ -169,6 +181,7 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
+	c.Address.Use(hooks...)
 	c.Email.Use(hooks...)
 	c.Entitlement.Use(hooks...)
 	c.Group.Use(hooks...)
@@ -178,6 +191,97 @@ func (c *Client) Use(hooks ...Hook) {
 	c.Photo.Use(hooks...)
 	c.Role.Use(hooks...)
 	c.User.Use(hooks...)
+	c.X509Certificate.Use(hooks...)
+}
+
+// AddressClient is a client for the Address schema.
+type AddressClient struct {
+	config
+}
+
+// NewAddressClient returns a client for the Address from the given config.
+func NewAddressClient(c config) *AddressClient {
+	return &AddressClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `address.Hooks(f(g(h())))`.
+func (c *AddressClient) Use(hooks ...Hook) {
+	c.hooks.Address = append(c.hooks.Address, hooks...)
+}
+
+// Create returns a create builder for Address.
+func (c *AddressClient) Create() *AddressCreate {
+	mutation := newAddressMutation(c.config, OpCreate)
+	return &AddressCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Address entities.
+func (c *AddressClient) CreateBulk(builders ...*AddressCreate) *AddressCreateBulk {
+	return &AddressCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Address.
+func (c *AddressClient) Update() *AddressUpdate {
+	mutation := newAddressMutation(c.config, OpUpdate)
+	return &AddressUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *AddressClient) UpdateOne(a *Address) *AddressUpdateOne {
+	mutation := newAddressMutation(c.config, OpUpdateOne, withAddress(a))
+	return &AddressUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *AddressClient) UpdateOneID(id int) *AddressUpdateOne {
+	mutation := newAddressMutation(c.config, OpUpdateOne, withAddressID(id))
+	return &AddressUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Address.
+func (c *AddressClient) Delete() *AddressDelete {
+	mutation := newAddressMutation(c.config, OpDelete)
+	return &AddressDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a delete builder for the given entity.
+func (c *AddressClient) DeleteOne(a *Address) *AddressDeleteOne {
+	return c.DeleteOneID(a.ID)
+}
+
+// DeleteOneID returns a delete builder for the given id.
+func (c *AddressClient) DeleteOneID(id int) *AddressDeleteOne {
+	builder := c.Delete().Where(address.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &AddressDeleteOne{builder}
+}
+
+// Query returns a query builder for Address.
+func (c *AddressClient) Query() *AddressQuery {
+	return &AddressQuery{
+		config: c.config,
+	}
+}
+
+// Get returns a Address entity by its id.
+func (c *AddressClient) Get(ctx context.Context, id int) (*Address, error) {
+	return c.Query().Where(address.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *AddressClient) GetX(ctx context.Context, id int) *Address {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *AddressClient) Hooks() []Hook {
+	return c.hooks.Address
 }
 
 // EmailClient is a client for the Email schema.
@@ -353,22 +457,6 @@ func (c *EntitlementClient) GetX(ctx context.Context, id int) *Entitlement {
 		panic(err)
 	}
 	return obj
-}
-
-// QueryUser queries the user edge of a Entitlement.
-func (c *EntitlementClient) QueryUser(e *Entitlement) *UserQuery {
-	query := &UserQuery{config: c.config}
-	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
-		id := e.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(entitlement.Table, entitlement.FieldID, id),
-			sqlgraph.To(user.Table, user.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, entitlement.UserTable, entitlement.UserColumn),
-		)
-		fromV = sqlgraph.Neighbors(e.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
 }
 
 // Hooks returns the client hooks.
@@ -687,6 +775,22 @@ func (c *NamesClient) GetX(ctx context.Context, id int) *Names {
 		panic(err)
 	}
 	return obj
+}
+
+// QueryUser queries the user edge of a Names.
+func (c *NamesClient) QueryUser(n *Names) *UserQuery {
+	query := &UserQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := n.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(names.Table, names.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, true, names.UserTable, names.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(n.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
 }
 
 // Hooks returns the client hooks.
@@ -1049,6 +1153,22 @@ func (c *UserClient) GetX(ctx context.Context, id uuid.UUID) *User {
 	return obj
 }
 
+// QueryAddresses queries the addresses edge of a User.
+func (c *UserClient) QueryAddresses(u *User) *AddressQuery {
+	query := &AddressQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := u.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(address.Table, address.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.AddressesTable, user.AddressesColumn),
+		)
+		fromV = sqlgraph.Neighbors(u.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // QueryGroups queries the groups edge of a User.
 func (c *UserClient) QueryGroups(u *User) *GroupQuery {
 	query := &GroupQuery{config: c.config}
@@ -1089,7 +1209,7 @@ func (c *UserClient) QueryName(u *User) *NamesQuery {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(user.Table, user.FieldID, id),
 			sqlgraph.To(names.Table, names.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, user.NameTable, user.NameColumn),
+			sqlgraph.Edge(sqlgraph.O2O, false, user.NameTable, user.NameColumn),
 		)
 		fromV = sqlgraph.Neighbors(u.driver.Dialect(), step)
 		return fromV, nil
@@ -1177,7 +1297,113 @@ func (c *UserClient) QueryPhotos(u *User) *PhotoQuery {
 	return query
 }
 
+// QueryX509Certificates queries the x509Certificates edge of a User.
+func (c *UserClient) QueryX509Certificates(u *User) *X509CertificateQuery {
+	query := &X509CertificateQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := u.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(x509certificate.Table, x509certificate.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.X509CertificatesTable, user.X509CertificatesColumn),
+		)
+		fromV = sqlgraph.Neighbors(u.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *UserClient) Hooks() []Hook {
 	return c.hooks.User
+}
+
+// X509CertificateClient is a client for the X509Certificate schema.
+type X509CertificateClient struct {
+	config
+}
+
+// NewX509CertificateClient returns a client for the X509Certificate from the given config.
+func NewX509CertificateClient(c config) *X509CertificateClient {
+	return &X509CertificateClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `x509certificate.Hooks(f(g(h())))`.
+func (c *X509CertificateClient) Use(hooks ...Hook) {
+	c.hooks.X509Certificate = append(c.hooks.X509Certificate, hooks...)
+}
+
+// Create returns a create builder for X509Certificate.
+func (c *X509CertificateClient) Create() *X509CertificateCreate {
+	mutation := newX509CertificateMutation(c.config, OpCreate)
+	return &X509CertificateCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of X509Certificate entities.
+func (c *X509CertificateClient) CreateBulk(builders ...*X509CertificateCreate) *X509CertificateCreateBulk {
+	return &X509CertificateCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for X509Certificate.
+func (c *X509CertificateClient) Update() *X509CertificateUpdate {
+	mutation := newX509CertificateMutation(c.config, OpUpdate)
+	return &X509CertificateUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *X509CertificateClient) UpdateOne(x *X509Certificate) *X509CertificateUpdateOne {
+	mutation := newX509CertificateMutation(c.config, OpUpdateOne, withX509Certificate(x))
+	return &X509CertificateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *X509CertificateClient) UpdateOneID(id int) *X509CertificateUpdateOne {
+	mutation := newX509CertificateMutation(c.config, OpUpdateOne, withX509CertificateID(id))
+	return &X509CertificateUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for X509Certificate.
+func (c *X509CertificateClient) Delete() *X509CertificateDelete {
+	mutation := newX509CertificateMutation(c.config, OpDelete)
+	return &X509CertificateDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a delete builder for the given entity.
+func (c *X509CertificateClient) DeleteOne(x *X509Certificate) *X509CertificateDeleteOne {
+	return c.DeleteOneID(x.ID)
+}
+
+// DeleteOneID returns a delete builder for the given id.
+func (c *X509CertificateClient) DeleteOneID(id int) *X509CertificateDeleteOne {
+	builder := c.Delete().Where(x509certificate.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &X509CertificateDeleteOne{builder}
+}
+
+// Query returns a query builder for X509Certificate.
+func (c *X509CertificateClient) Query() *X509CertificateQuery {
+	return &X509CertificateQuery{
+		config: c.config,
+	}
+}
+
+// Get returns a X509Certificate entity by its id.
+func (c *X509CertificateClient) Get(ctx context.Context, id int) (*X509Certificate, error) {
+	return c.Query().Where(x509certificate.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *X509CertificateClient) GetX(ctx context.Context, id int) *X509Certificate {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *X509CertificateClient) Hooks() []Hook {
+	return c.hooks.X509Certificate
 }

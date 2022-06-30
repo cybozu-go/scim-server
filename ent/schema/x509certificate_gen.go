@@ -5,11 +5,11 @@ import (
 	"entgo.io/ent/schema/field"
 )
 
-type Entitlement struct {
+type X509Certificate struct {
 	ent.Schema
 }
 
-func (Entitlement) Fields() []ent.Field {
+func (X509Certificate) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("display").Optional(),
 		field.Bool("primary").Optional(),

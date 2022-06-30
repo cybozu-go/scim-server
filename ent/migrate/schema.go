@@ -8,6 +8,31 @@ import (
 )
 
 var (
+	// AddressesColumns holds the columns for the "addresses" table.
+	AddressesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "country", Type: field.TypeString, Nullable: true},
+		{Name: "formatted", Type: field.TypeString, Nullable: true},
+		{Name: "locality", Type: field.TypeString, Nullable: true},
+		{Name: "postal_code", Type: field.TypeString, Nullable: true},
+		{Name: "region", Type: field.TypeString, Nullable: true},
+		{Name: "street_address", Type: field.TypeString, Nullable: true},
+		{Name: "user_addresses", Type: field.TypeUUID, Nullable: true},
+	}
+	// AddressesTable holds the schema information for the "addresses" table.
+	AddressesTable = &schema.Table{
+		Name:       "addresses",
+		Columns:    AddressesColumns,
+		PrimaryKey: []*schema.Column{AddressesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "addresses_users_addresses",
+				Columns:    []*schema.Column{AddressesColumns[7]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+	}
 	// EmailsColumns holds the columns for the "emails" table.
 	EmailsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -34,11 +59,10 @@ var (
 	// EntitlementsColumns holds the columns for the "entitlements" table.
 	EntitlementsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
-		{Name: "value", Type: field.TypeString},
-		{Name: "display", Type: field.TypeString},
-		{Name: "type", Type: field.TypeString},
-		{Name: "primary", Type: field.TypeBool},
-		{Name: "entitlement_user", Type: field.TypeUUID, Nullable: true},
+		{Name: "display", Type: field.TypeString, Nullable: true},
+		{Name: "primary", Type: field.TypeBool, Nullable: true},
+		{Name: "type", Type: field.TypeString, Nullable: true},
+		{Name: "value", Type: field.TypeString, Nullable: true},
 		{Name: "user_entitlements", Type: field.TypeUUID, Nullable: true},
 	}
 	// EntitlementsTable holds the schema information for the "entitlements" table.
@@ -48,14 +72,8 @@ var (
 		PrimaryKey: []*schema.Column{EntitlementsColumns[0]},
 		ForeignKeys: []*schema.ForeignKey{
 			{
-				Symbol:     "entitlements_users_user",
-				Columns:    []*schema.Column{EntitlementsColumns[5]},
-				RefColumns: []*schema.Column{UsersColumns[0]},
-				OnDelete:   schema.SetNull,
-			},
-			{
 				Symbol:     "entitlements_users_entitlements",
-				Columns:    []*schema.Column{EntitlementsColumns[6]},
+				Columns:    []*schema.Column{EntitlementsColumns[5]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -115,7 +133,7 @@ var (
 		{Name: "honorific_prefix", Type: field.TypeString, Nullable: true},
 		{Name: "honorific_suffix", Type: field.TypeString, Nullable: true},
 		{Name: "middle_name", Type: field.TypeString, Nullable: true},
-		{Name: "user_name", Type: field.TypeUUID, Nullable: true},
+		{Name: "user_name", Type: field.TypeUUID, Unique: true, Nullable: true},
 	}
 	// NamesTable holds the schema information for the "names" table.
 	NamesTable = &schema.Table{
@@ -223,6 +241,29 @@ var (
 		Columns:    UsersColumns,
 		PrimaryKey: []*schema.Column{UsersColumns[0]},
 	}
+	// X509certificatesColumns holds the columns for the "x509certificates" table.
+	X509certificatesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "display", Type: field.TypeString, Nullable: true},
+		{Name: "primary", Type: field.TypeBool, Nullable: true},
+		{Name: "type", Type: field.TypeString, Nullable: true},
+		{Name: "value", Type: field.TypeString, Nullable: true},
+		{Name: "user_x509certificates", Type: field.TypeUUID, Nullable: true},
+	}
+	// X509certificatesTable holds the schema information for the "x509certificates" table.
+	X509certificatesTable = &schema.Table{
+		Name:       "x509certificates",
+		Columns:    X509certificatesColumns,
+		PrimaryKey: []*schema.Column{X509certificatesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "x509certificates_users_x509Certificates",
+				Columns:    []*schema.Column{X509certificatesColumns[5]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+	}
 	// UserGroupsColumns holds the columns for the "user_groups" table.
 	UserGroupsColumns = []*schema.Column{
 		{Name: "user_id", Type: field.TypeUUID},
@@ -250,6 +291,7 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		AddressesTable,
 		EmailsTable,
 		EntitlementsTable,
 		GroupsTable,
@@ -259,20 +301,22 @@ var (
 		PhotosTable,
 		RolesTable,
 		UsersTable,
+		X509certificatesTable,
 		UserGroupsTable,
 	}
 )
 
 func init() {
+	AddressesTable.ForeignKeys[0].RefTable = UsersTable
 	EmailsTable.ForeignKeys[0].RefTable = UsersTable
 	EntitlementsTable.ForeignKeys[0].RefTable = UsersTable
-	EntitlementsTable.ForeignKeys[1].RefTable = UsersTable
 	GroupsTable.ForeignKeys[0].RefTable = GroupsTable
 	ImSsTable.ForeignKeys[0].RefTable = UsersTable
 	NamesTable.ForeignKeys[0].RefTable = UsersTable
 	PhoneNumbersTable.ForeignKeys[0].RefTable = UsersTable
 	PhotosTable.ForeignKeys[0].RefTable = UsersTable
 	RolesTable.ForeignKeys[0].RefTable = UsersTable
+	X509certificatesTable.ForeignKeys[0].RefTable = UsersTable
 	UserGroupsTable.ForeignKeys[0].RefTable = UsersTable
 	UserGroupsTable.ForeignKeys[1].RefTable = GroupsTable
 }
