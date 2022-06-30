@@ -223,7 +223,7 @@ func packageName(s string) string {
 	if strings.Contains(s, "509") {
 		return strings.ToLower(s)
 	}
-	return xstrings.Snake(s)
+	return strings.ToLower(s)
 }
 
 func generateSchema(object *codegen.Object) error {

@@ -4,7 +4,7 @@ import (
 	"reflect"
 
 	"github.com/cybozu-go/scim-server/ent"
-	"github.com/cybozu-go/scim-server/ent/phone_number"
+	"github.com/cybozu-go/scim-server/ent/phonenumber"
 	"github.com/cybozu-go/scim/resource"
 )
 
@@ -30,13 +30,13 @@ func PhoneNumberResourceFromEnt(in *ent.PhoneNumber) (*resource.PhoneNumber, err
 func PhoneNumberEntFieldFromSCIM(s string) string {
 	switch s {
 	case resource.PhoneNumberDisplayKey:
-		return phone_number.FieldDisplay
+		return phonenumber.FieldDisplay
 	case resource.PhoneNumberPrimaryKey:
-		return phone_number.FieldPrimary
+		return phonenumber.FieldPrimary
 	case resource.PhoneNumberTypeKey:
-		return phone_number.FieldType
+		return phonenumber.FieldType
 	case resource.PhoneNumberValueKey:
-		return phone_number.FieldValue
+		return phonenumber.FieldValue
 	default:
 		return s
 	}
