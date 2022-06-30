@@ -19,8 +19,17 @@ const (
 	FieldHonorificSuffix = "honorific_suffix"
 	// FieldMiddleName holds the string denoting the middlename field in the database.
 	FieldMiddleName = "middle_name"
+	// EdgeUser holds the string denoting the user edge name in mutations.
+	EdgeUser = "user"
 	// Table holds the table name of the names in the database.
 	Table = "names"
+	// UserTable is the table that holds the user relation/edge.
+	UserTable = "names"
+	// UserInverseTable is the table name for the User entity.
+	// It exists in this package in order to avoid circular dependency with the "user" package.
+	UserInverseTable = "users"
+	// UserColumn is the table column denoting the user relation/edge.
+	UserColumn = "user_name"
 )
 
 // Columns holds all SQL columns for names fields.

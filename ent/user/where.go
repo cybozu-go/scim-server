@@ -1683,6 +1683,34 @@ func EtagContainsFold(v string) predicate.User {
 	})
 }
 
+// HasAddresses applies the HasEdge predicate on the "addresses" edge.
+func HasAddresses() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.To(AddressesTable, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, AddressesTable, AddressesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasAddressesWith applies the HasEdge predicate on the "addresses" edge with a given conditions (other predicates).
+func HasAddressesWith(preds ...predicate.Address) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.To(AddressesInverseTable, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, AddressesTable, AddressesColumn),
+		)
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
 // HasGroups applies the HasEdge predicate on the "groups" edge.
 func HasGroups() predicate.User {
 	return predicate.User(func(s *sql.Selector) {
@@ -1745,7 +1773,7 @@ func HasName() predicate.User {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(Table, FieldID),
 			sqlgraph.To(NameTable, FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, NameTable, NameColumn),
+			sqlgraph.Edge(sqlgraph.O2O, false, NameTable, NameColumn),
 		)
 		sqlgraph.HasNeighbors(s, step)
 	})
@@ -1757,7 +1785,7 @@ func HasNameWith(preds ...predicate.Names) predicate.User {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(Table, FieldID),
 			sqlgraph.To(NameInverseTable, FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, NameTable, NameColumn),
+			sqlgraph.Edge(sqlgraph.O2O, false, NameTable, NameColumn),
 		)
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
@@ -1898,6 +1926,34 @@ func HasPhotosWith(preds ...predicate.Photo) predicate.User {
 			sqlgraph.From(Table, FieldID),
 			sqlgraph.To(PhotosInverseTable, FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, PhotosTable, PhotosColumn),
+		)
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasX509Certificates applies the HasEdge predicate on the "x509Certificates" edge.
+func HasX509Certificates() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.To(X509CertificatesTable, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, X509CertificatesTable, X509CertificatesColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasX509CertificatesWith applies the HasEdge predicate on the "x509Certificates" edge with a given conditions (other predicates).
+func HasX509CertificatesWith(preds ...predicate.X509Certificate) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.To(X509CertificatesInverseTable, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, X509CertificatesTable, X509CertificatesColumn),
 		)
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {

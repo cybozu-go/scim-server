@@ -13,8 +13,6 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/cybozu-go/scim-server/ent/entitlement"
 	"github.com/cybozu-go/scim-server/ent/predicate"
-	"github.com/cybozu-go/scim-server/ent/user"
-	"github.com/google/uuid"
 )
 
 // EntitlementQuery is the builder for querying Entitlement entities.
@@ -26,9 +24,7 @@ type EntitlementQuery struct {
 	order      []OrderFunc
 	fields     []string
 	predicates []predicate.Entitlement
-	// eager-loading edges.
-	withUser *UserQuery
-	withFKs  bool
+	withFKs    bool
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -63,28 +59,6 @@ func (eq *EntitlementQuery) Unique(unique bool) *EntitlementQuery {
 func (eq *EntitlementQuery) Order(o ...OrderFunc) *EntitlementQuery {
 	eq.order = append(eq.order, o...)
 	return eq
-}
-
-// QueryUser chains the current query on the "user" edge.
-func (eq *EntitlementQuery) QueryUser() *UserQuery {
-	query := &UserQuery{config: eq.config}
-	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
-		if err := eq.prepareQuery(ctx); err != nil {
-			return nil, err
-		}
-		selector := eq.sqlQuery(ctx)
-		if err := selector.Err(); err != nil {
-			return nil, err
-		}
-		step := sqlgraph.NewStep(
-			sqlgraph.From(entitlement.Table, entitlement.FieldID, selector),
-			sqlgraph.To(user.Table, user.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, entitlement.UserTable, entitlement.UserColumn),
-		)
-		fromU = sqlgraph.SetNeighbors(eq.driver.Dialect(), step)
-		return fromU, nil
-	}
-	return query
 }
 
 // First returns the first Entitlement entity from the query.
@@ -268,23 +242,11 @@ func (eq *EntitlementQuery) Clone() *EntitlementQuery {
 		offset:     eq.offset,
 		order:      append([]OrderFunc{}, eq.order...),
 		predicates: append([]predicate.Entitlement{}, eq.predicates...),
-		withUser:   eq.withUser.Clone(),
 		// clone intermediate query.
 		sql:    eq.sql.Clone(),
 		path:   eq.path,
 		unique: eq.unique,
 	}
-}
-
-// WithUser tells the query-builder to eager-load the nodes that are connected to
-// the "user" edge. The optional arguments are used to configure the query builder of the edge.
-func (eq *EntitlementQuery) WithUser(opts ...func(*UserQuery)) *EntitlementQuery {
-	query := &UserQuery{config: eq.config}
-	for _, opt := range opts {
-		opt(query)
-	}
-	eq.withUser = query
-	return eq
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -293,12 +255,12 @@ func (eq *EntitlementQuery) WithUser(opts ...func(*UserQuery)) *EntitlementQuery
 // Example:
 //
 //	var v []struct {
-//		Value string `json:"value,omitempty"`
+//		Display string `json:"display,omitempty"`
 //		Count int `json:"count,omitempty"`
 //	}
 //
 //	client.Entitlement.Query().
-//		GroupBy(entitlement.FieldValue).
+//		GroupBy(entitlement.FieldDisplay).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
 //
@@ -320,11 +282,11 @@ func (eq *EntitlementQuery) GroupBy(field string, fields ...string) *Entitlement
 // Example:
 //
 //	var v []struct {
-//		Value string `json:"value,omitempty"`
+//		Display string `json:"display,omitempty"`
 //	}
 //
 //	client.Entitlement.Query().
-//		Select(entitlement.FieldValue).
+//		Select(entitlement.FieldDisplay).
 //		Scan(ctx, &v)
 //
 func (eq *EntitlementQuery) Select(fields ...string) *EntitlementSelect {
@@ -350,16 +312,10 @@ func (eq *EntitlementQuery) prepareQuery(ctx context.Context) error {
 
 func (eq *EntitlementQuery) sqlAll(ctx context.Context) ([]*Entitlement, error) {
 	var (
-		nodes       = []*Entitlement{}
-		withFKs     = eq.withFKs
-		_spec       = eq.querySpec()
-		loadedTypes = [1]bool{
-			eq.withUser != nil,
-		}
+		nodes   = []*Entitlement{}
+		withFKs = eq.withFKs
+		_spec   = eq.querySpec()
 	)
-	if eq.withUser != nil {
-		withFKs = true
-	}
 	if withFKs {
 		_spec.Node.Columns = append(_spec.Node.Columns, entitlement.ForeignKeys...)
 	}
@@ -373,7 +329,6 @@ func (eq *EntitlementQuery) sqlAll(ctx context.Context) ([]*Entitlement, error) 
 			return fmt.Errorf("ent: Assign called without calling ScanValues")
 		}
 		node := nodes[len(nodes)-1]
-		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	if err := sqlgraph.QueryNodes(ctx, eq.driver, _spec); err != nil {
@@ -382,36 +337,6 @@ func (eq *EntitlementQuery) sqlAll(ctx context.Context) ([]*Entitlement, error) 
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
-
-	if query := eq.withUser; query != nil {
-		ids := make([]uuid.UUID, 0, len(nodes))
-		nodeids := make(map[uuid.UUID][]*Entitlement)
-		for i := range nodes {
-			if nodes[i].entitlement_user == nil {
-				continue
-			}
-			fk := *nodes[i].entitlement_user
-			if _, ok := nodeids[fk]; !ok {
-				ids = append(ids, fk)
-			}
-			nodeids[fk] = append(nodeids[fk], nodes[i])
-		}
-		query.Where(user.IDIn(ids...))
-		neighbors, err := query.All(ctx)
-		if err != nil {
-			return nil, err
-		}
-		for _, n := range neighbors {
-			nodes, ok := nodeids[n.ID]
-			if !ok {
-				return nil, fmt.Errorf(`unexpected foreign-key "entitlement_user" returned %v`, n.ID)
-			}
-			for i := range nodes {
-				nodes[i].Edges.User = n
-			}
-		}
-	}
-
 	return nodes, nil
 }
 

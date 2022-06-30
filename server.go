@@ -152,6 +152,51 @@ func randomString(n int) string {
 	return b.String()
 }
 
+func (b *Backend) createAddresses(in *resource.User, h hash.Hash) ([]*ent.Address, error) {
+	list := make([]*ent.Address, len(in.Addresses()))
+	for i, v := range in.Addresses() {
+		addressCreateCall := b.db.Address.Create()
+		if v.HasCountry() {
+			addressCreateCall.SetCountry(v.Country())
+			fmt.Fprint(h, v.Country())
+		}
+
+		if v.HasFormatted() {
+			addressCreateCall.SetFormatted(v.Formatted())
+			fmt.Fprint(h, v.Formatted())
+		}
+
+		if v.HasLocality() {
+			addressCreateCall.SetLocality(v.Locality())
+			fmt.Fprint(h, v.Locality())
+		}
+
+		if v.HasPostalCode() {
+			addressCreateCall.SetPostalCode(v.PostalCode())
+			fmt.Fprint(h, v.PostalCode())
+		}
+
+		if v.HasRegion() {
+			addressCreateCall.SetRegion(v.Region())
+			fmt.Fprint(h, v.Region())
+		}
+
+		if v.HasStreetAddress() {
+			addressCreateCall.SetStreetAddress(v.StreetAddress())
+			fmt.Fprint(h, v.StreetAddress())
+		}
+
+		address, err := addressCreateCall.Save(context.TODO())
+		if err != nil {
+			return nil, fmt.Errorf(`failed to save address: %w`, err)
+		}
+
+		list[i] = address
+	}
+
+	return list, nil
+}
+
 func (b *Backend) createName(v *resource.Names, h hash.Hash) (*ent.Names, error) {
 	nameCreateCall := b.db.Names.Create()
 	if v.HasFamilyName() {
@@ -189,118 +234,18 @@ func (b *Backend) createName(v *resource.Names, h hash.Hash) (*ent.Names, error)
 	return name, nil
 }
 
-func (b *Backend) CreateUser(in *resource.User) (*resource.User, error) {
-	// Generate a random password if none is given
+func (b *Backend) generatePassword(in *resource.User) (string, error) {
 	password := in.Password()
 	if password == "" {
 		password = randomString(25)
 	} else {
 		norm, err := precis.OpaqueString.String(password)
 		if err != nil {
-			return nil, fmt.Errorf(`failed to normalize password: %w`, err)
+			return "", fmt.Errorf(`failed to normalize password: %w`, err)
 		}
 		password = norm
 	}
-
-	h := sha256.New()
-	fmt.Fprint(h, b.etagSalt)
-
-	createUserCall := b.db.User.Create().
-		SetUserName(in.UserName()).
-		SetPassword(password)
-	fmt.Fprint(h, in.UserName())
-
-	// optional fields
-	if in.HasDisplayName() {
-		createUserCall.SetDisplayName(in.DisplayName())
-		fmt.Fprint(h, in.DisplayName())
-	}
-
-	if in.HasExternalID() {
-		createUserCall.SetExternalID(in.ExternalID())
-		fmt.Fprint(h, in.DisplayName())
-	}
-
-	if in.HasUserType() {
-		createUserCall.SetUserType(in.UserType())
-		fmt.Fprint(h, in.UserType())
-	}
-
-	if in.HasPreferredLanguage() {
-		createUserCall.SetPreferredLanguage(in.PreferredLanguage())
-		fmt.Fprint(h, in.PreferredLanguage())
-	}
-
-	if in.HasLocale() {
-		createUserCall.SetLocale(in.Locale())
-		fmt.Fprint(h, in.Locale())
-	}
-
-	if in.HasTimezone() {
-		createUserCall.SetTimezone(in.Timezone())
-		fmt.Fprint(h, in.Timezone())
-	}
-
-	var roles []*ent.Role
-	if in.HasRoles() {
-		created, err := b.createRoles(in, h)
-		if err != nil {
-			return nil, fmt.Errorf(`failed to create roles: %w`, err)
-		}
-		createUserCall.AddRoles(created...)
-		roles = created
-	}
-
-	var emails []*ent.Email
-	if in.HasEmails() {
-		created, err := b.createEmails(in, h)
-		if err != nil {
-			return nil, fmt.Errorf(`failed to create emails: %w`, err)
-		}
-		createUserCall.AddEmails(created...)
-		emails = created
-	}
-
-	var name []*ent.Names
-	if in.HasName() {
-		created, err := b.createName(in.Name(), h)
-		if err != nil {
-			return nil, fmt.Errorf(`failed to create name: %w`, err)
-		}
-		createUserCall.AddName(created)
-		name = []*ent.Names{created}
-	}
-
-	var phoneNumbers []*ent.PhoneNumber
-	if in.HasPhoneNumbers() {
-		created, err := b.createPhoneNumbers(in, h)
-		if err != nil {
-			return nil, fmt.Errorf(`failed to create name: %w`, err)
-		}
-		createUserCall.AddPhoneNumbers(created...)
-		phoneNumbers = created
-	}
-
-	createUserCall.SetEtag(fmt.Sprintf(`W/%q`, base64.RawStdEncoding.EncodeToString(h.Sum(nil))))
-
-	// now save the data
-	u, err := createUserCall.
-		Save(context.TODO())
-	if err != nil {
-		return nil, fmt.Errorf(`failed to save user: %w`, err)
-	}
-
-	// u is the generated *ent.User, but it has no edges because
-	// it is only populated during querying.
-	// We could either populate u.Edges ourselves or re-fetch the
-	// user via a query+eager-loading.
-	// For the time being, we're just going to populate it ourselves
-	u.Edges.Emails = emails
-	u.Edges.Name = name
-	u.Edges.Roles = roles
-	u.Edges.PhoneNumbers = phoneNumbers
-
-	return UserResourceFromEnt(u)
+	return password, nil
 }
 
 func (b *Backend) RetrieveUser(id string, fields []string, excludedFields []string) (*resource.User, error) {
@@ -321,109 +266,6 @@ func (b *Backend) RetrieveUser(id string, fields []string, excludedFields []stri
 	}
 
 	return UserResourceFromEnt(u)
-}
-
-func (b *Backend) ReplaceUser(id string, in *resource.User) (*resource.User, error) {
-	parsedUUID, err := uuid.Parse(id)
-	if err != nil {
-		return nil, fmt.Errorf(`failed to parse ID: %w`, err)
-	}
-
-	h := sha256.New()
-	fmt.Fprint(h, b.etagSalt)
-
-	// TODO: is it possible to just grab the ID or check existence?
-	u, err := b.db.User.Query().
-		Where(user.IDEQ(parsedUUID)).
-		Only(context.TODO())
-
-	if err != nil {
-		return nil, fmt.Errorf(`failed to retrieve user: %w`, err)
-	}
-
-	replaceUserCall := u.Update().
-		ClearEmails().
-		ClearName()
-
-	// optional fields
-	if in.HasDisplayName() {
-		replaceUserCall.SetDisplayName(in.DisplayName())
-		fmt.Fprint(h, in.DisplayName())
-	}
-
-	if in.HasExternalID() {
-		replaceUserCall.SetExternalID(in.ExternalID())
-		fmt.Fprint(h, in.ExternalID())
-	}
-
-	if in.HasUserType() {
-		replaceUserCall.SetUserType(in.UserType())
-		fmt.Fprint(h, in.UserType())
-	}
-
-	if in.HasPreferredLanguage() {
-		replaceUserCall.SetPreferredLanguage(in.PreferredLanguage())
-		fmt.Fprint(h, in.PreferredLanguage())
-	}
-
-	if in.HasLocale() {
-		replaceUserCall.SetLocale(in.Locale())
-		fmt.Fprint(h, in.Locale())
-	}
-
-	if in.HasTimezone() {
-		replaceUserCall.SetTimezone(in.Timezone())
-		fmt.Fprint(h, in.Timezone())
-	}
-
-	var roles []*ent.Role
-	if in.HasRoles() {
-		created, err := b.createRoles(in, h)
-		if err != nil {
-			return nil, fmt.Errorf(`failed to create roles: %w`, err)
-		}
-		replaceUserCall.AddRoles(created...)
-		roles = created
-	}
-
-	var emails []*ent.Email
-	if in.HasEmails() {
-		created, err := b.createEmails(in, h)
-		if err != nil {
-			return nil, fmt.Errorf(`failed to create emails: %w`, err)
-		}
-		replaceUserCall.AddEmails(created...)
-		emails = created
-	}
-
-	var name []*ent.Names
-	if in.HasName() {
-		created, err := b.createName(in.Name(), h)
-		if err != nil {
-			return nil, fmt.Errorf(`failed to create name: %w`, err)
-		}
-		replaceUserCall.AddName(created)
-		name = []*ent.Names{created}
-	}
-
-	replaceUserCall.SetEtag(fmt.Sprintf(`W/%q`, base64.RawStdEncoding.EncodeToString(h.Sum(nil))))
-
-	u2, err := replaceUserCall.
-		Save(context.TODO())
-	if err != nil {
-		return nil, fmt.Errorf(`failed to update user: %w`, err)
-	}
-
-	// u is the generated *ent.User, but it has no edges because
-	// it is only populated during querying.
-	// We could either populate u.Edges ourselves or re-fetch the
-	// user via a query+eager-loading.
-	// For the time being, we're just going to populate it ourselves
-	u2.Edges.Emails = emails
-	u2.Edges.Name = name
-	u2.Edges.Roles = roles
-
-	return UserResourceFromEnt(u2)
 }
 
 func (b *Backend) DeleteUser(id string) error {

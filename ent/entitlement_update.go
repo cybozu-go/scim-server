@@ -12,8 +12,6 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/cybozu-go/scim-server/ent/entitlement"
 	"github.com/cybozu-go/scim-server/ent/predicate"
-	"github.com/cybozu-go/scim-server/ent/user"
-	"github.com/google/uuid"
 )
 
 // EntitlementUpdate is the builder for updating Entitlement entities.
@@ -29,21 +27,23 @@ func (eu *EntitlementUpdate) Where(ps ...predicate.Entitlement) *EntitlementUpda
 	return eu
 }
 
-// SetValue sets the "value" field.
-func (eu *EntitlementUpdate) SetValue(s string) *EntitlementUpdate {
-	eu.mutation.SetValue(s)
-	return eu
-}
-
 // SetDisplay sets the "display" field.
 func (eu *EntitlementUpdate) SetDisplay(s string) *EntitlementUpdate {
 	eu.mutation.SetDisplay(s)
 	return eu
 }
 
-// SetType sets the "type" field.
-func (eu *EntitlementUpdate) SetType(s string) *EntitlementUpdate {
-	eu.mutation.SetType(s)
+// SetNillableDisplay sets the "display" field if the given value is not nil.
+func (eu *EntitlementUpdate) SetNillableDisplay(s *string) *EntitlementUpdate {
+	if s != nil {
+		eu.SetDisplay(*s)
+	}
+	return eu
+}
+
+// ClearDisplay clears the value of the "display" field.
+func (eu *EntitlementUpdate) ClearDisplay() *EntitlementUpdate {
+	eu.mutation.ClearDisplay()
 	return eu
 }
 
@@ -53,34 +53,63 @@ func (eu *EntitlementUpdate) SetPrimary(b bool) *EntitlementUpdate {
 	return eu
 }
 
-// SetUserID sets the "user" edge to the User entity by ID.
-func (eu *EntitlementUpdate) SetUserID(id uuid.UUID) *EntitlementUpdate {
-	eu.mutation.SetUserID(id)
-	return eu
-}
-
-// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
-func (eu *EntitlementUpdate) SetNillableUserID(id *uuid.UUID) *EntitlementUpdate {
-	if id != nil {
-		eu = eu.SetUserID(*id)
+// SetNillablePrimary sets the "primary" field if the given value is not nil.
+func (eu *EntitlementUpdate) SetNillablePrimary(b *bool) *EntitlementUpdate {
+	if b != nil {
+		eu.SetPrimary(*b)
 	}
 	return eu
 }
 
-// SetUser sets the "user" edge to the User entity.
-func (eu *EntitlementUpdate) SetUser(u *User) *EntitlementUpdate {
-	return eu.SetUserID(u.ID)
+// ClearPrimary clears the value of the "primary" field.
+func (eu *EntitlementUpdate) ClearPrimary() *EntitlementUpdate {
+	eu.mutation.ClearPrimary()
+	return eu
+}
+
+// SetType sets the "type" field.
+func (eu *EntitlementUpdate) SetType(s string) *EntitlementUpdate {
+	eu.mutation.SetType(s)
+	return eu
+}
+
+// SetNillableType sets the "type" field if the given value is not nil.
+func (eu *EntitlementUpdate) SetNillableType(s *string) *EntitlementUpdate {
+	if s != nil {
+		eu.SetType(*s)
+	}
+	return eu
+}
+
+// ClearType clears the value of the "type" field.
+func (eu *EntitlementUpdate) ClearType() *EntitlementUpdate {
+	eu.mutation.ClearType()
+	return eu
+}
+
+// SetValue sets the "value" field.
+func (eu *EntitlementUpdate) SetValue(s string) *EntitlementUpdate {
+	eu.mutation.SetValue(s)
+	return eu
+}
+
+// SetNillableValue sets the "value" field if the given value is not nil.
+func (eu *EntitlementUpdate) SetNillableValue(s *string) *EntitlementUpdate {
+	if s != nil {
+		eu.SetValue(*s)
+	}
+	return eu
+}
+
+// ClearValue clears the value of the "value" field.
+func (eu *EntitlementUpdate) ClearValue() *EntitlementUpdate {
+	eu.mutation.ClearValue()
+	return eu
 }
 
 // Mutation returns the EntitlementMutation object of the builder.
 func (eu *EntitlementUpdate) Mutation() *EntitlementMutation {
 	return eu.mutation
-}
-
-// ClearUser clears the "user" edge to the User entity.
-func (eu *EntitlementUpdate) ClearUser() *EntitlementUpdate {
-	eu.mutation.ClearUser()
-	return eu
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -155,13 +184,6 @@ func (eu *EntitlementUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			}
 		}
 	}
-	if value, ok := eu.mutation.Value(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: entitlement.FieldValue,
-		})
-	}
 	if value, ok := eu.mutation.Display(); ok {
 		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
 			Type:   field.TypeString,
@@ -169,11 +191,10 @@ func (eu *EntitlementUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Column: entitlement.FieldDisplay,
 		})
 	}
-	if value, ok := eu.mutation.GetType(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+	if eu.mutation.DisplayCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
 			Type:   field.TypeString,
-			Value:  value,
-			Column: entitlement.FieldType,
+			Column: entitlement.FieldDisplay,
 		})
 	}
 	if value, ok := eu.mutation.Primary(); ok {
@@ -183,40 +204,37 @@ func (eu *EntitlementUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Column: entitlement.FieldPrimary,
 		})
 	}
-	if eu.mutation.UserCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: false,
-			Table:   entitlement.UserTable,
-			Columns: []string{entitlement.UserColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeUUID,
-					Column: user.FieldID,
-				},
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	if eu.mutation.PrimaryCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeBool,
+			Column: entitlement.FieldPrimary,
+		})
 	}
-	if nodes := eu.mutation.UserIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: false,
-			Table:   entitlement.UserTable,
-			Columns: []string{entitlement.UserColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeUUID,
-					Column: user.FieldID,
-				},
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	if value, ok := eu.mutation.GetType(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: entitlement.FieldType,
+		})
+	}
+	if eu.mutation.TypeCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Column: entitlement.FieldType,
+		})
+	}
+	if value, ok := eu.mutation.Value(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: entitlement.FieldValue,
+		})
+	}
+	if eu.mutation.ValueCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Column: entitlement.FieldValue,
+		})
 	}
 	if n, err = sqlgraph.UpdateNodes(ctx, eu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -237,21 +255,23 @@ type EntitlementUpdateOne struct {
 	mutation *EntitlementMutation
 }
 
-// SetValue sets the "value" field.
-func (euo *EntitlementUpdateOne) SetValue(s string) *EntitlementUpdateOne {
-	euo.mutation.SetValue(s)
-	return euo
-}
-
 // SetDisplay sets the "display" field.
 func (euo *EntitlementUpdateOne) SetDisplay(s string) *EntitlementUpdateOne {
 	euo.mutation.SetDisplay(s)
 	return euo
 }
 
-// SetType sets the "type" field.
-func (euo *EntitlementUpdateOne) SetType(s string) *EntitlementUpdateOne {
-	euo.mutation.SetType(s)
+// SetNillableDisplay sets the "display" field if the given value is not nil.
+func (euo *EntitlementUpdateOne) SetNillableDisplay(s *string) *EntitlementUpdateOne {
+	if s != nil {
+		euo.SetDisplay(*s)
+	}
+	return euo
+}
+
+// ClearDisplay clears the value of the "display" field.
+func (euo *EntitlementUpdateOne) ClearDisplay() *EntitlementUpdateOne {
+	euo.mutation.ClearDisplay()
 	return euo
 }
 
@@ -261,34 +281,63 @@ func (euo *EntitlementUpdateOne) SetPrimary(b bool) *EntitlementUpdateOne {
 	return euo
 }
 
-// SetUserID sets the "user" edge to the User entity by ID.
-func (euo *EntitlementUpdateOne) SetUserID(id uuid.UUID) *EntitlementUpdateOne {
-	euo.mutation.SetUserID(id)
-	return euo
-}
-
-// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
-func (euo *EntitlementUpdateOne) SetNillableUserID(id *uuid.UUID) *EntitlementUpdateOne {
-	if id != nil {
-		euo = euo.SetUserID(*id)
+// SetNillablePrimary sets the "primary" field if the given value is not nil.
+func (euo *EntitlementUpdateOne) SetNillablePrimary(b *bool) *EntitlementUpdateOne {
+	if b != nil {
+		euo.SetPrimary(*b)
 	}
 	return euo
 }
 
-// SetUser sets the "user" edge to the User entity.
-func (euo *EntitlementUpdateOne) SetUser(u *User) *EntitlementUpdateOne {
-	return euo.SetUserID(u.ID)
+// ClearPrimary clears the value of the "primary" field.
+func (euo *EntitlementUpdateOne) ClearPrimary() *EntitlementUpdateOne {
+	euo.mutation.ClearPrimary()
+	return euo
+}
+
+// SetType sets the "type" field.
+func (euo *EntitlementUpdateOne) SetType(s string) *EntitlementUpdateOne {
+	euo.mutation.SetType(s)
+	return euo
+}
+
+// SetNillableType sets the "type" field if the given value is not nil.
+func (euo *EntitlementUpdateOne) SetNillableType(s *string) *EntitlementUpdateOne {
+	if s != nil {
+		euo.SetType(*s)
+	}
+	return euo
+}
+
+// ClearType clears the value of the "type" field.
+func (euo *EntitlementUpdateOne) ClearType() *EntitlementUpdateOne {
+	euo.mutation.ClearType()
+	return euo
+}
+
+// SetValue sets the "value" field.
+func (euo *EntitlementUpdateOne) SetValue(s string) *EntitlementUpdateOne {
+	euo.mutation.SetValue(s)
+	return euo
+}
+
+// SetNillableValue sets the "value" field if the given value is not nil.
+func (euo *EntitlementUpdateOne) SetNillableValue(s *string) *EntitlementUpdateOne {
+	if s != nil {
+		euo.SetValue(*s)
+	}
+	return euo
+}
+
+// ClearValue clears the value of the "value" field.
+func (euo *EntitlementUpdateOne) ClearValue() *EntitlementUpdateOne {
+	euo.mutation.ClearValue()
+	return euo
 }
 
 // Mutation returns the EntitlementMutation object of the builder.
 func (euo *EntitlementUpdateOne) Mutation() *EntitlementMutation {
 	return euo.mutation
-}
-
-// ClearUser clears the "user" edge to the User entity.
-func (euo *EntitlementUpdateOne) ClearUser() *EntitlementUpdateOne {
-	euo.mutation.ClearUser()
-	return euo
 }
 
 // Select allows selecting one or more fields (columns) of the returned entity.
@@ -387,13 +436,6 @@ func (euo *EntitlementUpdateOne) sqlSave(ctx context.Context) (_node *Entitlemen
 			}
 		}
 	}
-	if value, ok := euo.mutation.Value(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: entitlement.FieldValue,
-		})
-	}
 	if value, ok := euo.mutation.Display(); ok {
 		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
 			Type:   field.TypeString,
@@ -401,11 +443,10 @@ func (euo *EntitlementUpdateOne) sqlSave(ctx context.Context) (_node *Entitlemen
 			Column: entitlement.FieldDisplay,
 		})
 	}
-	if value, ok := euo.mutation.GetType(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+	if euo.mutation.DisplayCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
 			Type:   field.TypeString,
-			Value:  value,
-			Column: entitlement.FieldType,
+			Column: entitlement.FieldDisplay,
 		})
 	}
 	if value, ok := euo.mutation.Primary(); ok {
@@ -415,40 +456,37 @@ func (euo *EntitlementUpdateOne) sqlSave(ctx context.Context) (_node *Entitlemen
 			Column: entitlement.FieldPrimary,
 		})
 	}
-	if euo.mutation.UserCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: false,
-			Table:   entitlement.UserTable,
-			Columns: []string{entitlement.UserColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeUUID,
-					Column: user.FieldID,
-				},
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	if euo.mutation.PrimaryCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeBool,
+			Column: entitlement.FieldPrimary,
+		})
 	}
-	if nodes := euo.mutation.UserIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: false,
-			Table:   entitlement.UserTable,
-			Columns: []string{entitlement.UserColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeUUID,
-					Column: user.FieldID,
-				},
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	if value, ok := euo.mutation.GetType(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: entitlement.FieldType,
+		})
+	}
+	if euo.mutation.TypeCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Column: entitlement.FieldType,
+		})
+	}
+	if value, ok := euo.mutation.Value(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: entitlement.FieldValue,
+		})
+	}
+	if euo.mutation.ValueCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Column: entitlement.FieldValue,
+		})
 	}
 	_node = &Entitlement{config: euo.config}
 	_spec.Assign = _node.assignValues

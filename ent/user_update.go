@@ -10,6 +10,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/cybozu-go/scim-server/ent/address"
 	"github.com/cybozu-go/scim-server/ent/email"
 	"github.com/cybozu-go/scim-server/ent/entitlement"
 	"github.com/cybozu-go/scim-server/ent/group"
@@ -20,6 +21,7 @@ import (
 	"github.com/cybozu-go/scim-server/ent/predicate"
 	"github.com/cybozu-go/scim-server/ent/role"
 	"github.com/cybozu-go/scim-server/ent/user"
+	"github.com/cybozu-go/scim-server/ent/x509certificate"
 	"github.com/google/uuid"
 )
 
@@ -268,6 +270,21 @@ func (uu *UserUpdate) SetEtag(s string) *UserUpdate {
 	return uu
 }
 
+// AddAddressIDs adds the "addresses" edge to the Address entity by IDs.
+func (uu *UserUpdate) AddAddressIDs(ids ...int) *UserUpdate {
+	uu.mutation.AddAddressIDs(ids...)
+	return uu
+}
+
+// AddAddresses adds the "addresses" edges to the Address entity.
+func (uu *UserUpdate) AddAddresses(a ...*Address) *UserUpdate {
+	ids := make([]int, len(a))
+	for i := range a {
+		ids[i] = a[i].ID
+	}
+	return uu.AddAddressIDs(ids...)
+}
+
 // AddGroupIDs adds the "groups" edge to the Group entity by IDs.
 func (uu *UserUpdate) AddGroupIDs(ids ...uuid.UUID) *UserUpdate {
 	uu.mutation.AddGroupIDs(ids...)
@@ -298,19 +315,23 @@ func (uu *UserUpdate) AddEmails(e ...*Email) *UserUpdate {
 	return uu.AddEmailIDs(ids...)
 }
 
-// AddNameIDs adds the "name" edge to the Names entity by IDs.
-func (uu *UserUpdate) AddNameIDs(ids ...int) *UserUpdate {
-	uu.mutation.AddNameIDs(ids...)
+// SetNameID sets the "name" edge to the Names entity by ID.
+func (uu *UserUpdate) SetNameID(id int) *UserUpdate {
+	uu.mutation.SetNameID(id)
 	return uu
 }
 
-// AddName adds the "name" edges to the Names entity.
-func (uu *UserUpdate) AddName(n ...*Names) *UserUpdate {
-	ids := make([]int, len(n))
-	for i := range n {
-		ids[i] = n[i].ID
+// SetNillableNameID sets the "name" edge to the Names entity by ID if the given value is not nil.
+func (uu *UserUpdate) SetNillableNameID(id *int) *UserUpdate {
+	if id != nil {
+		uu = uu.SetNameID(*id)
 	}
-	return uu.AddNameIDs(ids...)
+	return uu
+}
+
+// SetName sets the "name" edge to the Names entity.
+func (uu *UserUpdate) SetName(n *Names) *UserUpdate {
+	return uu.SetNameID(n.ID)
 }
 
 // AddEntitlementIDs adds the "entitlements" edge to the Entitlement entity by IDs.
@@ -388,9 +409,45 @@ func (uu *UserUpdate) AddPhotos(p ...*Photo) *UserUpdate {
 	return uu.AddPhotoIDs(ids...)
 }
 
+// AddX509CertificateIDs adds the "x509Certificates" edge to the X509Certificate entity by IDs.
+func (uu *UserUpdate) AddX509CertificateIDs(ids ...int) *UserUpdate {
+	uu.mutation.AddX509CertificateIDs(ids...)
+	return uu
+}
+
+// AddX509Certificates adds the "x509Certificates" edges to the X509Certificate entity.
+func (uu *UserUpdate) AddX509Certificates(x ...*X509Certificate) *UserUpdate {
+	ids := make([]int, len(x))
+	for i := range x {
+		ids[i] = x[i].ID
+	}
+	return uu.AddX509CertificateIDs(ids...)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (uu *UserUpdate) Mutation() *UserMutation {
 	return uu.mutation
+}
+
+// ClearAddresses clears all "addresses" edges to the Address entity.
+func (uu *UserUpdate) ClearAddresses() *UserUpdate {
+	uu.mutation.ClearAddresses()
+	return uu
+}
+
+// RemoveAddressIDs removes the "addresses" edge to Address entities by IDs.
+func (uu *UserUpdate) RemoveAddressIDs(ids ...int) *UserUpdate {
+	uu.mutation.RemoveAddressIDs(ids...)
+	return uu
+}
+
+// RemoveAddresses removes "addresses" edges to Address entities.
+func (uu *UserUpdate) RemoveAddresses(a ...*Address) *UserUpdate {
+	ids := make([]int, len(a))
+	for i := range a {
+		ids[i] = a[i].ID
+	}
+	return uu.RemoveAddressIDs(ids...)
 }
 
 // ClearGroups clears all "groups" edges to the Group entity.
@@ -435,25 +492,10 @@ func (uu *UserUpdate) RemoveEmails(e ...*Email) *UserUpdate {
 	return uu.RemoveEmailIDs(ids...)
 }
 
-// ClearName clears all "name" edges to the Names entity.
+// ClearName clears the "name" edge to the Names entity.
 func (uu *UserUpdate) ClearName() *UserUpdate {
 	uu.mutation.ClearName()
 	return uu
-}
-
-// RemoveNameIDs removes the "name" edge to Names entities by IDs.
-func (uu *UserUpdate) RemoveNameIDs(ids ...int) *UserUpdate {
-	uu.mutation.RemoveNameIDs(ids...)
-	return uu
-}
-
-// RemoveName removes "name" edges to Names entities.
-func (uu *UserUpdate) RemoveName(n ...*Names) *UserUpdate {
-	ids := make([]int, len(n))
-	for i := range n {
-		ids[i] = n[i].ID
-	}
-	return uu.RemoveNameIDs(ids...)
 }
 
 // ClearEntitlements clears all "entitlements" edges to the Entitlement entity.
@@ -559,6 +601,27 @@ func (uu *UserUpdate) RemovePhotos(p ...*Photo) *UserUpdate {
 		ids[i] = p[i].ID
 	}
 	return uu.RemovePhotoIDs(ids...)
+}
+
+// ClearX509Certificates clears all "x509Certificates" edges to the X509Certificate entity.
+func (uu *UserUpdate) ClearX509Certificates() *UserUpdate {
+	uu.mutation.ClearX509Certificates()
+	return uu
+}
+
+// RemoveX509CertificateIDs removes the "x509Certificates" edge to X509Certificate entities by IDs.
+func (uu *UserUpdate) RemoveX509CertificateIDs(ids ...int) *UserUpdate {
+	uu.mutation.RemoveX509CertificateIDs(ids...)
+	return uu
+}
+
+// RemoveX509Certificates removes "x509Certificates" edges to X509Certificate entities.
+func (uu *UserUpdate) RemoveX509Certificates(x ...*X509Certificate) *UserUpdate {
+	ids := make([]int, len(x))
+	for i := range x {
+		ids[i] = x[i].ID
+	}
+	return uu.RemoveX509CertificateIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -816,6 +879,60 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Column: user.FieldEtag,
 		})
 	}
+	if uu.mutation.AddressesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.AddressesTable,
+			Columns: []string{user.AddressesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: address.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.RemovedAddressesIDs(); len(nodes) > 0 && !uu.mutation.AddressesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.AddressesTable,
+			Columns: []string{user.AddressesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: address.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.AddressesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.AddressesTable,
+			Columns: []string{user.AddressesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: address.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if uu.mutation.GroupsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
@@ -926,7 +1043,7 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if uu.mutation.NameCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
+			Rel:     sqlgraph.O2O,
 			Inverse: false,
 			Table:   user.NameTable,
 			Columns: []string{user.NameColumn},
@@ -937,31 +1054,12 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 					Column: names.FieldID,
 				},
 			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := uu.mutation.RemovedNameIDs(); len(nodes) > 0 && !uu.mutation.NameCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   user.NameTable,
-			Columns: []string{user.NameColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeInt,
-					Column: names.FieldID,
-				},
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
 	if nodes := uu.mutation.NameIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
+			Rel:     sqlgraph.O2O,
 			Inverse: false,
 			Table:   user.NameTable,
 			Columns: []string{user.NameColumn},
@@ -1248,6 +1346,60 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if uu.mutation.X509CertificatesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.X509CertificatesTable,
+			Columns: []string{user.X509CertificatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: x509certificate.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.RemovedX509CertificatesIDs(); len(nodes) > 0 && !uu.mutation.X509CertificatesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.X509CertificatesTable,
+			Columns: []string{user.X509CertificatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: x509certificate.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.X509CertificatesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.X509CertificatesTable,
+			Columns: []string{user.X509CertificatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: x509certificate.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if n, err = sqlgraph.UpdateNodes(ctx, uu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{user.Label}
@@ -1499,6 +1651,21 @@ func (uuo *UserUpdateOne) SetEtag(s string) *UserUpdateOne {
 	return uuo
 }
 
+// AddAddressIDs adds the "addresses" edge to the Address entity by IDs.
+func (uuo *UserUpdateOne) AddAddressIDs(ids ...int) *UserUpdateOne {
+	uuo.mutation.AddAddressIDs(ids...)
+	return uuo
+}
+
+// AddAddresses adds the "addresses" edges to the Address entity.
+func (uuo *UserUpdateOne) AddAddresses(a ...*Address) *UserUpdateOne {
+	ids := make([]int, len(a))
+	for i := range a {
+		ids[i] = a[i].ID
+	}
+	return uuo.AddAddressIDs(ids...)
+}
+
 // AddGroupIDs adds the "groups" edge to the Group entity by IDs.
 func (uuo *UserUpdateOne) AddGroupIDs(ids ...uuid.UUID) *UserUpdateOne {
 	uuo.mutation.AddGroupIDs(ids...)
@@ -1529,19 +1696,23 @@ func (uuo *UserUpdateOne) AddEmails(e ...*Email) *UserUpdateOne {
 	return uuo.AddEmailIDs(ids...)
 }
 
-// AddNameIDs adds the "name" edge to the Names entity by IDs.
-func (uuo *UserUpdateOne) AddNameIDs(ids ...int) *UserUpdateOne {
-	uuo.mutation.AddNameIDs(ids...)
+// SetNameID sets the "name" edge to the Names entity by ID.
+func (uuo *UserUpdateOne) SetNameID(id int) *UserUpdateOne {
+	uuo.mutation.SetNameID(id)
 	return uuo
 }
 
-// AddName adds the "name" edges to the Names entity.
-func (uuo *UserUpdateOne) AddName(n ...*Names) *UserUpdateOne {
-	ids := make([]int, len(n))
-	for i := range n {
-		ids[i] = n[i].ID
+// SetNillableNameID sets the "name" edge to the Names entity by ID if the given value is not nil.
+func (uuo *UserUpdateOne) SetNillableNameID(id *int) *UserUpdateOne {
+	if id != nil {
+		uuo = uuo.SetNameID(*id)
 	}
-	return uuo.AddNameIDs(ids...)
+	return uuo
+}
+
+// SetName sets the "name" edge to the Names entity.
+func (uuo *UserUpdateOne) SetName(n *Names) *UserUpdateOne {
+	return uuo.SetNameID(n.ID)
 }
 
 // AddEntitlementIDs adds the "entitlements" edge to the Entitlement entity by IDs.
@@ -1619,9 +1790,45 @@ func (uuo *UserUpdateOne) AddPhotos(p ...*Photo) *UserUpdateOne {
 	return uuo.AddPhotoIDs(ids...)
 }
 
+// AddX509CertificateIDs adds the "x509Certificates" edge to the X509Certificate entity by IDs.
+func (uuo *UserUpdateOne) AddX509CertificateIDs(ids ...int) *UserUpdateOne {
+	uuo.mutation.AddX509CertificateIDs(ids...)
+	return uuo
+}
+
+// AddX509Certificates adds the "x509Certificates" edges to the X509Certificate entity.
+func (uuo *UserUpdateOne) AddX509Certificates(x ...*X509Certificate) *UserUpdateOne {
+	ids := make([]int, len(x))
+	for i := range x {
+		ids[i] = x[i].ID
+	}
+	return uuo.AddX509CertificateIDs(ids...)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (uuo *UserUpdateOne) Mutation() *UserMutation {
 	return uuo.mutation
+}
+
+// ClearAddresses clears all "addresses" edges to the Address entity.
+func (uuo *UserUpdateOne) ClearAddresses() *UserUpdateOne {
+	uuo.mutation.ClearAddresses()
+	return uuo
+}
+
+// RemoveAddressIDs removes the "addresses" edge to Address entities by IDs.
+func (uuo *UserUpdateOne) RemoveAddressIDs(ids ...int) *UserUpdateOne {
+	uuo.mutation.RemoveAddressIDs(ids...)
+	return uuo
+}
+
+// RemoveAddresses removes "addresses" edges to Address entities.
+func (uuo *UserUpdateOne) RemoveAddresses(a ...*Address) *UserUpdateOne {
+	ids := make([]int, len(a))
+	for i := range a {
+		ids[i] = a[i].ID
+	}
+	return uuo.RemoveAddressIDs(ids...)
 }
 
 // ClearGroups clears all "groups" edges to the Group entity.
@@ -1666,25 +1873,10 @@ func (uuo *UserUpdateOne) RemoveEmails(e ...*Email) *UserUpdateOne {
 	return uuo.RemoveEmailIDs(ids...)
 }
 
-// ClearName clears all "name" edges to the Names entity.
+// ClearName clears the "name" edge to the Names entity.
 func (uuo *UserUpdateOne) ClearName() *UserUpdateOne {
 	uuo.mutation.ClearName()
 	return uuo
-}
-
-// RemoveNameIDs removes the "name" edge to Names entities by IDs.
-func (uuo *UserUpdateOne) RemoveNameIDs(ids ...int) *UserUpdateOne {
-	uuo.mutation.RemoveNameIDs(ids...)
-	return uuo
-}
-
-// RemoveName removes "name" edges to Names entities.
-func (uuo *UserUpdateOne) RemoveName(n ...*Names) *UserUpdateOne {
-	ids := make([]int, len(n))
-	for i := range n {
-		ids[i] = n[i].ID
-	}
-	return uuo.RemoveNameIDs(ids...)
 }
 
 // ClearEntitlements clears all "entitlements" edges to the Entitlement entity.
@@ -1790,6 +1982,27 @@ func (uuo *UserUpdateOne) RemovePhotos(p ...*Photo) *UserUpdateOne {
 		ids[i] = p[i].ID
 	}
 	return uuo.RemovePhotoIDs(ids...)
+}
+
+// ClearX509Certificates clears all "x509Certificates" edges to the X509Certificate entity.
+func (uuo *UserUpdateOne) ClearX509Certificates() *UserUpdateOne {
+	uuo.mutation.ClearX509Certificates()
+	return uuo
+}
+
+// RemoveX509CertificateIDs removes the "x509Certificates" edge to X509Certificate entities by IDs.
+func (uuo *UserUpdateOne) RemoveX509CertificateIDs(ids ...int) *UserUpdateOne {
+	uuo.mutation.RemoveX509CertificateIDs(ids...)
+	return uuo
+}
+
+// RemoveX509Certificates removes "x509Certificates" edges to X509Certificate entities.
+func (uuo *UserUpdateOne) RemoveX509Certificates(x ...*X509Certificate) *UserUpdateOne {
+	ids := make([]int, len(x))
+	for i := range x {
+		ids[i] = x[i].ID
+	}
+	return uuo.RemoveX509CertificateIDs(ids...)
 }
 
 // Select allows selecting one or more fields (columns) of the returned entity.
@@ -2071,6 +2284,60 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 			Column: user.FieldEtag,
 		})
 	}
+	if uuo.mutation.AddressesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.AddressesTable,
+			Columns: []string{user.AddressesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: address.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.RemovedAddressesIDs(); len(nodes) > 0 && !uuo.mutation.AddressesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.AddressesTable,
+			Columns: []string{user.AddressesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: address.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.AddressesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.AddressesTable,
+			Columns: []string{user.AddressesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: address.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if uuo.mutation.GroupsCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2M,
@@ -2181,7 +2448,7 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 	}
 	if uuo.mutation.NameCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
+			Rel:     sqlgraph.O2O,
 			Inverse: false,
 			Table:   user.NameTable,
 			Columns: []string{user.NameColumn},
@@ -2192,31 +2459,12 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 					Column: names.FieldID,
 				},
 			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := uuo.mutation.RemovedNameIDs(); len(nodes) > 0 && !uuo.mutation.NameCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   user.NameTable,
-			Columns: []string{user.NameColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeInt,
-					Column: names.FieldID,
-				},
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
 	if nodes := uuo.mutation.NameIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
+			Rel:     sqlgraph.O2O,
 			Inverse: false,
 			Table:   user.NameTable,
 			Columns: []string{user.NameColumn},
@@ -2495,6 +2743,60 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 				IDSpec: &sqlgraph.FieldSpec{
 					Type:   field.TypeInt,
 					Column: photo.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if uuo.mutation.X509CertificatesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.X509CertificatesTable,
+			Columns: []string{user.X509CertificatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: x509certificate.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.RemovedX509CertificatesIDs(); len(nodes) > 0 && !uuo.mutation.X509CertificatesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.X509CertificatesTable,
+			Columns: []string{user.X509CertificatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: x509certificate.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.X509CertificatesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.X509CertificatesTable,
+			Columns: []string{user.X509CertificatesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: x509certificate.FieldID,
 				},
 			},
 		}

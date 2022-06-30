@@ -37,6 +37,8 @@ const (
 	FieldUserType = "user_type"
 	// FieldEtag holds the string denoting the etag field in the database.
 	FieldEtag = "etag"
+	// EdgeAddresses holds the string denoting the addresses edge name in mutations.
+	EdgeAddresses = "addresses"
 	// EdgeGroups holds the string denoting the groups edge name in mutations.
 	EdgeGroups = "groups"
 	// EdgeEmails holds the string denoting the emails edge name in mutations.
@@ -53,8 +55,17 @@ const (
 	EdgePhoneNumbers = "phone_numbers"
 	// EdgePhotos holds the string denoting the photos edge name in mutations.
 	EdgePhotos = "photos"
+	// EdgeX509Certificates holds the string denoting the x509certificates edge name in mutations.
+	EdgeX509Certificates = "x509Certificates"
 	// Table holds the table name of the user in the database.
 	Table = "users"
+	// AddressesTable is the table that holds the addresses relation/edge.
+	AddressesTable = "addresses"
+	// AddressesInverseTable is the table name for the Address entity.
+	// It exists in this package in order to avoid circular dependency with the "address" package.
+	AddressesInverseTable = "addresses"
+	// AddressesColumn is the table column denoting the addresses relation/edge.
+	AddressesColumn = "user_addresses"
 	// GroupsTable is the table that holds the groups relation/edge. The primary key declared below.
 	GroupsTable = "user_groups"
 	// GroupsInverseTable is the table name for the Group entity.
@@ -109,6 +120,13 @@ const (
 	PhotosInverseTable = "photos"
 	// PhotosColumn is the table column denoting the photos relation/edge.
 	PhotosColumn = "user_photos"
+	// X509CertificatesTable is the table that holds the x509Certificates relation/edge.
+	X509CertificatesTable = "x509certificates"
+	// X509CertificatesInverseTable is the table name for the X509Certificate entity.
+	// It exists in this package in order to avoid circular dependency with the "x509certificate" package.
+	X509CertificatesInverseTable = "x509certificates"
+	// X509CertificatesColumn is the table column denoting the x509Certificates relation/edge.
+	X509CertificatesColumn = "user_x509certificates"
 )
 
 // Columns holds all SQL columns for user fields.

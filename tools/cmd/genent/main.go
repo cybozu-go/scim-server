@@ -17,13 +17,53 @@ import (
 )
 
 var objects map[string]*codegen.Object
+var userEdges = []string{
+	`Name`,
+	`Emails`,
+	`Roles`,
+	`Groups`,
+	`PhoneNumbers`,
+	`Entitlements`,
+	`IMS`,
+	`Photos`,
+	`Addresses`,
+	`X509Certificates`,
+}
+
+var userEdgeMap map[string]struct{}
 
 func main() {
+	userEdgeMap = make(map[string]struct{})
+	for _, e := range userEdges {
+		userEdgeMap[e] = struct{}{}
+	}
+
 	objects = make(map[string]*codegen.Object)
 	if err := _main(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
 		os.Exit(1)
 	}
+}
+
+func isUserEdge(field codegen.Field) bool {
+	_, ok := userEdgeMap[field.Name(true)]
+	return ok
+}
+
+func isEdge(object *codegen.Object, field codegen.Field) bool {
+	switch object.Name(true) {
+	case `User`:
+		return isUserEdge(field)
+	}
+	return false
+}
+
+func edgeName(field codegen.Field) string {
+	n := field.Name(true)
+	if n == "IMS" {
+		return "Imses"
+	}
+	return n
 }
 
 func yaml2json(fn string) ([]byte, error) {
@@ -136,7 +176,7 @@ func generateEnt(object *codegen.Object) error {
 	// for the time being, only generate for hardcoded objects.
 	// later, move this definition to objects.yml
 	switch object.Name(true) {
-	case `User`, `Group`, `Email`, `Names`, `Role`, `Photo`, `IMS`, `PhoneNumber`:
+	case `User`, `Group`, `Email`, `Names`, `Role`, `Photo`, `IMS`, `PhoneNumber`, `Address`, `Entitlement`, `X509Certificate`:
 	default:
 		return nil
 	}
@@ -177,7 +217,13 @@ func relationFilename(s string) string {
 }
 
 func packageName(s string) string {
-	return strings.ToLower(s)
+	if s == "IMS" {
+		return "ims"
+	}
+	if strings.Contains(s, "509") {
+		return strings.ToLower(s)
+	}
+	return xstrings.Snake(s)
 }
 
 func generateSchema(object *codegen.Object) error {
@@ -198,14 +244,6 @@ func generateSchema(object *codegen.Object) error {
 		}
 
 		ft := field.Type()
-
-		switch field.Name(true) {
-		case `Entitlements`, `Roles`:
-			if err := generateSimpleEdge(field); err != nil {
-				return fmt.Errorf(`failed to generate edge %q: %w`, field.Name(true), err)
-			}
-		default:
-		}
 		if strings.HasPrefix(ft, `[]`) || strings.HasPrefix(ft, `*`) {
 			continue
 		}
@@ -256,7 +294,7 @@ func generateSchema(object *codegen.Object) error {
 	o.L(`}`)
 	o.L(`}`)
 
-	fn := filepath.Join(`ent`, `schema`, xstrings.Snake(object.Name(false))+`_gen.go`)
+	fn := filepath.Join(`ent`, `schema`, packageName(object.Name(false))+`_gen.go`)
 	if err := o.WriteFile(fn, codegen.WithFormatCode(true)); err != nil {
 		if cfe, ok := err.(codegen.CodeFormatError); ok {
 			fmt.Fprint(os.Stderr, cfe.Source())
@@ -333,16 +371,14 @@ func generateUtilities(object *codegen.Object) error {
 			}
 
 			o.L(`case resource.%s%sKey:`, object.Name(true), field.Name(true))
-			// Special case
-			var ft = field.Type()
-			if strings.HasPrefix(ft, `[]`) || strings.HasPrefix(ft, `*`) {
-				// TODO: later
-				switch field.Name(false) {
-				case `emails`, `name`:
-					o.L(`q.With%s()`, field.Name(true))
-				}
+			if isEdge(object, field) {
+				o.L(`q.With%s()`, edgeName(field))
 				continue
-			} else {
+			}
+
+			switch field.Name(true) {
+			case `Meta`, `Members`:
+			default:
 				// Otherwise, accumulate in the list of names
 				o.L(`selectNames = append(selectNames, %s.Field%s)`, object.Name(false), field.Name(true))
 			}
@@ -384,13 +420,7 @@ func generateUtilities(object *codegen.Object) error {
 	}
 
 	for _, field := range object.Fields() {
-		if field.Name(false) == "schemas" {
-			continue
-		}
-
-		switch field.Name(false) {
-		case `emails`, `name`:
-		default:
+		if ft := field.Type(); !strings.HasPrefix(ft, `[]`) && !strings.HasPrefix(ft, `*`) {
 			continue
 		}
 
@@ -400,26 +430,41 @@ func generateUtilities(object *codegen.Object) error {
 		// manner).
 		// I think it's better if we give people an escape hatch, so we're
 		// going to inject a call to a helper of your choice at the end.
-		rsname := strings.TrimSuffix(field.Name(true), "s")
-		if rsname == "Name" {
-			rsname = "Names"
+		edgeName := field.Name(true)
+		rsname := singularName(field.Name(true))
+		if rsname == "Member" || rsname == "Meta" {
+			continue
 		}
-		o.LL(`if el := len(in.Edges.%s); el > 0 {`, field.Name(true))
-		o.L(`list := make([]*resource.%s, 0, el)`, rsname)
-		o.L(`for _, ine := range in.Edges.%s {`, field.Name(true))
-		o.L(`r, err := %sResourceFromEnt(ine)`, rsname)
-		o.L(`if err != nil {`)
-		o.L(`return nil, fmt.Errorf("failed to build %s information for %s")`, field.Name(false), object.Name(true))
-		o.L(`}`)
-		o.L(`list = append(list, r)`)
-		o.L(`}`)
 
-		if strings.HasPrefix(field.Type(), "*") {
-			o.L(`builder.%s(list[0])`, field.Name(true))
-		} else {
+		switch rsname {
+		case "Name":
+			rsname = "Names"
+			o.LL(`if el := in.Edges.Name; el != nil {`)
+			o.L(`r, err := NamesResourceFromEnt(el)`)
+			o.L(`if err != nil {`)
+			o.L(`return nil, fmt.Errorf("failed to convert names to SCIM resource: %%w", err)`)
+			o.L(`}`)
+			o.L(`builder.%s(r)`, field.Name(true))
+			o.L(`}`)
+		case "Group":
+			// no op. done in helper
+		case "IMS":
+			edgeName = "Imses"
+			fallthrough
+		default:
+			o.LL(`if el := len(in.Edges.%s); el > 0 {`, edgeName)
+			o.L(`list := make([]*resource.%s, 0, el)`, rsname)
+			o.L(`for _, ine := range in.Edges.%s {`, edgeName)
+			o.L(`r, err := %sResourceFromEnt(ine)`, rsname)
+			o.L(`if err != nil {`)
+			o.L(`return nil, fmt.Errorf("failed to build %s information for %s")`, field.Name(false), object.Name(true))
+			o.L(`}`)
+			o.L(`list = append(list, r)`)
+			o.L(`}`)
+
 			o.L(`builder.%s(list...)`, field.Name(true))
+			o.L(`}`)
 		}
-		o.L(`}`)
 	}
 
 	for _, field := range object.Fields() {
@@ -567,20 +612,201 @@ func generateUtilities(object *codegen.Object) error {
 	}
 
 	if object.Name(true) == `User` {
+		o.LL(`func (b *Backend) ReplaceUser(id string, in *resource.User) (*resource.User, error) {`)
+		o.L(`parsedUUID, err := uuid.Parse(id)`)
+		o.L(`if err != nil {`)
+		o.L(`return nil, fmt.Errorf("failed to parse ID: %%w", err)`)
+		o.L(`}`)
+
+		o.LL(`h := sha256.New()`)
+		o.L(`fmt.Fprint(h, b.etagSalt)`)
+
+		o.LL(`u, err := b.db.User.Query().`)
+		o.L(`Select("id").`)
+		o.L(`Where(user.IDEQ(parsedUUID)).`)
+		o.L(`Only(context.TODO())`)
+		o.L(`if err != nil {`)
+		o.L(`return nil, fmt.Errorf("failed to retrieve user: %%w", err)`)
+		o.L(`}`)
+
+		o.LL(`replaceUserCall := u.Update().`)
+		edgeFields := make([]codegen.Field, 0, len(object.Fields()))
+		for _, field := range object.Fields() {
+			switch field.Name(true) {
+			case `Meta`:
+				continue
+			default:
+			}
+			if ft := field.Type(); strings.HasPrefix(ft, `[]`) || strings.HasPrefix(ft, `*`) {
+				edgeFields = append(edgeFields, field)
+			}
+		}
+
+		for i, field := range edgeFields {
+			if i > 0 {
+				o.R(`.`)
+			}
+			edgeName := field.Name(true)
+			if edgeName == "IMS" {
+				edgeName = "Imses"
+			}
+			o.L(`Clear%s()`, edgeName)
+		}
+
+		for _, field := range object.Fields() {
+			switch field.Name(true) {
+			case `ID`, `Groups`, `Meta`, `Schemas`: // can't change this
+			case `Name`:
+				o.LL(`var name *ent.Names`)
+				o.L(`if in.HasName() {`)
+				o.L(`created, err := b.createName(in.Name(), h)`)
+				o.L(`if err != nil {`)
+				o.L(`return nil, fmt.Errorf("failed to create name: %%w", err)`)
+				o.L(`}`)
+				o.L(`replaceUserCall.SetName(created)`)
+				o.L(`name = created`)
+				o.L(`}`)
+			default:
+				if isUserEdge(field) {
+					o.LL(`var %s []*ent.%s`, field.Name(false), singularName(field.Name(true)))
+					o.L(`if in.Has%s() {`, field.Name(true))
+					o.L(`created, err := b.create%s(in, h)`, field.Name(true))
+					o.L(`if err != nil {`)
+					o.L(`return nil, fmt.Errorf("failed to create %s: %%w", err)`, singularName(field.Name(false)))
+					o.L(`}`)
+					o.L(`replaceUserCall.Add%s(created...)`, edgeName(field))
+					o.L(`%s = created`, field.Name(false))
+					o.L(`}`)
+				} else {
+					o.LL(`if in.Has%s() {`, field.Name(true))
+					o.L(`replaceUserCall.Set%[1]s(in.%[1]s())`, field.Name(true))
+					o.L(`fmt.Fprint(h, in.%s())`, field.Name(true))
+					o.L(`}`)
+				}
+			}
+		}
+		o.LL(`replaceUserCall.SetEtag(fmt.Sprintf("W/%%q", base64.RawStdEncoding.EncodeToString(h.Sum(nil))))`)
+		o.LL(`u2, err := replaceUserCall.`)
+		o.L(`Save(context.TODO())`)
+		o.L(`if err != nil {`)
+		o.L(`return nil, fmt.Errorf("failed to save user: %%w", err)`)
+		o.L(`}`)
+
+		for _, field := range object.Fields() {
+			switch field.Name(true) {
+			case `Groups`:
+				continue
+			}
+			if isUserEdge(field) {
+				o.L(`u2.Edges.%s = %s`, edgeName(field), field.Name(false))
+			}
+		}
+		o.LL(`return UserResourceFromEnt(u2)`)
+		o.L(`}`)
+
+		o.LL(`func (b *Backend) CreateUser(in *resource.User) (*resource.User, error) {`)
+		o.L(`password, err := b.generatePassword(in)`)
+		o.L(`if err != nil {`)
+		o.L(`return nil, fmt.Errorf("failed to process password: %%w", err)`)
+		o.L(`}`)
+
+		o.LL(`h := sha256.New()`)
+		o.L(`fmt.Fprint(h, b.etagSalt)`)
+		o.LL(`createUserCall := b.db.User.Create().`)
+
+		requiredFields := make([]codegen.Field, 0, len(object.Fields()))
+		for _, field := range object.Fields() {
+			if field.Name(true) == `ID` {
+				continue
+			}
+
+			if field.IsRequired() {
+				requiredFields = append(requiredFields, field)
+			}
+		}
+
+		for i, field := range requiredFields {
+			if i > 0 {
+				o.R(`.`)
+			}
+			o.L(`Set%[1]s(in.%[1]s())`, field.Name(true))
+		}
+		if len(requiredFields) > 0 {
+			o.R(`.`)
+		}
+		o.L(`SetPassword(password)`)
+		for _, field := range requiredFields {
+			o.L(`fmt.Fprint(h, in.%s())`, field.Name(true))
+		}
+
+		for _, field := range object.Fields() {
+			if field.IsRequired() {
+				continue
+			}
+			switch field.Name(true) {
+			case `Password`, `Meta`, `Schemas`, `Groups`:
+			case `Name`:
+				o.LL(`var name *ent.Names`)
+				o.L(`if in.HasName() {`)
+				o.L(`created, err := b.createName(in.Name(), h)`)
+				o.L(`if err != nil {`)
+				o.L(`return nil, fmt.Errorf("failed to create name: %%w", err)`)
+				o.L(`}`)
+				o.L(`createUserCall.SetName(created)`)
+				o.L(`name = created`)
+				o.L(`}`)
+			default:
+				if isUserEdge(field) {
+					// TODO: add `X509Certificates` later
+					o.LL(`var %s []*ent.%s`, field.Name(false), singularName(field.Name(true)))
+					o.L(`if in.Has%s() {`, field.Name(true))
+					o.L(`created, err := b.create%s(in, h)`, field.Name(true))
+					o.L(`if err != nil {`)
+					o.L(`return nil, fmt.Errorf("failed to create roles: %%w", err)`)
+					o.L(`}`)
+					o.L(`createUserCall.Add%s(created...)`, edgeName(field))
+					o.L(`%s = created`, field.Name(false))
+					o.L(`}`)
+				} else {
+					o.LL(`if in.Has%s() {`, field.Name(true))
+					o.L(`createUserCall.Set%[1]s(in.%[1]s())`, field.Name(true))
+					o.L(`fmt.Fprint(h, in.%s())`, field.Name(true))
+					o.L(`}`)
+				}
+			}
+		}
+
+		o.LL(`createUserCall.SetEtag(fmt.Sprintf("W/%%q", base64.RawStdEncoding.EncodeToString(h.Sum(nil))))`)
+		o.LL(`u, err := createUserCall.`)
+		o.L(`Save(context.TODO())`)
+		o.L(`if err != nil {`)
+		o.L(`return nil, fmt.Errorf("failed to save user: %%w", err)`)
+		o.L(`}`)
+
+		for _, field := range object.Fields() {
+			switch field.Name(true) {
+			case `Groups`:
+				continue
+			}
+			if isUserEdge(field) {
+				o.L(`u.Edges.%s = %s`, edgeName(field), field.Name(false))
+			}
+		}
+		o.LL(`return UserResourceFromEnt(u)`)
+		o.L(`}`)
+
 		// Email, Roles, PhoneNumbers, Certficates, Entitlement, IMS, Photo
 		// all require the same type of helpers
 		for _, field := range object.Fields() {
+			if !isUserEdge(field) {
+				continue
+			}
 			switch field.Name(true) {
-			case `Emails`, `Roles`, `PhoneNumbers`, `Entitlements`, `IMS`, `Photos`:
-			// TODO: add `X509Certificates` laster
-			default:
+			case `Name`, `Addresses`, `Groups`:
 				continue
 			}
 
 			typ := singularName(field.Name(true))
-			if typ == `X509Certificate` {
-				typ = `Certificate`
-			}
 			o.LL(`func (b *Backend) create%s(in *resource.User, h hash.Hash) ([]*ent.%s, error) {`, field.Name(true), typ)
 			o.L(`list := make([]*ent.%s, len(in.%s()))`, singularName(field.Name(true)), field.Name(true))
 			o.L(`inbound := in.%s()`, field.Name(true))
@@ -635,13 +861,13 @@ func generateUtilities(object *codegen.Object) error {
 	return nil
 }
 
+/*
 func generateSimpleEdge(field codegen.Field) error {
-
 	// If this is a simple one-to-many, we can just generate the schema
 	var o2buf bytes.Buffer
 	o2 := codegen.NewOutput(&o2buf)
 	structName := singularName(field.Name(true))
-	fmt.Printf("  ⌛ Generating smple edge adapters for %s...\n", structName)
+	fmt.Printf("  ⌛ Generating simple edge adapters for %s...\n", structName)
 	o2.L(`package schema`)
 	o2.LL(`type %s struct {`, structName)
 	o2.L(`ent.Schema`)
@@ -660,7 +886,7 @@ func generateSimpleEdge(field codegen.Field) error {
 	o2.L(`}`)
 	o2.L(`}`)
 
-	fn := fmt.Sprintf(`ent/schema/%s_gen.go`, relationFilename(field.Name(false)))
+	fn := fmt.Sprintf(`ent/schema/%s_gen.go`, packageName(field.Name(false)))
 	if err := o2.WriteFile(fn, codegen.WithFormatCode(true)); err != nil {
 		if cfe, ok := err.(codegen.CodeFormatError); ok {
 			fmt.Fprint(os.Stderr, cfe.Source())
@@ -668,4 +894,4 @@ func generateSimpleEdge(field codegen.Field) error {
 		return fmt.Errorf(`failed to write to %s: %w`, fn, err)
 	}
 	return nil
-}
+}*/

@@ -7,12 +7,12 @@ import (
 	"strings"
 
 	"entgo.io/ent/dialect/sql"
-	"github.com/cybozu-go/scim-server/ent/entitlement"
+	"github.com/cybozu-go/scim-server/ent/x509certificate"
 	"github.com/google/uuid"
 )
 
-// Entitlement is the model entity for the Entitlement schema.
-type Entitlement struct {
+// X509Certificate is the model entity for the X509Certificate schema.
+type X509Certificate struct {
 	config `json:"-"`
 	// ID of the ent.
 	ID int `json:"id,omitempty"`
@@ -23,120 +23,120 @@ type Entitlement struct {
 	// Type holds the value of the "type" field.
 	Type string `json:"type,omitempty"`
 	// Value holds the value of the "value" field.
-	Value             string `json:"value,omitempty"`
-	user_entitlements *uuid.UUID
+	Value                 string `json:"value,omitempty"`
+	user_x509certificates *uuid.UUID
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
-func (*Entitlement) scanValues(columns []string) ([]interface{}, error) {
+func (*X509Certificate) scanValues(columns []string) ([]interface{}, error) {
 	values := make([]interface{}, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case entitlement.FieldPrimary:
+		case x509certificate.FieldPrimary:
 			values[i] = new(sql.NullBool)
-		case entitlement.FieldID:
+		case x509certificate.FieldID:
 			values[i] = new(sql.NullInt64)
-		case entitlement.FieldDisplay, entitlement.FieldType, entitlement.FieldValue:
+		case x509certificate.FieldDisplay, x509certificate.FieldType, x509certificate.FieldValue:
 			values[i] = new(sql.NullString)
-		case entitlement.ForeignKeys[0]: // user_entitlements
+		case x509certificate.ForeignKeys[0]: // user_x509certificates
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		default:
-			return nil, fmt.Errorf("unexpected column %q for type Entitlement", columns[i])
+			return nil, fmt.Errorf("unexpected column %q for type X509Certificate", columns[i])
 		}
 	}
 	return values, nil
 }
 
 // assignValues assigns the values that were returned from sql.Rows (after scanning)
-// to the Entitlement fields.
-func (e *Entitlement) assignValues(columns []string, values []interface{}) error {
+// to the X509Certificate fields.
+func (x *X509Certificate) assignValues(columns []string, values []interface{}) error {
 	if m, n := len(values), len(columns); m < n {
 		return fmt.Errorf("mismatch number of scan values: %d != %d", m, n)
 	}
 	for i := range columns {
 		switch columns[i] {
-		case entitlement.FieldID:
+		case x509certificate.FieldID:
 			value, ok := values[i].(*sql.NullInt64)
 			if !ok {
 				return fmt.Errorf("unexpected type %T for field id", value)
 			}
-			e.ID = int(value.Int64)
-		case entitlement.FieldDisplay:
+			x.ID = int(value.Int64)
+		case x509certificate.FieldDisplay:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field display", values[i])
 			} else if value.Valid {
-				e.Display = value.String
+				x.Display = value.String
 			}
-		case entitlement.FieldPrimary:
+		case x509certificate.FieldPrimary:
 			if value, ok := values[i].(*sql.NullBool); !ok {
 				return fmt.Errorf("unexpected type %T for field primary", values[i])
 			} else if value.Valid {
-				e.Primary = value.Bool
+				x.Primary = value.Bool
 			}
-		case entitlement.FieldType:
+		case x509certificate.FieldType:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field type", values[i])
 			} else if value.Valid {
-				e.Type = value.String
+				x.Type = value.String
 			}
-		case entitlement.FieldValue:
+		case x509certificate.FieldValue:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field value", values[i])
 			} else if value.Valid {
-				e.Value = value.String
+				x.Value = value.String
 			}
-		case entitlement.ForeignKeys[0]:
+		case x509certificate.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullScanner); !ok {
-				return fmt.Errorf("unexpected type %T for field user_entitlements", values[i])
+				return fmt.Errorf("unexpected type %T for field user_x509certificates", values[i])
 			} else if value.Valid {
-				e.user_entitlements = new(uuid.UUID)
-				*e.user_entitlements = *value.S.(*uuid.UUID)
+				x.user_x509certificates = new(uuid.UUID)
+				*x.user_x509certificates = *value.S.(*uuid.UUID)
 			}
 		}
 	}
 	return nil
 }
 
-// Update returns a builder for updating this Entitlement.
-// Note that you need to call Entitlement.Unwrap() before calling this method if this Entitlement
+// Update returns a builder for updating this X509Certificate.
+// Note that you need to call X509Certificate.Unwrap() before calling this method if this X509Certificate
 // was returned from a transaction, and the transaction was committed or rolled back.
-func (e *Entitlement) Update() *EntitlementUpdateOne {
-	return (&EntitlementClient{config: e.config}).UpdateOne(e)
+func (x *X509Certificate) Update() *X509CertificateUpdateOne {
+	return (&X509CertificateClient{config: x.config}).UpdateOne(x)
 }
 
-// Unwrap unwraps the Entitlement entity that was returned from a transaction after it was closed,
+// Unwrap unwraps the X509Certificate entity that was returned from a transaction after it was closed,
 // so that all future queries will be executed through the driver which created the transaction.
-func (e *Entitlement) Unwrap() *Entitlement {
-	tx, ok := e.config.driver.(*txDriver)
+func (x *X509Certificate) Unwrap() *X509Certificate {
+	tx, ok := x.config.driver.(*txDriver)
 	if !ok {
-		panic("ent: Entitlement is not a transactional entity")
+		panic("ent: X509Certificate is not a transactional entity")
 	}
-	e.config.driver = tx.drv
-	return e
+	x.config.driver = tx.drv
+	return x
 }
 
 // String implements the fmt.Stringer.
-func (e *Entitlement) String() string {
+func (x *X509Certificate) String() string {
 	var builder strings.Builder
-	builder.WriteString("Entitlement(")
-	builder.WriteString(fmt.Sprintf("id=%v", e.ID))
+	builder.WriteString("X509Certificate(")
+	builder.WriteString(fmt.Sprintf("id=%v", x.ID))
 	builder.WriteString(", display=")
-	builder.WriteString(e.Display)
+	builder.WriteString(x.Display)
 	builder.WriteString(", primary=")
-	builder.WriteString(fmt.Sprintf("%v", e.Primary))
+	builder.WriteString(fmt.Sprintf("%v", x.Primary))
 	builder.WriteString(", type=")
-	builder.WriteString(e.Type)
+	builder.WriteString(x.Type)
 	builder.WriteString(", value=")
-	builder.WriteString(e.Value)
+	builder.WriteString(x.Value)
 	builder.WriteByte(')')
 	return builder.String()
 }
 
-// Entitlements is a parsable slice of Entitlement.
-type Entitlements []*Entitlement
+// X509Certificates is a parsable slice of X509Certificate.
+type X509Certificates []*X509Certificate
 
-func (e Entitlements) config(cfg config) {
-	for _i := range e {
-		e[_i].config = cfg
+func (x X509Certificates) config(cfg config) {
+	for _i := range x {
+		x[_i].config = cfg
 	}
 }

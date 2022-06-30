@@ -9,6 +9,19 @@ import (
 	"github.com/cybozu-go/scim-server/ent"
 )
 
+// The AddressFunc type is an adapter to allow the use of ordinary
+// function as Address mutator.
+type AddressFunc func(context.Context, *ent.AddressMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AddressFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	mv, ok := m.(*ent.AddressMutation)
+	if !ok {
+		return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AddressMutation", m)
+	}
+	return f(ctx, mv)
+}
+
 // The EmailFunc type is an adapter to allow the use of ordinary
 // function as Email mutator.
 type EmailFunc func(context.Context, *ent.EmailMutation) (ent.Value, error)
@@ -122,6 +135,19 @@ func (f UserFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error)
 	mv, ok := m.(*ent.UserMutation)
 	if !ok {
 		return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserMutation", m)
+	}
+	return f(ctx, mv)
+}
+
+// The X509CertificateFunc type is an adapter to allow the use of ordinary
+// function as X509Certificate mutator.
+type X509CertificateFunc func(context.Context, *ent.X509CertificateMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f X509CertificateFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	mv, ok := m.(*ent.X509CertificateMutation)
+	if !ok {
+		return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.X509CertificateMutation", m)
 	}
 	return f(ctx, mv)
 }
