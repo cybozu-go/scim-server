@@ -13,6 +13,8 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/cybozu-go/scim-server/ent/phonenumber"
 	"github.com/cybozu-go/scim-server/ent/predicate"
+	"github.com/cybozu-go/scim-server/ent/user"
+	"github.com/google/uuid"
 )
 
 // PhoneNumberQuery is the builder for querying PhoneNumber entities.
@@ -24,7 +26,9 @@ type PhoneNumberQuery struct {
 	order      []OrderFunc
 	fields     []string
 	predicates []predicate.PhoneNumber
-	withFKs    bool
+	// eager-loading edges.
+	withUser *UserQuery
+	withFKs  bool
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -59,6 +63,28 @@ func (pnq *PhoneNumberQuery) Unique(unique bool) *PhoneNumberQuery {
 func (pnq *PhoneNumberQuery) Order(o ...OrderFunc) *PhoneNumberQuery {
 	pnq.order = append(pnq.order, o...)
 	return pnq
+}
+
+// QueryUser chains the current query on the "user" edge.
+func (pnq *PhoneNumberQuery) QueryUser() *UserQuery {
+	query := &UserQuery{config: pnq.config}
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := pnq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := pnq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(phonenumber.Table, phonenumber.FieldID, selector),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, phonenumber.UserTable, phonenumber.UserColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(pnq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // First returns the first PhoneNumber entity from the query.
@@ -242,11 +268,23 @@ func (pnq *PhoneNumberQuery) Clone() *PhoneNumberQuery {
 		offset:     pnq.offset,
 		order:      append([]OrderFunc{}, pnq.order...),
 		predicates: append([]predicate.PhoneNumber{}, pnq.predicates...),
+		withUser:   pnq.withUser.Clone(),
 		// clone intermediate query.
 		sql:    pnq.sql.Clone(),
 		path:   pnq.path,
 		unique: pnq.unique,
 	}
+}
+
+// WithUser tells the query-builder to eager-load the nodes that are connected to
+// the "user" edge. The optional arguments are used to configure the query builder of the edge.
+func (pnq *PhoneNumberQuery) WithUser(opts ...func(*UserQuery)) *PhoneNumberQuery {
+	query := &UserQuery{config: pnq.config}
+	for _, opt := range opts {
+		opt(query)
+	}
+	pnq.withUser = query
+	return pnq
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -312,10 +350,16 @@ func (pnq *PhoneNumberQuery) prepareQuery(ctx context.Context) error {
 
 func (pnq *PhoneNumberQuery) sqlAll(ctx context.Context) ([]*PhoneNumber, error) {
 	var (
-		nodes   = []*PhoneNumber{}
-		withFKs = pnq.withFKs
-		_spec   = pnq.querySpec()
+		nodes       = []*PhoneNumber{}
+		withFKs     = pnq.withFKs
+		_spec       = pnq.querySpec()
+		loadedTypes = [1]bool{
+			pnq.withUser != nil,
+		}
 	)
+	if pnq.withUser != nil {
+		withFKs = true
+	}
 	if withFKs {
 		_spec.Node.Columns = append(_spec.Node.Columns, phonenumber.ForeignKeys...)
 	}
@@ -329,6 +373,7 @@ func (pnq *PhoneNumberQuery) sqlAll(ctx context.Context) ([]*PhoneNumber, error)
 			return fmt.Errorf("ent: Assign called without calling ScanValues")
 		}
 		node := nodes[len(nodes)-1]
+		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	if err := sqlgraph.QueryNodes(ctx, pnq.driver, _spec); err != nil {
@@ -337,6 +382,36 @@ func (pnq *PhoneNumberQuery) sqlAll(ctx context.Context) ([]*PhoneNumber, error)
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+
+	if query := pnq.withUser; query != nil {
+		ids := make([]uuid.UUID, 0, len(nodes))
+		nodeids := make(map[uuid.UUID][]*PhoneNumber)
+		for i := range nodes {
+			if nodes[i].user_phone_numbers == nil {
+				continue
+			}
+			fk := *nodes[i].user_phone_numbers
+			if _, ok := nodeids[fk]; !ok {
+				ids = append(ids, fk)
+			}
+			nodeids[fk] = append(nodeids[fk], nodes[i])
+		}
+		query.Where(user.IDIn(ids...))
+		neighbors, err := query.All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, n := range neighbors {
+			nodes, ok := nodeids[n.ID]
+			if !ok {
+				return nil, fmt.Errorf(`unexpected foreign-key "user_phone_numbers" returned %v`, n.ID)
+			}
+			for i := range nodes {
+				nodes[i].Edges.User = n
+			}
+		}
+	}
+
 	return nodes, nil
 }
 

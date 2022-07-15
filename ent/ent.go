@@ -12,6 +12,7 @@ import (
 	"github.com/cybozu-go/scim-server/ent/email"
 	"github.com/cybozu-go/scim-server/ent/entitlement"
 	"github.com/cybozu-go/scim-server/ent/group"
+	"github.com/cybozu-go/scim-server/ent/groupmember"
 	"github.com/cybozu-go/scim-server/ent/ims"
 	"github.com/cybozu-go/scim-server/ent/names"
 	"github.com/cybozu-go/scim-server/ent/phonenumber"
@@ -43,6 +44,7 @@ func columnChecker(table string) func(string) error {
 		email.Table:           email.ValidColumn,
 		entitlement.Table:     entitlement.ValidColumn,
 		group.Table:           group.ValidColumn,
+		groupmember.Table:     groupmember.ValidColumn,
 		ims.Table:             ims.ValidColumn,
 		names.Table:           names.ValidColumn,
 		phonenumber.Table:     phonenumber.ValidColumn,

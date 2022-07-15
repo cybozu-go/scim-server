@@ -17,27 +17,17 @@ const (
 	FieldExternalID = "external_id"
 	// FieldEtag holds the string denoting the etag field in the database.
 	FieldEtag = "etag"
-	// EdgeUsers holds the string denoting the users edge name in mutations.
-	EdgeUsers = "users"
-	// EdgeParent holds the string denoting the parent edge name in mutations.
-	EdgeParent = "parent"
-	// EdgeChildren holds the string denoting the children edge name in mutations.
-	EdgeChildren = "children"
+	// EdgeMembers holds the string denoting the members edge name in mutations.
+	EdgeMembers = "members"
 	// Table holds the table name of the group in the database.
 	Table = "groups"
-	// UsersTable is the table that holds the users relation/edge. The primary key declared below.
-	UsersTable = "user_groups"
-	// UsersInverseTable is the table name for the User entity.
-	// It exists in this package in order to avoid circular dependency with the "user" package.
-	UsersInverseTable = "users"
-	// ParentTable is the table that holds the parent relation/edge.
-	ParentTable = "groups"
-	// ParentColumn is the table column denoting the parent relation/edge.
-	ParentColumn = "group_children"
-	// ChildrenTable is the table that holds the children relation/edge.
-	ChildrenTable = "groups"
-	// ChildrenColumn is the table column denoting the children relation/edge.
-	ChildrenColumn = "group_children"
+	// MembersTable is the table that holds the members relation/edge.
+	MembersTable = "group_members"
+	// MembersInverseTable is the table name for the GroupMember entity.
+	// It exists in this package in order to avoid circular dependency with the "groupmember" package.
+	MembersInverseTable = "group_members"
+	// MembersColumn is the table column denoting the members relation/edge.
+	MembersColumn = "group_members"
 )
 
 // Columns holds all SQL columns for group fields.
@@ -48,18 +38,6 @@ var Columns = []string{
 	FieldEtag,
 }
 
-// ForeignKeys holds the SQL foreign-keys that are owned by the "groups"
-// table and are not defined as standalone fields in the schema.
-var ForeignKeys = []string{
-	"group_children",
-}
-
-var (
-	// UsersPrimaryKey and UsersColumn2 are the table columns denoting the
-	// primary key for the users relation (M2M).
-	UsersPrimaryKey = []string{"user_id", "group_id"}
-)
-
 // ValidColumn reports if the column name is valid (part of the table columns).
 func ValidColumn(column string) bool {
 	for i := range Columns {
@@ -67,17 +45,10 @@ func ValidColumn(column string) bool {
 			return true
 		}
 	}
-	for i := range ForeignKeys {
-		if column == ForeignKeys[i] {
-			return true
-		}
-	}
 	return false
 }
 
 var (
-	// EtagValidator is a validator for the "etag" field. It is called by the builders before save.
-	EtagValidator func(string) error
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() uuid.UUID
 )

@@ -12,6 +12,8 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/cybozu-go/scim-server/ent/ims"
 	"github.com/cybozu-go/scim-server/ent/predicate"
+	"github.com/cybozu-go/scim-server/ent/user"
+	"github.com/google/uuid"
 )
 
 // IMSUpdate is the builder for updating IMS entities.
@@ -107,9 +109,34 @@ func (iu *IMSUpdate) ClearValue() *IMSUpdate {
 	return iu
 }
 
+// SetUserID sets the "user" edge to the User entity by ID.
+func (iu *IMSUpdate) SetUserID(id uuid.UUID) *IMSUpdate {
+	iu.mutation.SetUserID(id)
+	return iu
+}
+
+// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
+func (iu *IMSUpdate) SetNillableUserID(id *uuid.UUID) *IMSUpdate {
+	if id != nil {
+		iu = iu.SetUserID(*id)
+	}
+	return iu
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (iu *IMSUpdate) SetUser(u *User) *IMSUpdate {
+	return iu.SetUserID(u.ID)
+}
+
 // Mutation returns the IMSMutation object of the builder.
 func (iu *IMSUpdate) Mutation() *IMSMutation {
 	return iu.mutation
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (iu *IMSUpdate) ClearUser() *IMSUpdate {
+	iu.mutation.ClearUser()
+	return iu
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -236,6 +263,41 @@ func (iu *IMSUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Column: ims.FieldValue,
 		})
 	}
+	if iu.mutation.UserCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   ims.UserTable,
+			Columns: []string{ims.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := iu.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   ims.UserTable,
+			Columns: []string{ims.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if n, err = sqlgraph.UpdateNodes(ctx, iu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{ims.Label}
@@ -335,9 +397,34 @@ func (iuo *IMSUpdateOne) ClearValue() *IMSUpdateOne {
 	return iuo
 }
 
+// SetUserID sets the "user" edge to the User entity by ID.
+func (iuo *IMSUpdateOne) SetUserID(id uuid.UUID) *IMSUpdateOne {
+	iuo.mutation.SetUserID(id)
+	return iuo
+}
+
+// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
+func (iuo *IMSUpdateOne) SetNillableUserID(id *uuid.UUID) *IMSUpdateOne {
+	if id != nil {
+		iuo = iuo.SetUserID(*id)
+	}
+	return iuo
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (iuo *IMSUpdateOne) SetUser(u *User) *IMSUpdateOne {
+	return iuo.SetUserID(u.ID)
+}
+
 // Mutation returns the IMSMutation object of the builder.
 func (iuo *IMSUpdateOne) Mutation() *IMSMutation {
 	return iuo.mutation
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (iuo *IMSUpdateOne) ClearUser() *IMSUpdateOne {
+	iuo.mutation.ClearUser()
+	return iuo
 }
 
 // Select allows selecting one or more fields (columns) of the returned entity.
@@ -487,6 +574,41 @@ func (iuo *IMSUpdateOne) sqlSave(ctx context.Context) (_node *IMS, err error) {
 			Type:   field.TypeString,
 			Column: ims.FieldValue,
 		})
+	}
+	if iuo.mutation.UserCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   ims.UserTable,
+			Columns: []string{ims.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := iuo.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   ims.UserTable,
+			Columns: []string{ims.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &IMS{config: iuo.config}
 	_spec.Assign = _node.assignValues

@@ -12,6 +12,8 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/cybozu-go/scim-server/ent/email"
 	"github.com/cybozu-go/scim-server/ent/predicate"
+	"github.com/cybozu-go/scim-server/ent/user"
+	"github.com/google/uuid"
 )
 
 // EmailUpdate is the builder for updating Email entities.
@@ -93,9 +95,34 @@ func (eu *EmailUpdate) SetValue(s string) *EmailUpdate {
 	return eu
 }
 
+// SetUserID sets the "user" edge to the User entity by ID.
+func (eu *EmailUpdate) SetUserID(id uuid.UUID) *EmailUpdate {
+	eu.mutation.SetUserID(id)
+	return eu
+}
+
+// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
+func (eu *EmailUpdate) SetNillableUserID(id *uuid.UUID) *EmailUpdate {
+	if id != nil {
+		eu = eu.SetUserID(*id)
+	}
+	return eu
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (eu *EmailUpdate) SetUser(u *User) *EmailUpdate {
+	return eu.SetUserID(u.ID)
+}
+
 // Mutation returns the EmailMutation object of the builder.
 func (eu *EmailUpdate) Mutation() *EmailMutation {
 	return eu.mutation
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (eu *EmailUpdate) ClearUser() *EmailUpdate {
+	eu.mutation.ClearUser()
+	return eu
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -216,6 +243,41 @@ func (eu *EmailUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Column: email.FieldValue,
 		})
 	}
+	if eu.mutation.UserCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   email.UserTable,
+			Columns: []string{email.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := eu.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   email.UserTable,
+			Columns: []string{email.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if n, err = sqlgraph.UpdateNodes(ctx, eu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{email.Label}
@@ -301,9 +363,34 @@ func (euo *EmailUpdateOne) SetValue(s string) *EmailUpdateOne {
 	return euo
 }
 
+// SetUserID sets the "user" edge to the User entity by ID.
+func (euo *EmailUpdateOne) SetUserID(id uuid.UUID) *EmailUpdateOne {
+	euo.mutation.SetUserID(id)
+	return euo
+}
+
+// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
+func (euo *EmailUpdateOne) SetNillableUserID(id *uuid.UUID) *EmailUpdateOne {
+	if id != nil {
+		euo = euo.SetUserID(*id)
+	}
+	return euo
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (euo *EmailUpdateOne) SetUser(u *User) *EmailUpdateOne {
+	return euo.SetUserID(u.ID)
+}
+
 // Mutation returns the EmailMutation object of the builder.
 func (euo *EmailUpdateOne) Mutation() *EmailMutation {
 	return euo.mutation
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (euo *EmailUpdateOne) ClearUser() *EmailUpdateOne {
+	euo.mutation.ClearUser()
+	return euo
 }
 
 // Select allows selecting one or more fields (columns) of the returned entity.
@@ -447,6 +534,41 @@ func (euo *EmailUpdateOne) sqlSave(ctx context.Context) (_node *Email, err error
 			Value:  value,
 			Column: email.FieldValue,
 		})
+	}
+	if euo.mutation.UserCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   email.UserTable,
+			Columns: []string{email.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := euo.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   email.UserTable,
+			Columns: []string{email.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &Email{config: euo.config}
 	_spec.Assign = _node.assignValues

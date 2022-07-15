@@ -13,6 +13,8 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/cybozu-go/scim-server/ent/address"
 	"github.com/cybozu-go/scim-server/ent/predicate"
+	"github.com/cybozu-go/scim-server/ent/user"
+	"github.com/google/uuid"
 )
 
 // AddressQuery is the builder for querying Address entities.
@@ -24,7 +26,9 @@ type AddressQuery struct {
 	order      []OrderFunc
 	fields     []string
 	predicates []predicate.Address
-	withFKs    bool
+	// eager-loading edges.
+	withUser *UserQuery
+	withFKs  bool
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -59,6 +63,28 @@ func (aq *AddressQuery) Unique(unique bool) *AddressQuery {
 func (aq *AddressQuery) Order(o ...OrderFunc) *AddressQuery {
 	aq.order = append(aq.order, o...)
 	return aq
+}
+
+// QueryUser chains the current query on the "user" edge.
+func (aq *AddressQuery) QueryUser() *UserQuery {
+	query := &UserQuery{config: aq.config}
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := aq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := aq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(address.Table, address.FieldID, selector),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, address.UserTable, address.UserColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(aq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // First returns the first Address entity from the query.
@@ -242,11 +268,23 @@ func (aq *AddressQuery) Clone() *AddressQuery {
 		offset:     aq.offset,
 		order:      append([]OrderFunc{}, aq.order...),
 		predicates: append([]predicate.Address{}, aq.predicates...),
+		withUser:   aq.withUser.Clone(),
 		// clone intermediate query.
 		sql:    aq.sql.Clone(),
 		path:   aq.path,
 		unique: aq.unique,
 	}
+}
+
+// WithUser tells the query-builder to eager-load the nodes that are connected to
+// the "user" edge. The optional arguments are used to configure the query builder of the edge.
+func (aq *AddressQuery) WithUser(opts ...func(*UserQuery)) *AddressQuery {
+	query := &UserQuery{config: aq.config}
+	for _, opt := range opts {
+		opt(query)
+	}
+	aq.withUser = query
+	return aq
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -312,10 +350,16 @@ func (aq *AddressQuery) prepareQuery(ctx context.Context) error {
 
 func (aq *AddressQuery) sqlAll(ctx context.Context) ([]*Address, error) {
 	var (
-		nodes   = []*Address{}
-		withFKs = aq.withFKs
-		_spec   = aq.querySpec()
+		nodes       = []*Address{}
+		withFKs     = aq.withFKs
+		_spec       = aq.querySpec()
+		loadedTypes = [1]bool{
+			aq.withUser != nil,
+		}
 	)
+	if aq.withUser != nil {
+		withFKs = true
+	}
 	if withFKs {
 		_spec.Node.Columns = append(_spec.Node.Columns, address.ForeignKeys...)
 	}
@@ -329,6 +373,7 @@ func (aq *AddressQuery) sqlAll(ctx context.Context) ([]*Address, error) {
 			return fmt.Errorf("ent: Assign called without calling ScanValues")
 		}
 		node := nodes[len(nodes)-1]
+		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	if err := sqlgraph.QueryNodes(ctx, aq.driver, _spec); err != nil {
@@ -337,6 +382,36 @@ func (aq *AddressQuery) sqlAll(ctx context.Context) ([]*Address, error) {
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+
+	if query := aq.withUser; query != nil {
+		ids := make([]uuid.UUID, 0, len(nodes))
+		nodeids := make(map[uuid.UUID][]*Address)
+		for i := range nodes {
+			if nodes[i].user_addresses == nil {
+				continue
+			}
+			fk := *nodes[i].user_addresses
+			if _, ok := nodeids[fk]; !ok {
+				ids = append(ids, fk)
+			}
+			nodeids[fk] = append(nodeids[fk], nodes[i])
+		}
+		query.Where(user.IDIn(ids...))
+		neighbors, err := query.All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, n := range neighbors {
+			nodes, ok := nodeids[n.ID]
+			if !ok {
+				return nil, fmt.Errorf(`unexpected foreign-key "user_addresses" returned %v`, n.ID)
+			}
+			for i := range nodes {
+				nodes[i].Edges.User = n
+			}
+		}
+	}
+
 	return nodes, nil
 }
 

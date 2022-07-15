@@ -15,7 +15,7 @@ import (
 	"github.com/cybozu-go/scim-server/ent/address"
 	"github.com/cybozu-go/scim-server/ent/email"
 	"github.com/cybozu-go/scim-server/ent/entitlement"
-	"github.com/cybozu-go/scim-server/ent/group"
+	"github.com/cybozu-go/scim-server/ent/groupmember"
 	"github.com/cybozu-go/scim-server/ent/ims"
 	"github.com/cybozu-go/scim-server/ent/names"
 	"github.com/cybozu-go/scim-server/ent/phonenumber"
@@ -38,12 +38,12 @@ type UserQuery struct {
 	predicates []predicate.User
 	// eager-loading edges.
 	withAddresses        *AddressQuery
-	withGroups           *GroupQuery
+	withGroups           *GroupMemberQuery
 	withEmails           *EmailQuery
 	withName             *NamesQuery
 	withEntitlements     *EntitlementQuery
 	withRoles            *RoleQuery
-	withImses            *IMSQuery
+	withIMS              *IMSQuery
 	withPhoneNumbers     *PhoneNumberQuery
 	withPhotos           *PhotoQuery
 	withX509Certificates *X509CertificateQuery
@@ -106,8 +106,8 @@ func (uq *UserQuery) QueryAddresses() *AddressQuery {
 }
 
 // QueryGroups chains the current query on the "groups" edge.
-func (uq *UserQuery) QueryGroups() *GroupQuery {
-	query := &GroupQuery{config: uq.config}
+func (uq *UserQuery) QueryGroups() *GroupMemberQuery {
+	query := &GroupMemberQuery{config: uq.config}
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := uq.prepareQuery(ctx); err != nil {
 			return nil, err
@@ -118,8 +118,8 @@ func (uq *UserQuery) QueryGroups() *GroupQuery {
 		}
 		step := sqlgraph.NewStep(
 			sqlgraph.From(user.Table, user.FieldID, selector),
-			sqlgraph.To(group.Table, group.FieldID),
-			sqlgraph.Edge(sqlgraph.M2M, false, user.GroupsTable, user.GroupsPrimaryKey...),
+			sqlgraph.To(groupmember.Table, groupmember.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.GroupsTable, user.GroupsColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(uq.driver.Dialect(), step)
 		return fromU, nil
@@ -215,8 +215,8 @@ func (uq *UserQuery) QueryRoles() *RoleQuery {
 	return query
 }
 
-// QueryImses chains the current query on the "imses" edge.
-func (uq *UserQuery) QueryImses() *IMSQuery {
+// QueryIMS chains the current query on the "IMS" edge.
+func (uq *UserQuery) QueryIMS() *IMSQuery {
 	query := &IMSQuery{config: uq.config}
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
 		if err := uq.prepareQuery(ctx); err != nil {
@@ -229,7 +229,7 @@ func (uq *UserQuery) QueryImses() *IMSQuery {
 		step := sqlgraph.NewStep(
 			sqlgraph.From(user.Table, user.FieldID, selector),
 			sqlgraph.To(ims.Table, ims.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, user.ImsesTable, user.ImsesColumn),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.IMSTable, user.IMSColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(uq.driver.Dialect(), step)
 		return fromU, nil
@@ -281,7 +281,7 @@ func (uq *UserQuery) QueryPhotos() *PhotoQuery {
 	return query
 }
 
-// QueryX509Certificates chains the current query on the "x509Certificates" edge.
+// QueryX509Certificates chains the current query on the "x509_certificates" edge.
 func (uq *UserQuery) QueryX509Certificates() *X509CertificateQuery {
 	query := &X509CertificateQuery{config: uq.config}
 	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
@@ -490,7 +490,7 @@ func (uq *UserQuery) Clone() *UserQuery {
 		withName:             uq.withName.Clone(),
 		withEntitlements:     uq.withEntitlements.Clone(),
 		withRoles:            uq.withRoles.Clone(),
-		withImses:            uq.withImses.Clone(),
+		withIMS:              uq.withIMS.Clone(),
 		withPhoneNumbers:     uq.withPhoneNumbers.Clone(),
 		withPhotos:           uq.withPhotos.Clone(),
 		withX509Certificates: uq.withX509Certificates.Clone(),
@@ -514,8 +514,8 @@ func (uq *UserQuery) WithAddresses(opts ...func(*AddressQuery)) *UserQuery {
 
 // WithGroups tells the query-builder to eager-load the nodes that are connected to
 // the "groups" edge. The optional arguments are used to configure the query builder of the edge.
-func (uq *UserQuery) WithGroups(opts ...func(*GroupQuery)) *UserQuery {
-	query := &GroupQuery{config: uq.config}
+func (uq *UserQuery) WithGroups(opts ...func(*GroupMemberQuery)) *UserQuery {
+	query := &GroupMemberQuery{config: uq.config}
 	for _, opt := range opts {
 		opt(query)
 	}
@@ -567,14 +567,14 @@ func (uq *UserQuery) WithRoles(opts ...func(*RoleQuery)) *UserQuery {
 	return uq
 }
 
-// WithImses tells the query-builder to eager-load the nodes that are connected to
-// the "imses" edge. The optional arguments are used to configure the query builder of the edge.
-func (uq *UserQuery) WithImses(opts ...func(*IMSQuery)) *UserQuery {
+// WithIMS tells the query-builder to eager-load the nodes that are connected to
+// the "IMS" edge. The optional arguments are used to configure the query builder of the edge.
+func (uq *UserQuery) WithIMS(opts ...func(*IMSQuery)) *UserQuery {
 	query := &IMSQuery{config: uq.config}
 	for _, opt := range opts {
 		opt(query)
 	}
-	uq.withImses = query
+	uq.withIMS = query
 	return uq
 }
 
@@ -601,7 +601,7 @@ func (uq *UserQuery) WithPhotos(opts ...func(*PhotoQuery)) *UserQuery {
 }
 
 // WithX509Certificates tells the query-builder to eager-load the nodes that are connected to
-// the "x509Certificates" edge. The optional arguments are used to configure the query builder of the edge.
+// the "x509_certificates" edge. The optional arguments are used to configure the query builder of the edge.
 func (uq *UserQuery) WithX509Certificates(opts ...func(*X509CertificateQuery)) *UserQuery {
 	query := &X509CertificateQuery{config: uq.config}
 	for _, opt := range opts {
@@ -683,7 +683,7 @@ func (uq *UserQuery) sqlAll(ctx context.Context) ([]*User, error) {
 			uq.withName != nil,
 			uq.withEntitlements != nil,
 			uq.withRoles != nil,
-			uq.withImses != nil,
+			uq.withIMS != nil,
 			uq.withPhoneNumbers != nil,
 			uq.withPhotos != nil,
 			uq.withX509Certificates != nil,
@@ -740,66 +740,30 @@ func (uq *UserQuery) sqlAll(ctx context.Context) ([]*User, error) {
 
 	if query := uq.withGroups; query != nil {
 		fks := make([]driver.Value, 0, len(nodes))
-		ids := make(map[uuid.UUID]*User, len(nodes))
-		for _, node := range nodes {
-			ids[node.ID] = node
-			fks = append(fks, node.ID)
-			node.Edges.Groups = []*Group{}
+		nodeids := make(map[uuid.UUID]*User)
+		for i := range nodes {
+			fks = append(fks, nodes[i].ID)
+			nodeids[nodes[i].ID] = nodes[i]
+			nodes[i].Edges.Groups = []*GroupMember{}
 		}
-		var (
-			edgeids []uuid.UUID
-			edges   = make(map[uuid.UUID][]*User)
-		)
-		_spec := &sqlgraph.EdgeQuerySpec{
-			Edge: &sqlgraph.EdgeSpec{
-				Inverse: false,
-				Table:   user.GroupsTable,
-				Columns: user.GroupsPrimaryKey,
-			},
-			Predicate: func(s *sql.Selector) {
-				s.Where(sql.InValues(user.GroupsPrimaryKey[0], fks...))
-			},
-			ScanValues: func() [2]interface{} {
-				return [2]interface{}{new(uuid.UUID), new(uuid.UUID)}
-			},
-			Assign: func(out, in interface{}) error {
-				eout, ok := out.(*uuid.UUID)
-				if !ok || eout == nil {
-					return fmt.Errorf("unexpected id value for edge-out")
-				}
-				ein, ok := in.(*uuid.UUID)
-				if !ok || ein == nil {
-					return fmt.Errorf("unexpected id value for edge-in")
-				}
-				outValue := *eout
-				inValue := *ein
-				node, ok := ids[outValue]
-				if !ok {
-					return fmt.Errorf("unexpected node id in edges: %v", outValue)
-				}
-				if _, ok := edges[inValue]; !ok {
-					edgeids = append(edgeids, inValue)
-				}
-				edges[inValue] = append(edges[inValue], node)
-				return nil
-			},
-		}
-		if err := sqlgraph.QueryEdges(ctx, uq.driver, _spec); err != nil {
-			return nil, fmt.Errorf(`query edges "groups": %w`, err)
-		}
-		query.Where(group.IDIn(edgeids...))
+		query.withFKs = true
+		query.Where(predicate.GroupMember(func(s *sql.Selector) {
+			s.Where(sql.InValues(user.GroupsColumn, fks...))
+		}))
 		neighbors, err := query.All(ctx)
 		if err != nil {
 			return nil, err
 		}
 		for _, n := range neighbors {
-			nodes, ok := edges[n.ID]
+			fk := n.user_groups
+			if fk == nil {
+				return nil, fmt.Errorf(`foreign-key "user_groups" is nil for node %v`, n.ID)
+			}
+			node, ok := nodeids[*fk]
 			if !ok {
-				return nil, fmt.Errorf(`unexpected "groups" node returned %v`, n.ID)
+				return nil, fmt.Errorf(`unexpected foreign-key "user_groups" returned %v for node %v`, *fk, n.ID)
 			}
-			for i := range nodes {
-				nodes[i].Edges.Groups = append(nodes[i].Edges.Groups, n)
-			}
+			node.Edges.Groups = append(node.Edges.Groups, n)
 		}
 	}
 
@@ -918,32 +882,32 @@ func (uq *UserQuery) sqlAll(ctx context.Context) ([]*User, error) {
 		}
 	}
 
-	if query := uq.withImses; query != nil {
+	if query := uq.withIMS; query != nil {
 		fks := make([]driver.Value, 0, len(nodes))
 		nodeids := make(map[uuid.UUID]*User)
 		for i := range nodes {
 			fks = append(fks, nodes[i].ID)
 			nodeids[nodes[i].ID] = nodes[i]
-			nodes[i].Edges.Imses = []*IMS{}
+			nodes[i].Edges.IMS = []*IMS{}
 		}
 		query.withFKs = true
 		query.Where(predicate.IMS(func(s *sql.Selector) {
-			s.Where(sql.InValues(user.ImsesColumn, fks...))
+			s.Where(sql.InValues(user.IMSColumn, fks...))
 		}))
 		neighbors, err := query.All(ctx)
 		if err != nil {
 			return nil, err
 		}
 		for _, n := range neighbors {
-			fk := n.user_imses
+			fk := n.user_ims
 			if fk == nil {
-				return nil, fmt.Errorf(`foreign-key "user_imses" is nil for node %v`, n.ID)
+				return nil, fmt.Errorf(`foreign-key "user_ims" is nil for node %v`, n.ID)
 			}
 			node, ok := nodeids[*fk]
 			if !ok {
-				return nil, fmt.Errorf(`unexpected foreign-key "user_imses" returned %v for node %v`, *fk, n.ID)
+				return nil, fmt.Errorf(`unexpected foreign-key "user_ims" returned %v for node %v`, *fk, n.ID)
 			}
-			node.Edges.Imses = append(node.Edges.Imses, n)
+			node.Edges.IMS = append(node.Edges.IMS, n)
 		}
 	}
 
@@ -1022,13 +986,13 @@ func (uq *UserQuery) sqlAll(ctx context.Context) ([]*User, error) {
 			return nil, err
 		}
 		for _, n := range neighbors {
-			fk := n.user_x509certificates
+			fk := n.user_x509_certificates
 			if fk == nil {
-				return nil, fmt.Errorf(`foreign-key "user_x509certificates" is nil for node %v`, n.ID)
+				return nil, fmt.Errorf(`foreign-key "user_x509_certificates" is nil for node %v`, n.ID)
 			}
 			node, ok := nodeids[*fk]
 			if !ok {
-				return nil, fmt.Errorf(`unexpected foreign-key "user_x509certificates" returned %v for node %v`, *fk, n.ID)
+				return nil, fmt.Errorf(`unexpected foreign-key "user_x509_certificates" returned %v for node %v`, *fk, n.ID)
 			}
 			node.Edges.X509Certificates = append(node.Edges.X509Certificates, n)
 		}

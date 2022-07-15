@@ -9,6 +9,8 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/cybozu-go/scim-server/ent/ims"
+	"github.com/cybozu-go/scim-server/ent/user"
+	"github.com/google/uuid"
 )
 
 // IMSCreate is the builder for creating a IMS entity.
@@ -72,6 +74,25 @@ func (ic *IMSCreate) SetNillableValue(s *string) *IMSCreate {
 		ic.SetValue(*s)
 	}
 	return ic
+}
+
+// SetUserID sets the "user" edge to the User entity by ID.
+func (ic *IMSCreate) SetUserID(id uuid.UUID) *IMSCreate {
+	ic.mutation.SetUserID(id)
+	return ic
+}
+
+// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
+func (ic *IMSCreate) SetNillableUserID(id *uuid.UUID) *IMSCreate {
+	if id != nil {
+		ic = ic.SetUserID(*id)
+	}
+	return ic
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (ic *IMSCreate) SetUser(u *User) *IMSCreate {
+	return ic.SetUserID(u.ID)
 }
 
 // Mutation returns the IMSMutation object of the builder.
@@ -202,6 +223,26 @@ func (ic *IMSCreate) createSpec() (*IMS, *sqlgraph.CreateSpec) {
 			Column: ims.FieldValue,
 		})
 		_node.Value = value
+	}
+	if nodes := ic.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   ims.UserTable,
+			Columns: []string{ims.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.user_ims = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

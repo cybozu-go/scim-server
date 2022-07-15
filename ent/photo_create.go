@@ -9,6 +9,8 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/cybozu-go/scim-server/ent/photo"
+	"github.com/cybozu-go/scim-server/ent/user"
+	"github.com/google/uuid"
 )
 
 // PhotoCreate is the builder for creating a Photo entity.
@@ -72,6 +74,25 @@ func (pc *PhotoCreate) SetNillableValue(s *string) *PhotoCreate {
 		pc.SetValue(*s)
 	}
 	return pc
+}
+
+// SetUserID sets the "user" edge to the User entity by ID.
+func (pc *PhotoCreate) SetUserID(id uuid.UUID) *PhotoCreate {
+	pc.mutation.SetUserID(id)
+	return pc
+}
+
+// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
+func (pc *PhotoCreate) SetNillableUserID(id *uuid.UUID) *PhotoCreate {
+	if id != nil {
+		pc = pc.SetUserID(*id)
+	}
+	return pc
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (pc *PhotoCreate) SetUser(u *User) *PhotoCreate {
+	return pc.SetUserID(u.ID)
 }
 
 // Mutation returns the PhotoMutation object of the builder.
@@ -202,6 +223,26 @@ func (pc *PhotoCreate) createSpec() (*Photo, *sqlgraph.CreateSpec) {
 			Column: photo.FieldValue,
 		})
 		_node.Value = value
+	}
+	if nodes := pc.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   photo.UserTable,
+			Columns: []string{photo.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.user_photos = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

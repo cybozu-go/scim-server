@@ -12,6 +12,8 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/cybozu-go/scim-server/ent/photo"
 	"github.com/cybozu-go/scim-server/ent/predicate"
+	"github.com/cybozu-go/scim-server/ent/user"
+	"github.com/google/uuid"
 )
 
 // PhotoUpdate is the builder for updating Photo entities.
@@ -107,9 +109,34 @@ func (pu *PhotoUpdate) ClearValue() *PhotoUpdate {
 	return pu
 }
 
+// SetUserID sets the "user" edge to the User entity by ID.
+func (pu *PhotoUpdate) SetUserID(id uuid.UUID) *PhotoUpdate {
+	pu.mutation.SetUserID(id)
+	return pu
+}
+
+// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
+func (pu *PhotoUpdate) SetNillableUserID(id *uuid.UUID) *PhotoUpdate {
+	if id != nil {
+		pu = pu.SetUserID(*id)
+	}
+	return pu
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (pu *PhotoUpdate) SetUser(u *User) *PhotoUpdate {
+	return pu.SetUserID(u.ID)
+}
+
 // Mutation returns the PhotoMutation object of the builder.
 func (pu *PhotoUpdate) Mutation() *PhotoMutation {
 	return pu.mutation
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (pu *PhotoUpdate) ClearUser() *PhotoUpdate {
+	pu.mutation.ClearUser()
+	return pu
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -236,6 +263,41 @@ func (pu *PhotoUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Column: photo.FieldValue,
 		})
 	}
+	if pu.mutation.UserCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   photo.UserTable,
+			Columns: []string{photo.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := pu.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   photo.UserTable,
+			Columns: []string{photo.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if n, err = sqlgraph.UpdateNodes(ctx, pu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{photo.Label}
@@ -335,9 +397,34 @@ func (puo *PhotoUpdateOne) ClearValue() *PhotoUpdateOne {
 	return puo
 }
 
+// SetUserID sets the "user" edge to the User entity by ID.
+func (puo *PhotoUpdateOne) SetUserID(id uuid.UUID) *PhotoUpdateOne {
+	puo.mutation.SetUserID(id)
+	return puo
+}
+
+// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
+func (puo *PhotoUpdateOne) SetNillableUserID(id *uuid.UUID) *PhotoUpdateOne {
+	if id != nil {
+		puo = puo.SetUserID(*id)
+	}
+	return puo
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (puo *PhotoUpdateOne) SetUser(u *User) *PhotoUpdateOne {
+	return puo.SetUserID(u.ID)
+}
+
 // Mutation returns the PhotoMutation object of the builder.
 func (puo *PhotoUpdateOne) Mutation() *PhotoMutation {
 	return puo.mutation
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (puo *PhotoUpdateOne) ClearUser() *PhotoUpdateOne {
+	puo.mutation.ClearUser()
+	return puo
 }
 
 // Select allows selecting one or more fields (columns) of the returned entity.
@@ -487,6 +574,41 @@ func (puo *PhotoUpdateOne) sqlSave(ctx context.Context) (_node *Photo, err error
 			Type:   field.TypeString,
 			Column: photo.FieldValue,
 		})
+	}
+	if puo.mutation.UserCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   photo.UserTable,
+			Columns: []string{photo.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := puo.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   photo.UserTable,
+			Columns: []string{photo.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &Photo{config: puo.config}
 	_spec.Assign = _node.assignValues

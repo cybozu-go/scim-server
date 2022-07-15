@@ -12,6 +12,8 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/cybozu-go/scim-server/ent/entitlement"
 	"github.com/cybozu-go/scim-server/ent/predicate"
+	"github.com/cybozu-go/scim-server/ent/user"
+	"github.com/google/uuid"
 )
 
 // EntitlementUpdate is the builder for updating Entitlement entities.
@@ -107,9 +109,34 @@ func (eu *EntitlementUpdate) ClearValue() *EntitlementUpdate {
 	return eu
 }
 
+// SetUserID sets the "user" edge to the User entity by ID.
+func (eu *EntitlementUpdate) SetUserID(id uuid.UUID) *EntitlementUpdate {
+	eu.mutation.SetUserID(id)
+	return eu
+}
+
+// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
+func (eu *EntitlementUpdate) SetNillableUserID(id *uuid.UUID) *EntitlementUpdate {
+	if id != nil {
+		eu = eu.SetUserID(*id)
+	}
+	return eu
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (eu *EntitlementUpdate) SetUser(u *User) *EntitlementUpdate {
+	return eu.SetUserID(u.ID)
+}
+
 // Mutation returns the EntitlementMutation object of the builder.
 func (eu *EntitlementUpdate) Mutation() *EntitlementMutation {
 	return eu.mutation
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (eu *EntitlementUpdate) ClearUser() *EntitlementUpdate {
+	eu.mutation.ClearUser()
+	return eu
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -236,6 +263,41 @@ func (eu *EntitlementUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Column: entitlement.FieldValue,
 		})
 	}
+	if eu.mutation.UserCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   entitlement.UserTable,
+			Columns: []string{entitlement.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := eu.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   entitlement.UserTable,
+			Columns: []string{entitlement.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if n, err = sqlgraph.UpdateNodes(ctx, eu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{entitlement.Label}
@@ -335,9 +397,34 @@ func (euo *EntitlementUpdateOne) ClearValue() *EntitlementUpdateOne {
 	return euo
 }
 
+// SetUserID sets the "user" edge to the User entity by ID.
+func (euo *EntitlementUpdateOne) SetUserID(id uuid.UUID) *EntitlementUpdateOne {
+	euo.mutation.SetUserID(id)
+	return euo
+}
+
+// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
+func (euo *EntitlementUpdateOne) SetNillableUserID(id *uuid.UUID) *EntitlementUpdateOne {
+	if id != nil {
+		euo = euo.SetUserID(*id)
+	}
+	return euo
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (euo *EntitlementUpdateOne) SetUser(u *User) *EntitlementUpdateOne {
+	return euo.SetUserID(u.ID)
+}
+
 // Mutation returns the EntitlementMutation object of the builder.
 func (euo *EntitlementUpdateOne) Mutation() *EntitlementMutation {
 	return euo.mutation
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (euo *EntitlementUpdateOne) ClearUser() *EntitlementUpdateOne {
+	euo.mutation.ClearUser()
+	return euo
 }
 
 // Select allows selecting one or more fields (columns) of the returned entity.
@@ -487,6 +574,41 @@ func (euo *EntitlementUpdateOne) sqlSave(ctx context.Context) (_node *Entitlemen
 			Type:   field.TypeString,
 			Column: entitlement.FieldValue,
 		})
+	}
+	if euo.mutation.UserCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   entitlement.UserTable,
+			Columns: []string{entitlement.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := euo.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   entitlement.UserTable,
+			Columns: []string{entitlement.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &Entitlement{config: euo.config}
 	_spec.Assign = _node.assignValues

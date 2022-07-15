@@ -53,7 +53,7 @@ type UserEdges struct {
 	// Addresses holds the value of the addresses edge.
 	Addresses []*Address `json:"addresses,omitempty"`
 	// Groups holds the value of the groups edge.
-	Groups []*Group `json:"groups,omitempty"`
+	Groups []*GroupMember `json:"groups,omitempty"`
 	// Emails holds the value of the emails edge.
 	Emails []*Email `json:"emails,omitempty"`
 	// Name holds the value of the name edge.
@@ -62,14 +62,14 @@ type UserEdges struct {
 	Entitlements []*Entitlement `json:"entitlements,omitempty"`
 	// Roles holds the value of the roles edge.
 	Roles []*Role `json:"roles,omitempty"`
-	// Imses holds the value of the imses edge.
-	Imses []*IMS `json:"imses,omitempty"`
+	// IMS holds the value of the IMS edge.
+	IMS []*IMS `json:"IMS,omitempty"`
 	// PhoneNumbers holds the value of the phone_numbers edge.
 	PhoneNumbers []*PhoneNumber `json:"phone_numbers,omitempty"`
 	// Photos holds the value of the photos edge.
 	Photos []*Photo `json:"photos,omitempty"`
-	// X509Certificates holds the value of the x509Certificates edge.
-	X509Certificates []*X509Certificate `json:"x509Certificates,omitempty"`
+	// X509Certificates holds the value of the x509_certificates edge.
+	X509Certificates []*X509Certificate `json:"x509_certificates,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [10]bool
@@ -86,7 +86,7 @@ func (e UserEdges) AddressesOrErr() ([]*Address, error) {
 
 // GroupsOrErr returns the Groups value or an error if the edge
 // was not loaded in eager-loading.
-func (e UserEdges) GroupsOrErr() ([]*Group, error) {
+func (e UserEdges) GroupsOrErr() ([]*GroupMember, error) {
 	if e.loadedTypes[1] {
 		return e.Groups, nil
 	}
@@ -134,13 +134,13 @@ func (e UserEdges) RolesOrErr() ([]*Role, error) {
 	return nil, &NotLoadedError{edge: "roles"}
 }
 
-// ImsesOrErr returns the Imses value or an error if the edge
+// IMSOrErr returns the IMS value or an error if the edge
 // was not loaded in eager-loading.
-func (e UserEdges) ImsesOrErr() ([]*IMS, error) {
+func (e UserEdges) IMSOrErr() ([]*IMS, error) {
 	if e.loadedTypes[6] {
-		return e.Imses, nil
+		return e.IMS, nil
 	}
-	return nil, &NotLoadedError{edge: "imses"}
+	return nil, &NotLoadedError{edge: "IMS"}
 }
 
 // PhoneNumbersOrErr returns the PhoneNumbers value or an error if the edge
@@ -167,7 +167,7 @@ func (e UserEdges) X509CertificatesOrErr() ([]*X509Certificate, error) {
 	if e.loadedTypes[9] {
 		return e.X509Certificates, nil
 	}
-	return nil, &NotLoadedError{edge: "x509Certificates"}
+	return nil, &NotLoadedError{edge: "x509_certificates"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -291,7 +291,7 @@ func (u *User) QueryAddresses() *AddressQuery {
 }
 
 // QueryGroups queries the "groups" edge of the User entity.
-func (u *User) QueryGroups() *GroupQuery {
+func (u *User) QueryGroups() *GroupMemberQuery {
 	return (&UserClient{config: u.config}).QueryGroups(u)
 }
 
@@ -315,9 +315,9 @@ func (u *User) QueryRoles() *RoleQuery {
 	return (&UserClient{config: u.config}).QueryRoles(u)
 }
 
-// QueryImses queries the "imses" edge of the User entity.
-func (u *User) QueryImses() *IMSQuery {
-	return (&UserClient{config: u.config}).QueryImses(u)
+// QueryIMS queries the "IMS" edge of the User entity.
+func (u *User) QueryIMS() *IMSQuery {
+	return (&UserClient{config: u.config}).QueryIMS(u)
 }
 
 // QueryPhoneNumbers queries the "phone_numbers" edge of the User entity.
@@ -330,7 +330,7 @@ func (u *User) QueryPhotos() *PhotoQuery {
 	return (&UserClient{config: u.config}).QueryPhotos(u)
 }
 
-// QueryX509Certificates queries the "x509Certificates" edge of the User entity.
+// QueryX509Certificates queries the "x509_certificates" edge of the User entity.
 func (u *User) QueryX509Certificates() *X509CertificateQuery {
 	return (&UserClient{config: u.config}).QueryX509Certificates(u)
 }

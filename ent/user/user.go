@@ -49,14 +49,14 @@ const (
 	EdgeEntitlements = "entitlements"
 	// EdgeRoles holds the string denoting the roles edge name in mutations.
 	EdgeRoles = "roles"
-	// EdgeImses holds the string denoting the imses edge name in mutations.
-	EdgeImses = "imses"
+	// EdgeIMS holds the string denoting the ims edge name in mutations.
+	EdgeIMS = "IMS"
 	// EdgePhoneNumbers holds the string denoting the phone_numbers edge name in mutations.
 	EdgePhoneNumbers = "phone_numbers"
 	// EdgePhotos holds the string denoting the photos edge name in mutations.
 	EdgePhotos = "photos"
-	// EdgeX509Certificates holds the string denoting the x509certificates edge name in mutations.
-	EdgeX509Certificates = "x509Certificates"
+	// EdgeX509Certificates holds the string denoting the x509_certificates edge name in mutations.
+	EdgeX509Certificates = "x509_certificates"
 	// Table holds the table name of the user in the database.
 	Table = "users"
 	// AddressesTable is the table that holds the addresses relation/edge.
@@ -66,11 +66,13 @@ const (
 	AddressesInverseTable = "addresses"
 	// AddressesColumn is the table column denoting the addresses relation/edge.
 	AddressesColumn = "user_addresses"
-	// GroupsTable is the table that holds the groups relation/edge. The primary key declared below.
-	GroupsTable = "user_groups"
-	// GroupsInverseTable is the table name for the Group entity.
-	// It exists in this package in order to avoid circular dependency with the "group" package.
-	GroupsInverseTable = "groups"
+	// GroupsTable is the table that holds the groups relation/edge.
+	GroupsTable = "group_members"
+	// GroupsInverseTable is the table name for the GroupMember entity.
+	// It exists in this package in order to avoid circular dependency with the "groupmember" package.
+	GroupsInverseTable = "group_members"
+	// GroupsColumn is the table column denoting the groups relation/edge.
+	GroupsColumn = "user_groups"
 	// EmailsTable is the table that holds the emails relation/edge.
 	EmailsTable = "emails"
 	// EmailsInverseTable is the table name for the Email entity.
@@ -99,13 +101,13 @@ const (
 	RolesInverseTable = "roles"
 	// RolesColumn is the table column denoting the roles relation/edge.
 	RolesColumn = "user_roles"
-	// ImsesTable is the table that holds the imses relation/edge.
-	ImsesTable = "im_ss"
-	// ImsesInverseTable is the table name for the IMS entity.
+	// IMSTable is the table that holds the IMS relation/edge.
+	IMSTable = "im_ss"
+	// IMSInverseTable is the table name for the IMS entity.
 	// It exists in this package in order to avoid circular dependency with the "ims" package.
-	ImsesInverseTable = "im_ss"
-	// ImsesColumn is the table column denoting the imses relation/edge.
-	ImsesColumn = "user_imses"
+	IMSInverseTable = "im_ss"
+	// IMSColumn is the table column denoting the IMS relation/edge.
+	IMSColumn = "user_ims"
 	// PhoneNumbersTable is the table that holds the phone_numbers relation/edge.
 	PhoneNumbersTable = "phone_numbers"
 	// PhoneNumbersInverseTable is the table name for the PhoneNumber entity.
@@ -120,13 +122,13 @@ const (
 	PhotosInverseTable = "photos"
 	// PhotosColumn is the table column denoting the photos relation/edge.
 	PhotosColumn = "user_photos"
-	// X509CertificatesTable is the table that holds the x509Certificates relation/edge.
+	// X509CertificatesTable is the table that holds the x509_certificates relation/edge.
 	X509CertificatesTable = "x509certificates"
 	// X509CertificatesInverseTable is the table name for the X509Certificate entity.
 	// It exists in this package in order to avoid circular dependency with the "x509certificate" package.
 	X509CertificatesInverseTable = "x509certificates"
-	// X509CertificatesColumn is the table column denoting the x509Certificates relation/edge.
-	X509CertificatesColumn = "user_x509certificates"
+	// X509CertificatesColumn is the table column denoting the x509_certificates relation/edge.
+	X509CertificatesColumn = "user_x509_certificates"
 )
 
 // Columns holds all SQL columns for user fields.
@@ -147,12 +149,6 @@ var Columns = []string{
 	FieldEtag,
 }
 
-var (
-	// GroupsPrimaryKey and GroupsColumn2 are the table columns denoting the
-	// primary key for the groups relation (M2M).
-	GroupsPrimaryKey = []string{"user_id", "group_id"}
-)
-
 // ValidColumn reports if the column name is valid (part of the table columns).
 func ValidColumn(column string) bool {
 	for i := range Columns {
@@ -168,8 +164,6 @@ var (
 	PasswordValidator func(string) error
 	// UserNameValidator is a validator for the "userName" field. It is called by the builders before save.
 	UserNameValidator func(string) error
-	// EtagValidator is a validator for the "etag" field. It is called by the builders before save.
-	EtagValidator func(string) error
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() uuid.UUID
 )

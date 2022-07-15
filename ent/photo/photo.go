@@ -15,8 +15,17 @@ const (
 	FieldType = "type"
 	// FieldValue holds the string denoting the value field in the database.
 	FieldValue = "value"
+	// EdgeUser holds the string denoting the user edge name in mutations.
+	EdgeUser = "user"
 	// Table holds the table name of the photo in the database.
 	Table = "photos"
+	// UserTable is the table that holds the user relation/edge.
+	UserTable = "photos"
+	// UserInverseTable is the table name for the User entity.
+	// It exists in this package in order to avoid circular dependency with the "user" package.
+	UserInverseTable = "users"
+	// UserColumn is the table column denoting the user relation/edge.
+	UserColumn = "user_photos"
 )
 
 // Columns holds all SQL columns for photo fields.

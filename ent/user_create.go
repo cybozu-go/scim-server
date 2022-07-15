@@ -12,7 +12,7 @@ import (
 	"github.com/cybozu-go/scim-server/ent/address"
 	"github.com/cybozu-go/scim-server/ent/email"
 	"github.com/cybozu-go/scim-server/ent/entitlement"
-	"github.com/cybozu-go/scim-server/ent/group"
+	"github.com/cybozu-go/scim-server/ent/groupmember"
 	"github.com/cybozu-go/scim-server/ent/ims"
 	"github.com/cybozu-go/scim-server/ent/names"
 	"github.com/cybozu-go/scim-server/ent/phonenumber"
@@ -196,6 +196,14 @@ func (uc *UserCreate) SetEtag(s string) *UserCreate {
 	return uc
 }
 
+// SetNillableEtag sets the "etag" field if the given value is not nil.
+func (uc *UserCreate) SetNillableEtag(s *string) *UserCreate {
+	if s != nil {
+		uc.SetEtag(*s)
+	}
+	return uc
+}
+
 // SetID sets the "id" field.
 func (uc *UserCreate) SetID(u uuid.UUID) *UserCreate {
 	uc.mutation.SetID(u)
@@ -225,15 +233,15 @@ func (uc *UserCreate) AddAddresses(a ...*Address) *UserCreate {
 	return uc.AddAddressIDs(ids...)
 }
 
-// AddGroupIDs adds the "groups" edge to the Group entity by IDs.
-func (uc *UserCreate) AddGroupIDs(ids ...uuid.UUID) *UserCreate {
+// AddGroupIDs adds the "groups" edge to the GroupMember entity by IDs.
+func (uc *UserCreate) AddGroupIDs(ids ...int) *UserCreate {
 	uc.mutation.AddGroupIDs(ids...)
 	return uc
 }
 
-// AddGroups adds the "groups" edges to the Group entity.
-func (uc *UserCreate) AddGroups(g ...*Group) *UserCreate {
-	ids := make([]uuid.UUID, len(g))
+// AddGroups adds the "groups" edges to the GroupMember entity.
+func (uc *UserCreate) AddGroups(g ...*GroupMember) *UserCreate {
+	ids := make([]int, len(g))
 	for i := range g {
 		ids[i] = g[i].ID
 	}
@@ -304,19 +312,19 @@ func (uc *UserCreate) AddRoles(r ...*Role) *UserCreate {
 	return uc.AddRoleIDs(ids...)
 }
 
-// AddImseIDs adds the "imses" edge to the IMS entity by IDs.
-func (uc *UserCreate) AddImseIDs(ids ...int) *UserCreate {
-	uc.mutation.AddImseIDs(ids...)
+// AddIMSIDs adds the "IMS" edge to the IMS entity by IDs.
+func (uc *UserCreate) AddIMSIDs(ids ...int) *UserCreate {
+	uc.mutation.AddIMSIDs(ids...)
 	return uc
 }
 
-// AddImses adds the "imses" edges to the IMS entity.
-func (uc *UserCreate) AddImses(i ...*IMS) *UserCreate {
+// AddIMS adds the "IMS" edges to the IMS entity.
+func (uc *UserCreate) AddIMS(i ...*IMS) *UserCreate {
 	ids := make([]int, len(i))
 	for j := range i {
 		ids[j] = i[j].ID
 	}
-	return uc.AddImseIDs(ids...)
+	return uc.AddIMSIDs(ids...)
 }
 
 // AddPhoneNumberIDs adds the "phone_numbers" edge to the PhoneNumber entity by IDs.
@@ -349,13 +357,13 @@ func (uc *UserCreate) AddPhotos(p ...*Photo) *UserCreate {
 	return uc.AddPhotoIDs(ids...)
 }
 
-// AddX509CertificateIDs adds the "x509Certificates" edge to the X509Certificate entity by IDs.
+// AddX509CertificateIDs adds the "x509_certificates" edge to the X509Certificate entity by IDs.
 func (uc *UserCreate) AddX509CertificateIDs(ids ...int) *UserCreate {
 	uc.mutation.AddX509CertificateIDs(ids...)
 	return uc
 }
 
-// AddX509Certificates adds the "x509Certificates" edges to the X509Certificate entity.
+// AddX509Certificates adds the "x509_certificates" edges to the X509Certificate entity.
 func (uc *UserCreate) AddX509Certificates(x ...*X509Certificate) *UserCreate {
 	ids := make([]int, len(x))
 	for i := range x {
@@ -454,14 +462,6 @@ func (uc *UserCreate) check() error {
 	if v, ok := uc.mutation.UserName(); ok {
 		if err := user.UserNameValidator(v); err != nil {
 			return &ValidationError{Name: "userName", err: fmt.Errorf(`ent: validator failed for field "User.userName": %w`, err)}
-		}
-	}
-	if _, ok := uc.mutation.Etag(); !ok {
-		return &ValidationError{Name: "etag", err: errors.New(`ent: missing required field "User.etag"`)}
-	}
-	if v, ok := uc.mutation.Etag(); ok {
-		if err := user.EtagValidator(v); err != nil {
-			return &ValidationError{Name: "etag", err: fmt.Errorf(`ent: validator failed for field "User.etag": %w`, err)}
 		}
 	}
 	return nil
@@ -625,15 +625,15 @@ func (uc *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	}
 	if nodes := uc.mutation.GroupsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2M,
+			Rel:     sqlgraph.O2M,
 			Inverse: false,
 			Table:   user.GroupsTable,
-			Columns: user.GroupsPrimaryKey,
+			Columns: []string{user.GroupsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeUUID,
-					Column: group.FieldID,
+					Type:   field.TypeInt,
+					Column: groupmember.FieldID,
 				},
 			},
 		}
@@ -718,12 +718,12 @@ func (uc *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
-	if nodes := uc.mutation.ImsesIDs(); len(nodes) > 0 {
+	if nodes := uc.mutation.IMSIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   user.ImsesTable,
-			Columns: []string{user.ImsesColumn},
+			Table:   user.IMSTable,
+			Columns: []string{user.IMSColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{

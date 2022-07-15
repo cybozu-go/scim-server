@@ -8,6 +8,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"github.com/cybozu-go/scim-server/ent/ims"
+	"github.com/cybozu-go/scim-server/ent/user"
 	"github.com/google/uuid"
 )
 
@@ -23,8 +24,34 @@ type IMS struct {
 	// Type holds the value of the "type" field.
 	Type string `json:"type,omitempty"`
 	// Value holds the value of the "value" field.
-	Value      string `json:"value,omitempty"`
-	user_imses *uuid.UUID
+	Value string `json:"value,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the IMSQuery when eager-loading is set.
+	Edges    IMSEdges `json:"edges"`
+	user_ims *uuid.UUID
+}
+
+// IMSEdges holds the relations/edges for other nodes in the graph.
+type IMSEdges struct {
+	// User holds the value of the user edge.
+	User *User `json:"user,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// UserOrErr returns the User value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e IMSEdges) UserOrErr() (*User, error) {
+	if e.loadedTypes[0] {
+		if e.User == nil {
+			// The edge user was loaded in eager-loading,
+			// but was not found.
+			return nil, &NotFoundError{label: user.Label}
+		}
+		return e.User, nil
+	}
+	return nil, &NotLoadedError{edge: "user"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -38,7 +65,7 @@ func (*IMS) scanValues(columns []string) ([]interface{}, error) {
 			values[i] = new(sql.NullInt64)
 		case ims.FieldDisplay, ims.FieldType, ims.FieldValue:
 			values[i] = new(sql.NullString)
-		case ims.ForeignKeys[0]: // user_imses
+		case ims.ForeignKeys[0]: // user_ims
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		default:
 			return nil, fmt.Errorf("unexpected column %q for type IMS", columns[i])
@@ -87,14 +114,19 @@ func (i *IMS) assignValues(columns []string, values []interface{}) error {
 			}
 		case ims.ForeignKeys[0]:
 			if value, ok := values[j].(*sql.NullScanner); !ok {
-				return fmt.Errorf("unexpected type %T for field user_imses", values[j])
+				return fmt.Errorf("unexpected type %T for field user_ims", values[j])
 			} else if value.Valid {
-				i.user_imses = new(uuid.UUID)
-				*i.user_imses = *value.S.(*uuid.UUID)
+				i.user_ims = new(uuid.UUID)
+				*i.user_ims = *value.S.(*uuid.UUID)
 			}
 		}
 	}
 	return nil
+}
+
+// QueryUser queries the "user" edge of the IMS entity.
+func (i *IMS) QueryUser() *UserQuery {
+	return (&IMSClient{config: i.config}).QueryUser(i)
 }
 
 // Update returns a builder for updating this IMS.

@@ -24,53 +24,25 @@ type Group struct {
 	Etag string `json:"etag,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the GroupQuery when eager-loading is set.
-	Edges          GroupEdges `json:"edges"`
-	group_children *uuid.UUID
+	Edges GroupEdges `json:"edges"`
 }
 
 // GroupEdges holds the relations/edges for other nodes in the graph.
 type GroupEdges struct {
-	// Users holds the value of the users edge.
-	Users []*User `json:"users,omitempty"`
-	// Parent holds the value of the parent edge.
-	Parent *Group `json:"parent,omitempty"`
-	// Children holds the value of the children edge.
-	Children []*Group `json:"children,omitempty"`
+	// Members holds the value of the members edge.
+	Members []*GroupMember `json:"members,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [3]bool
+	loadedTypes [1]bool
 }
 
-// UsersOrErr returns the Users value or an error if the edge
+// MembersOrErr returns the Members value or an error if the edge
 // was not loaded in eager-loading.
-func (e GroupEdges) UsersOrErr() ([]*User, error) {
+func (e GroupEdges) MembersOrErr() ([]*GroupMember, error) {
 	if e.loadedTypes[0] {
-		return e.Users, nil
+		return e.Members, nil
 	}
-	return nil, &NotLoadedError{edge: "users"}
-}
-
-// ParentOrErr returns the Parent value or an error if the edge
-// was not loaded in eager-loading, or loaded but was not found.
-func (e GroupEdges) ParentOrErr() (*Group, error) {
-	if e.loadedTypes[1] {
-		if e.Parent == nil {
-			// The edge parent was loaded in eager-loading,
-			// but was not found.
-			return nil, &NotFoundError{label: group.Label}
-		}
-		return e.Parent, nil
-	}
-	return nil, &NotLoadedError{edge: "parent"}
-}
-
-// ChildrenOrErr returns the Children value or an error if the edge
-// was not loaded in eager-loading.
-func (e GroupEdges) ChildrenOrErr() ([]*Group, error) {
-	if e.loadedTypes[2] {
-		return e.Children, nil
-	}
-	return nil, &NotLoadedError{edge: "children"}
+	return nil, &NotLoadedError{edge: "members"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -82,8 +54,6 @@ func (*Group) scanValues(columns []string) ([]interface{}, error) {
 			values[i] = new(sql.NullString)
 		case group.FieldID:
 			values[i] = new(uuid.UUID)
-		case group.ForeignKeys[0]: // group_children
-			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		default:
 			return nil, fmt.Errorf("unexpected column %q for type Group", columns[i])
 		}
@@ -123,31 +93,14 @@ func (gr *Group) assignValues(columns []string, values []interface{}) error {
 			} else if value.Valid {
 				gr.Etag = value.String
 			}
-		case group.ForeignKeys[0]:
-			if value, ok := values[i].(*sql.NullScanner); !ok {
-				return fmt.Errorf("unexpected type %T for field group_children", values[i])
-			} else if value.Valid {
-				gr.group_children = new(uuid.UUID)
-				*gr.group_children = *value.S.(*uuid.UUID)
-			}
 		}
 	}
 	return nil
 }
 
-// QueryUsers queries the "users" edge of the Group entity.
-func (gr *Group) QueryUsers() *UserQuery {
-	return (&GroupClient{config: gr.config}).QueryUsers(gr)
-}
-
-// QueryParent queries the "parent" edge of the Group entity.
-func (gr *Group) QueryParent() *GroupQuery {
-	return (&GroupClient{config: gr.config}).QueryParent(gr)
-}
-
-// QueryChildren queries the "children" edge of the Group entity.
-func (gr *Group) QueryChildren() *GroupQuery {
-	return (&GroupClient{config: gr.config}).QueryChildren(gr)
+// QueryMembers queries the "members" edge of the Group entity.
+func (gr *Group) QueryMembers() *GroupMemberQuery {
+	return (&GroupClient{config: gr.config}).QueryMembers(gr)
 }
 
 // Update returns a builder for updating this Group.

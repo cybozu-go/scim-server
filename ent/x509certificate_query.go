@@ -12,7 +12,9 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/cybozu-go/scim-server/ent/predicate"
+	"github.com/cybozu-go/scim-server/ent/user"
 	"github.com/cybozu-go/scim-server/ent/x509certificate"
+	"github.com/google/uuid"
 )
 
 // X509CertificateQuery is the builder for querying X509Certificate entities.
@@ -24,7 +26,9 @@ type X509CertificateQuery struct {
 	order      []OrderFunc
 	fields     []string
 	predicates []predicate.X509Certificate
-	withFKs    bool
+	// eager-loading edges.
+	withUser *UserQuery
+	withFKs  bool
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -59,6 +63,28 @@ func (xq *X509CertificateQuery) Unique(unique bool) *X509CertificateQuery {
 func (xq *X509CertificateQuery) Order(o ...OrderFunc) *X509CertificateQuery {
 	xq.order = append(xq.order, o...)
 	return xq
+}
+
+// QueryUser chains the current query on the "user" edge.
+func (xq *X509CertificateQuery) QueryUser() *UserQuery {
+	query := &UserQuery{config: xq.config}
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := xq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := xq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(x509certificate.Table, x509certificate.FieldID, selector),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, x509certificate.UserTable, x509certificate.UserColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(xq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // First returns the first X509Certificate entity from the query.
@@ -242,11 +268,23 @@ func (xq *X509CertificateQuery) Clone() *X509CertificateQuery {
 		offset:     xq.offset,
 		order:      append([]OrderFunc{}, xq.order...),
 		predicates: append([]predicate.X509Certificate{}, xq.predicates...),
+		withUser:   xq.withUser.Clone(),
 		// clone intermediate query.
 		sql:    xq.sql.Clone(),
 		path:   xq.path,
 		unique: xq.unique,
 	}
+}
+
+// WithUser tells the query-builder to eager-load the nodes that are connected to
+// the "user" edge. The optional arguments are used to configure the query builder of the edge.
+func (xq *X509CertificateQuery) WithUser(opts ...func(*UserQuery)) *X509CertificateQuery {
+	query := &UserQuery{config: xq.config}
+	for _, opt := range opts {
+		opt(query)
+	}
+	xq.withUser = query
+	return xq
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -312,10 +350,16 @@ func (xq *X509CertificateQuery) prepareQuery(ctx context.Context) error {
 
 func (xq *X509CertificateQuery) sqlAll(ctx context.Context) ([]*X509Certificate, error) {
 	var (
-		nodes   = []*X509Certificate{}
-		withFKs = xq.withFKs
-		_spec   = xq.querySpec()
+		nodes       = []*X509Certificate{}
+		withFKs     = xq.withFKs
+		_spec       = xq.querySpec()
+		loadedTypes = [1]bool{
+			xq.withUser != nil,
+		}
 	)
+	if xq.withUser != nil {
+		withFKs = true
+	}
 	if withFKs {
 		_spec.Node.Columns = append(_spec.Node.Columns, x509certificate.ForeignKeys...)
 	}
@@ -329,6 +373,7 @@ func (xq *X509CertificateQuery) sqlAll(ctx context.Context) ([]*X509Certificate,
 			return fmt.Errorf("ent: Assign called without calling ScanValues")
 		}
 		node := nodes[len(nodes)-1]
+		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	if err := sqlgraph.QueryNodes(ctx, xq.driver, _spec); err != nil {
@@ -337,6 +382,36 @@ func (xq *X509CertificateQuery) sqlAll(ctx context.Context) ([]*X509Certificate,
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+
+	if query := xq.withUser; query != nil {
+		ids := make([]uuid.UUID, 0, len(nodes))
+		nodeids := make(map[uuid.UUID][]*X509Certificate)
+		for i := range nodes {
+			if nodes[i].user_x509_certificates == nil {
+				continue
+			}
+			fk := *nodes[i].user_x509_certificates
+			if _, ok := nodeids[fk]; !ok {
+				ids = append(ids, fk)
+			}
+			nodeids[fk] = append(nodeids[fk], nodes[i])
+		}
+		query.Where(user.IDIn(ids...))
+		neighbors, err := query.All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, n := range neighbors {
+			nodes, ok := nodeids[n.ID]
+			if !ok {
+				return nil, fmt.Errorf(`unexpected foreign-key "user_x509_certificates" returned %v`, n.ID)
+			}
+			for i := range nodes {
+				nodes[i].Edges.User = n
+			}
+		}
+	}
+
 	return nodes, nil
 }
 

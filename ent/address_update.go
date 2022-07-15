@@ -12,6 +12,8 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/cybozu-go/scim-server/ent/address"
 	"github.com/cybozu-go/scim-server/ent/predicate"
+	"github.com/cybozu-go/scim-server/ent/user"
+	"github.com/google/uuid"
 )
 
 // AddressUpdate is the builder for updating Address entities.
@@ -147,9 +149,34 @@ func (au *AddressUpdate) ClearStreetAddress() *AddressUpdate {
 	return au
 }
 
+// SetUserID sets the "user" edge to the User entity by ID.
+func (au *AddressUpdate) SetUserID(id uuid.UUID) *AddressUpdate {
+	au.mutation.SetUserID(id)
+	return au
+}
+
+// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
+func (au *AddressUpdate) SetNillableUserID(id *uuid.UUID) *AddressUpdate {
+	if id != nil {
+		au = au.SetUserID(*id)
+	}
+	return au
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (au *AddressUpdate) SetUser(u *User) *AddressUpdate {
+	return au.SetUserID(u.ID)
+}
+
 // Mutation returns the AddressMutation object of the builder.
 func (au *AddressUpdate) Mutation() *AddressMutation {
 	return au.mutation
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (au *AddressUpdate) ClearUser() *AddressUpdate {
+	au.mutation.ClearUser()
+	return au
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -302,6 +329,41 @@ func (au *AddressUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Column: address.FieldStreetAddress,
 		})
 	}
+	if au.mutation.UserCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   address.UserTable,
+			Columns: []string{address.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := au.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   address.UserTable,
+			Columns: []string{address.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if n, err = sqlgraph.UpdateNodes(ctx, au.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{address.Label}
@@ -441,9 +503,34 @@ func (auo *AddressUpdateOne) ClearStreetAddress() *AddressUpdateOne {
 	return auo
 }
 
+// SetUserID sets the "user" edge to the User entity by ID.
+func (auo *AddressUpdateOne) SetUserID(id uuid.UUID) *AddressUpdateOne {
+	auo.mutation.SetUserID(id)
+	return auo
+}
+
+// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
+func (auo *AddressUpdateOne) SetNillableUserID(id *uuid.UUID) *AddressUpdateOne {
+	if id != nil {
+		auo = auo.SetUserID(*id)
+	}
+	return auo
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (auo *AddressUpdateOne) SetUser(u *User) *AddressUpdateOne {
+	return auo.SetUserID(u.ID)
+}
+
 // Mutation returns the AddressMutation object of the builder.
 func (auo *AddressUpdateOne) Mutation() *AddressMutation {
 	return auo.mutation
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (auo *AddressUpdateOne) ClearUser() *AddressUpdateOne {
+	auo.mutation.ClearUser()
+	return auo
 }
 
 // Select allows selecting one or more fields (columns) of the returned entity.
@@ -619,6 +706,41 @@ func (auo *AddressUpdateOne) sqlSave(ctx context.Context) (_node *Address, err e
 			Type:   field.TypeString,
 			Column: address.FieldStreetAddress,
 		})
+	}
+	if auo.mutation.UserCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   address.UserTable,
+			Columns: []string{address.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := auo.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   address.UserTable,
+			Columns: []string{address.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &Address{config: auo.config}
 	_spec.Assign = _node.assignValues

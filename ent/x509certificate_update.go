@@ -11,7 +11,9 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/cybozu-go/scim-server/ent/predicate"
+	"github.com/cybozu-go/scim-server/ent/user"
 	"github.com/cybozu-go/scim-server/ent/x509certificate"
+	"github.com/google/uuid"
 )
 
 // X509CertificateUpdate is the builder for updating X509Certificate entities.
@@ -107,9 +109,34 @@ func (xu *X509CertificateUpdate) ClearValue() *X509CertificateUpdate {
 	return xu
 }
 
+// SetUserID sets the "user" edge to the User entity by ID.
+func (xu *X509CertificateUpdate) SetUserID(id uuid.UUID) *X509CertificateUpdate {
+	xu.mutation.SetUserID(id)
+	return xu
+}
+
+// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
+func (xu *X509CertificateUpdate) SetNillableUserID(id *uuid.UUID) *X509CertificateUpdate {
+	if id != nil {
+		xu = xu.SetUserID(*id)
+	}
+	return xu
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (xu *X509CertificateUpdate) SetUser(u *User) *X509CertificateUpdate {
+	return xu.SetUserID(u.ID)
+}
+
 // Mutation returns the X509CertificateMutation object of the builder.
 func (xu *X509CertificateUpdate) Mutation() *X509CertificateMutation {
 	return xu.mutation
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (xu *X509CertificateUpdate) ClearUser() *X509CertificateUpdate {
+	xu.mutation.ClearUser()
+	return xu
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -236,6 +263,41 @@ func (xu *X509CertificateUpdate) sqlSave(ctx context.Context) (n int, err error)
 			Column: x509certificate.FieldValue,
 		})
 	}
+	if xu.mutation.UserCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   x509certificate.UserTable,
+			Columns: []string{x509certificate.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := xu.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   x509certificate.UserTable,
+			Columns: []string{x509certificate.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if n, err = sqlgraph.UpdateNodes(ctx, xu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{x509certificate.Label}
@@ -335,9 +397,34 @@ func (xuo *X509CertificateUpdateOne) ClearValue() *X509CertificateUpdateOne {
 	return xuo
 }
 
+// SetUserID sets the "user" edge to the User entity by ID.
+func (xuo *X509CertificateUpdateOne) SetUserID(id uuid.UUID) *X509CertificateUpdateOne {
+	xuo.mutation.SetUserID(id)
+	return xuo
+}
+
+// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
+func (xuo *X509CertificateUpdateOne) SetNillableUserID(id *uuid.UUID) *X509CertificateUpdateOne {
+	if id != nil {
+		xuo = xuo.SetUserID(*id)
+	}
+	return xuo
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (xuo *X509CertificateUpdateOne) SetUser(u *User) *X509CertificateUpdateOne {
+	return xuo.SetUserID(u.ID)
+}
+
 // Mutation returns the X509CertificateMutation object of the builder.
 func (xuo *X509CertificateUpdateOne) Mutation() *X509CertificateMutation {
 	return xuo.mutation
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (xuo *X509CertificateUpdateOne) ClearUser() *X509CertificateUpdateOne {
+	xuo.mutation.ClearUser()
+	return xuo
 }
 
 // Select allows selecting one or more fields (columns) of the returned entity.
@@ -487,6 +574,41 @@ func (xuo *X509CertificateUpdateOne) sqlSave(ctx context.Context) (_node *X509Ce
 			Type:   field.TypeString,
 			Column: x509certificate.FieldValue,
 		})
+	}
+	if xuo.mutation.UserCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   x509certificate.UserTable,
+			Columns: []string{x509certificate.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := xuo.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   x509certificate.UserTable,
+			Columns: []string{x509certificate.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &X509Certificate{config: xuo.config}
 	_spec.Assign = _node.assignValues

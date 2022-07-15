@@ -8,7 +8,9 @@ import (
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/cybozu-go/scim-server/ent/user"
 	"github.com/cybozu-go/scim-server/ent/x509certificate"
+	"github.com/google/uuid"
 )
 
 // X509CertificateCreate is the builder for creating a X509Certificate entity.
@@ -72,6 +74,25 @@ func (xc *X509CertificateCreate) SetNillableValue(s *string) *X509CertificateCre
 		xc.SetValue(*s)
 	}
 	return xc
+}
+
+// SetUserID sets the "user" edge to the User entity by ID.
+func (xc *X509CertificateCreate) SetUserID(id uuid.UUID) *X509CertificateCreate {
+	xc.mutation.SetUserID(id)
+	return xc
+}
+
+// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
+func (xc *X509CertificateCreate) SetNillableUserID(id *uuid.UUID) *X509CertificateCreate {
+	if id != nil {
+		xc = xc.SetUserID(*id)
+	}
+	return xc
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (xc *X509CertificateCreate) SetUser(u *User) *X509CertificateCreate {
+	return xc.SetUserID(u.ID)
 }
 
 // Mutation returns the X509CertificateMutation object of the builder.
@@ -202,6 +223,26 @@ func (xc *X509CertificateCreate) createSpec() (*X509Certificate, *sqlgraph.Creat
 			Column: x509certificate.FieldValue,
 		})
 		_node.Value = value
+	}
+	if nodes := xc.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   x509certificate.UserTable,
+			Columns: []string{x509certificate.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.user_x509_certificates = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

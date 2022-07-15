@@ -10,6 +10,8 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/cybozu-go/scim-server/ent/email"
+	"github.com/cybozu-go/scim-server/ent/user"
+	"github.com/google/uuid"
 )
 
 // EmailCreate is the builder for creating a Email entity.
@@ -65,6 +67,25 @@ func (ec *EmailCreate) SetNillableType(s *string) *EmailCreate {
 func (ec *EmailCreate) SetValue(s string) *EmailCreate {
 	ec.mutation.SetValue(s)
 	return ec
+}
+
+// SetUserID sets the "user" edge to the User entity by ID.
+func (ec *EmailCreate) SetUserID(id uuid.UUID) *EmailCreate {
+	ec.mutation.SetUserID(id)
+	return ec
+}
+
+// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
+func (ec *EmailCreate) SetNillableUserID(id *uuid.UUID) *EmailCreate {
+	if id != nil {
+		ec = ec.SetUserID(*id)
+	}
+	return ec
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (ec *EmailCreate) SetUser(u *User) *EmailCreate {
+	return ec.SetUserID(u.ID)
 }
 
 // Mutation returns the EmailMutation object of the builder.
@@ -198,6 +219,26 @@ func (ec *EmailCreate) createSpec() (*Email, *sqlgraph.CreateSpec) {
 			Column: email.FieldValue,
 		})
 		_node.Value = value
+	}
+	if nodes := ec.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   email.UserTable,
+			Columns: []string{email.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.user_emails = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }
