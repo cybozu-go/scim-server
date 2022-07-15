@@ -260,6 +260,7 @@ func (b *Backend) DeleteUser(id string) error {
 	return nil
 }
 
+/*
 func (b *Backend) createGroupMembers(members ...*resource.GroupMember) ([]*ent.GroupMember, error) {
 	ctx := context.TODO()
 
@@ -299,7 +300,7 @@ func (b *Backend) createGroupMembers(members ...*resource.GroupMember) ([]*ent.G
 	}
 	return list, nil
 }
-
+*/
 /*
 func (b *Backend) memberIDs(members []*resource.GroupMember) ([]uuid.UUID, []uuid.UUID, error) {
 	var userMembers []uuid.UUID
