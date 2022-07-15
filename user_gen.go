@@ -1583,6 +1583,9 @@ func (b *Backend) ReplaceUser(id string, in *resource.User) (*resource.User, err
 		WithRoles().
 		WithX509Certificates().
 		Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve data")
+	}
 
 	h := sha256.New()
 	if err := r2.ComputeETag(h); err != nil {

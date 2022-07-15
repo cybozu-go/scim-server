@@ -1229,6 +1229,9 @@ func generateUtilities(object *codegen.Object) error {
 			o.L(`With%s().`, field.Name(true))
 		}
 		o.L(`Only(ctx)`)
+		o.L(`if err != nil {`)
+		o.L(`return nil, fmt.Errorf("failed to retrieve data")`)
+		o.L(`}`)
 		o.LL(`h := sha256.New()`)
 		o.L(`if err := r2.ComputeETag(h); err != nil {`)
 		o.L(`return nil, fmt.Errorf("failed to compute etag: %%w", err)`)

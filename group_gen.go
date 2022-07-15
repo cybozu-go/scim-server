@@ -340,6 +340,9 @@ func (b *Backend) ReplaceGroup(id string, in *resource.Group) (*resource.Group, 
 	r2, err := b.db.Group.Query().Where(group.ID(parsedUUID)).
 		WithMembers().
 		Only(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve data")
+	}
 
 	h := sha256.New()
 	if err := r2.ComputeETag(h); err != nil {
