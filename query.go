@@ -239,20 +239,5 @@ func (v *filterVisitor) visitParenExpr(expr filter.Expr) error {
 }
 
 func (v *filterVisitor) visitValuePath(expr filter.ValuePath) error {
-	if v.groups != nil {
-		var attr string
-		switch attrExpr := expr.ParentAttr().(type) {
-		case filter.IdentifierExpr:
-			attr = attrExpr.Lit()
-		default:
-			return fmt.Errorf(`invalid parent attr`)
-		}
-		_ = attr
-
-		// does it have a query condition?
-		if cond := expr.SubExpr(); cond != nil {
-			// TODO
-		}
-	}
-	return nil
+	return fmt.Errorf(`unimplemented`)
 }
