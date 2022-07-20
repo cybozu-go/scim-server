@@ -9,8 +9,8 @@ github.com/apparentlymart/go-dump v0.0.0-20180507223929-23540a00eaa3/go.mod h1:o
 github.com/apparentlymart/go-textseg v1.0.0/go.mod h1:z96Txxhf3xSFMPmb5X/1W05FF/Nj9VFpLOpjS5yuumk=
 github.com/apparentlymart/go-textseg/v13 v13.0.0 h1:Y+KvPE1NYz0xl601PVImeQfFyEy6iT90AvPUL1NNfNw=
 github.com/apparentlymart/go-textseg/v13 v13.0.0/go.mod h1:ZK2fH7c4NqDTLtiYLvIkEghdlcqw7yxLeM89kiTRPUo=
-github.com/cybozu-go/scim v0.0.0-20220715140827-f72d3f85adb1 h1:20Fm3dhZGeC49oPos/v41z1Y96vplM80UYu/VZYiWOA=
-github.com/cybozu-go/scim v0.0.0-20220715140827-f72d3f85adb1/go.mod h1:gNuJgeYjFePWiFW0+l+O0n8sL7mTtuQLEne0gvK9+mc=
+github.com/cybozu-go/scim v0.0.0-20220720091620-8b595cfe847f h1:a9kO6TQybfXJRrcM+bDOfoeWAqQn+tV7PSYzE0wuIvw=
+github.com/cybozu-go/scim v0.0.0-20220720091620-8b595cfe847f/go.mod h1:gNuJgeYjFePWiFW0+l+O0n8sL7mTtuQLEne0gvK9+mc=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

@@ -1247,7 +1247,7 @@ func generateUtilities(object *codegen.Object) error {
 
 		o.LL(`func (b *Backend) patchAdd%[1]s(parent *ent.%[1]s, op *resource.PatchOperation) error {`, object.Name(true))
 		o.L(`ctx := context.TODO()`)
-		o.L(`root, err := filter.Parse(op.Path())`)
+		o.LL(`root, err := filter.Parse(op.Path(), filter.WithPatchExpression(true))`)
 		o.L(`if err != nil {`)
 		o.L(`return fmt.Errorf("failed to parse PATH path %%q", op.Path())`)
 		o.L(`}`)
@@ -1376,7 +1376,7 @@ func generateUtilities(object *codegen.Object) error {
 
 		o.LL(`func (b *Backend) patchRemove%[1]s(parent *ent.%[1]s, op *resource.PatchOperation) error {`, object.Name(true))
 		o.L(`ctx := context.TODO()`)
-		o.LL(`root, err := filter.Parse(op.Path())`)
+		o.LL(`root, err := filter.Parse(op.Path(), filter.WithPatchExpression(true))`)
 		o.L(`if err != nil {`)
 		o.L(`return fmt.Errorf("failed to parse path %%q", op.Path())`)
 		o.L(`}`)

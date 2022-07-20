@@ -1603,7 +1603,8 @@ func (b *Backend) ReplaceUser(id string, in *resource.User) (*resource.User, err
 
 func (b *Backend) patchAddUser(parent *ent.User, op *resource.PatchOperation) error {
 	ctx := context.TODO()
-	root, err := filter.Parse(op.Path())
+
+	root, err := filter.Parse(op.Path(), filter.WithPatchExpression(true))
 	if err != nil {
 		return fmt.Errorf("failed to parse PATH path %q", op.Path())
 	}
@@ -2559,7 +2560,7 @@ func (b *Backend) patchAddUser(parent *ent.User, op *resource.PatchOperation) er
 func (b *Backend) patchRemoveUser(parent *ent.User, op *resource.PatchOperation) error {
 	ctx := context.TODO()
 
-	root, err := filter.Parse(op.Path())
+	root, err := filter.Parse(op.Path(), filter.WithPatchExpression(true))
 	if err != nil {
 		return fmt.Errorf("failed to parse path %q", op.Path())
 	}
