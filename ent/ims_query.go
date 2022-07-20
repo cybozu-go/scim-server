@@ -13,6 +13,8 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/cybozu-go/scim-server/ent/ims"
 	"github.com/cybozu-go/scim-server/ent/predicate"
+	"github.com/cybozu-go/scim-server/ent/user"
+	"github.com/google/uuid"
 )
 
 // IMSQuery is the builder for querying IMS entities.
@@ -24,7 +26,9 @@ type IMSQuery struct {
 	order      []OrderFunc
 	fields     []string
 	predicates []predicate.IMS
-	withFKs    bool
+	// eager-loading edges.
+	withUser *UserQuery
+	withFKs  bool
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -59,6 +63,28 @@ func (iq *IMSQuery) Unique(unique bool) *IMSQuery {
 func (iq *IMSQuery) Order(o ...OrderFunc) *IMSQuery {
 	iq.order = append(iq.order, o...)
 	return iq
+}
+
+// QueryUser chains the current query on the "user" edge.
+func (iq *IMSQuery) QueryUser() *UserQuery {
+	query := &UserQuery{config: iq.config}
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := iq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := iq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(ims.Table, ims.FieldID, selector),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, ims.UserTable, ims.UserColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(iq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // First returns the first IMS entity from the query.
@@ -242,11 +268,23 @@ func (iq *IMSQuery) Clone() *IMSQuery {
 		offset:     iq.offset,
 		order:      append([]OrderFunc{}, iq.order...),
 		predicates: append([]predicate.IMS{}, iq.predicates...),
+		withUser:   iq.withUser.Clone(),
 		// clone intermediate query.
 		sql:    iq.sql.Clone(),
 		path:   iq.path,
 		unique: iq.unique,
 	}
+}
+
+// WithUser tells the query-builder to eager-load the nodes that are connected to
+// the "user" edge. The optional arguments are used to configure the query builder of the edge.
+func (iq *IMSQuery) WithUser(opts ...func(*UserQuery)) *IMSQuery {
+	query := &UserQuery{config: iq.config}
+	for _, opt := range opts {
+		opt(query)
+	}
+	iq.withUser = query
+	return iq
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -312,10 +350,16 @@ func (iq *IMSQuery) prepareQuery(ctx context.Context) error {
 
 func (iq *IMSQuery) sqlAll(ctx context.Context) ([]*IMS, error) {
 	var (
-		nodes   = []*IMS{}
-		withFKs = iq.withFKs
-		_spec   = iq.querySpec()
+		nodes       = []*IMS{}
+		withFKs     = iq.withFKs
+		_spec       = iq.querySpec()
+		loadedTypes = [1]bool{
+			iq.withUser != nil,
+		}
 	)
+	if iq.withUser != nil {
+		withFKs = true
+	}
 	if withFKs {
 		_spec.Node.Columns = append(_spec.Node.Columns, ims.ForeignKeys...)
 	}
@@ -329,6 +373,7 @@ func (iq *IMSQuery) sqlAll(ctx context.Context) ([]*IMS, error) {
 			return fmt.Errorf("ent: Assign called without calling ScanValues")
 		}
 		node := nodes[len(nodes)-1]
+		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	if err := sqlgraph.QueryNodes(ctx, iq.driver, _spec); err != nil {
@@ -337,6 +382,36 @@ func (iq *IMSQuery) sqlAll(ctx context.Context) ([]*IMS, error) {
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+
+	if query := iq.withUser; query != nil {
+		ids := make([]uuid.UUID, 0, len(nodes))
+		nodeids := make(map[uuid.UUID][]*IMS)
+		for i := range nodes {
+			if nodes[i].user_ims == nil {
+				continue
+			}
+			fk := *nodes[i].user_ims
+			if _, ok := nodeids[fk]; !ok {
+				ids = append(ids, fk)
+			}
+			nodeids[fk] = append(nodeids[fk], nodes[i])
+		}
+		query.Where(user.IDIn(ids...))
+		neighbors, err := query.All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, n := range neighbors {
+			nodes, ok := nodeids[n.ID]
+			if !ok {
+				return nil, fmt.Errorf(`unexpected foreign-key "user_ims" returned %v`, n.ID)
+			}
+			for i := range nodes {
+				nodes[i].Edges.User = n
+			}
+		}
+	}
+
 	return nodes, nil
 }
 

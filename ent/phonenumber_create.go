@@ -9,6 +9,8 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/cybozu-go/scim-server/ent/phonenumber"
+	"github.com/cybozu-go/scim-server/ent/user"
+	"github.com/google/uuid"
 )
 
 // PhoneNumberCreate is the builder for creating a PhoneNumber entity.
@@ -72,6 +74,25 @@ func (pnc *PhoneNumberCreate) SetNillableValue(s *string) *PhoneNumberCreate {
 		pnc.SetValue(*s)
 	}
 	return pnc
+}
+
+// SetUserID sets the "user" edge to the User entity by ID.
+func (pnc *PhoneNumberCreate) SetUserID(id uuid.UUID) *PhoneNumberCreate {
+	pnc.mutation.SetUserID(id)
+	return pnc
+}
+
+// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
+func (pnc *PhoneNumberCreate) SetNillableUserID(id *uuid.UUID) *PhoneNumberCreate {
+	if id != nil {
+		pnc = pnc.SetUserID(*id)
+	}
+	return pnc
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (pnc *PhoneNumberCreate) SetUser(u *User) *PhoneNumberCreate {
+	return pnc.SetUserID(u.ID)
 }
 
 // Mutation returns the PhoneNumberMutation object of the builder.
@@ -202,6 +223,26 @@ func (pnc *PhoneNumberCreate) createSpec() (*PhoneNumber, *sqlgraph.CreateSpec) 
 			Column: phonenumber.FieldValue,
 		})
 		_node.Value = value
+	}
+	if nodes := pnc.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   phonenumber.UserTable,
+			Columns: []string{phonenumber.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.user_phone_numbers = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

@@ -13,6 +13,8 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/cybozu-go/scim-server/ent/email"
 	"github.com/cybozu-go/scim-server/ent/predicate"
+	"github.com/cybozu-go/scim-server/ent/user"
+	"github.com/google/uuid"
 )
 
 // EmailQuery is the builder for querying Email entities.
@@ -24,7 +26,9 @@ type EmailQuery struct {
 	order      []OrderFunc
 	fields     []string
 	predicates []predicate.Email
-	withFKs    bool
+	// eager-loading edges.
+	withUser *UserQuery
+	withFKs  bool
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -59,6 +63,28 @@ func (eq *EmailQuery) Unique(unique bool) *EmailQuery {
 func (eq *EmailQuery) Order(o ...OrderFunc) *EmailQuery {
 	eq.order = append(eq.order, o...)
 	return eq
+}
+
+// QueryUser chains the current query on the "user" edge.
+func (eq *EmailQuery) QueryUser() *UserQuery {
+	query := &UserQuery{config: eq.config}
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := eq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := eq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(email.Table, email.FieldID, selector),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, email.UserTable, email.UserColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(eq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // First returns the first Email entity from the query.
@@ -242,11 +268,23 @@ func (eq *EmailQuery) Clone() *EmailQuery {
 		offset:     eq.offset,
 		order:      append([]OrderFunc{}, eq.order...),
 		predicates: append([]predicate.Email{}, eq.predicates...),
+		withUser:   eq.withUser.Clone(),
 		// clone intermediate query.
 		sql:    eq.sql.Clone(),
 		path:   eq.path,
 		unique: eq.unique,
 	}
+}
+
+// WithUser tells the query-builder to eager-load the nodes that are connected to
+// the "user" edge. The optional arguments are used to configure the query builder of the edge.
+func (eq *EmailQuery) WithUser(opts ...func(*UserQuery)) *EmailQuery {
+	query := &UserQuery{config: eq.config}
+	for _, opt := range opts {
+		opt(query)
+	}
+	eq.withUser = query
+	return eq
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -312,10 +350,16 @@ func (eq *EmailQuery) prepareQuery(ctx context.Context) error {
 
 func (eq *EmailQuery) sqlAll(ctx context.Context) ([]*Email, error) {
 	var (
-		nodes   = []*Email{}
-		withFKs = eq.withFKs
-		_spec   = eq.querySpec()
+		nodes       = []*Email{}
+		withFKs     = eq.withFKs
+		_spec       = eq.querySpec()
+		loadedTypes = [1]bool{
+			eq.withUser != nil,
+		}
 	)
+	if eq.withUser != nil {
+		withFKs = true
+	}
 	if withFKs {
 		_spec.Node.Columns = append(_spec.Node.Columns, email.ForeignKeys...)
 	}
@@ -329,6 +373,7 @@ func (eq *EmailQuery) sqlAll(ctx context.Context) ([]*Email, error) {
 			return fmt.Errorf("ent: Assign called without calling ScanValues")
 		}
 		node := nodes[len(nodes)-1]
+		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	if err := sqlgraph.QueryNodes(ctx, eq.driver, _spec); err != nil {
@@ -337,6 +382,36 @@ func (eq *EmailQuery) sqlAll(ctx context.Context) ([]*Email, error) {
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+
+	if query := eq.withUser; query != nil {
+		ids := make([]uuid.UUID, 0, len(nodes))
+		nodeids := make(map[uuid.UUID][]*Email)
+		for i := range nodes {
+			if nodes[i].user_emails == nil {
+				continue
+			}
+			fk := *nodes[i].user_emails
+			if _, ok := nodeids[fk]; !ok {
+				ids = append(ids, fk)
+			}
+			nodeids[fk] = append(nodeids[fk], nodes[i])
+		}
+		query.Where(user.IDIn(ids...))
+		neighbors, err := query.All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, n := range neighbors {
+			nodes, ok := nodeids[n.ID]
+			if !ok {
+				return nil, fmt.Errorf(`unexpected foreign-key "user_emails" returned %v`, n.ID)
+			}
+			for i := range nodes {
+				nodes[i].Edges.User = n
+			}
+		}
+	}
+
 	return nodes, nil
 }
 

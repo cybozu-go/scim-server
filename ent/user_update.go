@@ -13,7 +13,7 @@ import (
 	"github.com/cybozu-go/scim-server/ent/address"
 	"github.com/cybozu-go/scim-server/ent/email"
 	"github.com/cybozu-go/scim-server/ent/entitlement"
-	"github.com/cybozu-go/scim-server/ent/group"
+	"github.com/cybozu-go/scim-server/ent/groupmember"
 	"github.com/cybozu-go/scim-server/ent/ims"
 	"github.com/cybozu-go/scim-server/ent/names"
 	"github.com/cybozu-go/scim-server/ent/phonenumber"
@@ -22,7 +22,6 @@ import (
 	"github.com/cybozu-go/scim-server/ent/role"
 	"github.com/cybozu-go/scim-server/ent/user"
 	"github.com/cybozu-go/scim-server/ent/x509certificate"
-	"github.com/google/uuid"
 )
 
 // UserUpdate is the builder for updating User entities.
@@ -270,6 +269,20 @@ func (uu *UserUpdate) SetEtag(s string) *UserUpdate {
 	return uu
 }
 
+// SetNillableEtag sets the "etag" field if the given value is not nil.
+func (uu *UserUpdate) SetNillableEtag(s *string) *UserUpdate {
+	if s != nil {
+		uu.SetEtag(*s)
+	}
+	return uu
+}
+
+// ClearEtag clears the value of the "etag" field.
+func (uu *UserUpdate) ClearEtag() *UserUpdate {
+	uu.mutation.ClearEtag()
+	return uu
+}
+
 // AddAddressIDs adds the "addresses" edge to the Address entity by IDs.
 func (uu *UserUpdate) AddAddressIDs(ids ...int) *UserUpdate {
 	uu.mutation.AddAddressIDs(ids...)
@@ -285,15 +298,15 @@ func (uu *UserUpdate) AddAddresses(a ...*Address) *UserUpdate {
 	return uu.AddAddressIDs(ids...)
 }
 
-// AddGroupIDs adds the "groups" edge to the Group entity by IDs.
-func (uu *UserUpdate) AddGroupIDs(ids ...uuid.UUID) *UserUpdate {
+// AddGroupIDs adds the "groups" edge to the GroupMember entity by IDs.
+func (uu *UserUpdate) AddGroupIDs(ids ...int) *UserUpdate {
 	uu.mutation.AddGroupIDs(ids...)
 	return uu
 }
 
-// AddGroups adds the "groups" edges to the Group entity.
-func (uu *UserUpdate) AddGroups(g ...*Group) *UserUpdate {
-	ids := make([]uuid.UUID, len(g))
+// AddGroups adds the "groups" edges to the GroupMember entity.
+func (uu *UserUpdate) AddGroups(g ...*GroupMember) *UserUpdate {
+	ids := make([]int, len(g))
 	for i := range g {
 		ids[i] = g[i].ID
 	}
@@ -364,19 +377,19 @@ func (uu *UserUpdate) AddRoles(r ...*Role) *UserUpdate {
 	return uu.AddRoleIDs(ids...)
 }
 
-// AddImseIDs adds the "imses" edge to the IMS entity by IDs.
-func (uu *UserUpdate) AddImseIDs(ids ...int) *UserUpdate {
-	uu.mutation.AddImseIDs(ids...)
+// AddIMSIDs adds the "IMS" edge to the IMS entity by IDs.
+func (uu *UserUpdate) AddIMSIDs(ids ...int) *UserUpdate {
+	uu.mutation.AddIMSIDs(ids...)
 	return uu
 }
 
-// AddImses adds the "imses" edges to the IMS entity.
-func (uu *UserUpdate) AddImses(i ...*IMS) *UserUpdate {
+// AddIMS adds the "IMS" edges to the IMS entity.
+func (uu *UserUpdate) AddIMS(i ...*IMS) *UserUpdate {
 	ids := make([]int, len(i))
 	for j := range i {
 		ids[j] = i[j].ID
 	}
-	return uu.AddImseIDs(ids...)
+	return uu.AddIMSIDs(ids...)
 }
 
 // AddPhoneNumberIDs adds the "phone_numbers" edge to the PhoneNumber entity by IDs.
@@ -409,13 +422,13 @@ func (uu *UserUpdate) AddPhotos(p ...*Photo) *UserUpdate {
 	return uu.AddPhotoIDs(ids...)
 }
 
-// AddX509CertificateIDs adds the "x509Certificates" edge to the X509Certificate entity by IDs.
+// AddX509CertificateIDs adds the "x509_certificates" edge to the X509Certificate entity by IDs.
 func (uu *UserUpdate) AddX509CertificateIDs(ids ...int) *UserUpdate {
 	uu.mutation.AddX509CertificateIDs(ids...)
 	return uu
 }
 
-// AddX509Certificates adds the "x509Certificates" edges to the X509Certificate entity.
+// AddX509Certificates adds the "x509_certificates" edges to the X509Certificate entity.
 func (uu *UserUpdate) AddX509Certificates(x ...*X509Certificate) *UserUpdate {
 	ids := make([]int, len(x))
 	for i := range x {
@@ -450,21 +463,21 @@ func (uu *UserUpdate) RemoveAddresses(a ...*Address) *UserUpdate {
 	return uu.RemoveAddressIDs(ids...)
 }
 
-// ClearGroups clears all "groups" edges to the Group entity.
+// ClearGroups clears all "groups" edges to the GroupMember entity.
 func (uu *UserUpdate) ClearGroups() *UserUpdate {
 	uu.mutation.ClearGroups()
 	return uu
 }
 
-// RemoveGroupIDs removes the "groups" edge to Group entities by IDs.
-func (uu *UserUpdate) RemoveGroupIDs(ids ...uuid.UUID) *UserUpdate {
+// RemoveGroupIDs removes the "groups" edge to GroupMember entities by IDs.
+func (uu *UserUpdate) RemoveGroupIDs(ids ...int) *UserUpdate {
 	uu.mutation.RemoveGroupIDs(ids...)
 	return uu
 }
 
-// RemoveGroups removes "groups" edges to Group entities.
-func (uu *UserUpdate) RemoveGroups(g ...*Group) *UserUpdate {
-	ids := make([]uuid.UUID, len(g))
+// RemoveGroups removes "groups" edges to GroupMember entities.
+func (uu *UserUpdate) RemoveGroups(g ...*GroupMember) *UserUpdate {
+	ids := make([]int, len(g))
 	for i := range g {
 		ids[i] = g[i].ID
 	}
@@ -540,25 +553,25 @@ func (uu *UserUpdate) RemoveRoles(r ...*Role) *UserUpdate {
 	return uu.RemoveRoleIDs(ids...)
 }
 
-// ClearImses clears all "imses" edges to the IMS entity.
-func (uu *UserUpdate) ClearImses() *UserUpdate {
-	uu.mutation.ClearImses()
+// ClearIMS clears all "IMS" edges to the IMS entity.
+func (uu *UserUpdate) ClearIMS() *UserUpdate {
+	uu.mutation.ClearIMS()
 	return uu
 }
 
-// RemoveImseIDs removes the "imses" edge to IMS entities by IDs.
-func (uu *UserUpdate) RemoveImseIDs(ids ...int) *UserUpdate {
-	uu.mutation.RemoveImseIDs(ids...)
+// RemoveIMSIDs removes the "IMS" edge to IMS entities by IDs.
+func (uu *UserUpdate) RemoveIMSIDs(ids ...int) *UserUpdate {
+	uu.mutation.RemoveIMSIDs(ids...)
 	return uu
 }
 
-// RemoveImses removes "imses" edges to IMS entities.
-func (uu *UserUpdate) RemoveImses(i ...*IMS) *UserUpdate {
+// RemoveIMS removes "IMS" edges to IMS entities.
+func (uu *UserUpdate) RemoveIMS(i ...*IMS) *UserUpdate {
 	ids := make([]int, len(i))
 	for j := range i {
 		ids[j] = i[j].ID
 	}
-	return uu.RemoveImseIDs(ids...)
+	return uu.RemoveIMSIDs(ids...)
 }
 
 // ClearPhoneNumbers clears all "phone_numbers" edges to the PhoneNumber entity.
@@ -603,19 +616,19 @@ func (uu *UserUpdate) RemovePhotos(p ...*Photo) *UserUpdate {
 	return uu.RemovePhotoIDs(ids...)
 }
 
-// ClearX509Certificates clears all "x509Certificates" edges to the X509Certificate entity.
+// ClearX509Certificates clears all "x509_certificates" edges to the X509Certificate entity.
 func (uu *UserUpdate) ClearX509Certificates() *UserUpdate {
 	uu.mutation.ClearX509Certificates()
 	return uu
 }
 
-// RemoveX509CertificateIDs removes the "x509Certificates" edge to X509Certificate entities by IDs.
+// RemoveX509CertificateIDs removes the "x509_certificates" edge to X509Certificate entities by IDs.
 func (uu *UserUpdate) RemoveX509CertificateIDs(ids ...int) *UserUpdate {
 	uu.mutation.RemoveX509CertificateIDs(ids...)
 	return uu
 }
 
-// RemoveX509Certificates removes "x509Certificates" edges to X509Certificate entities.
+// RemoveX509Certificates removes "x509_certificates" edges to X509Certificate entities.
 func (uu *UserUpdate) RemoveX509Certificates(x ...*X509Certificate) *UserUpdate {
 	ids := make([]int, len(x))
 	for i := range x {
@@ -694,11 +707,6 @@ func (uu *UserUpdate) check() error {
 	if v, ok := uu.mutation.UserName(); ok {
 		if err := user.UserNameValidator(v); err != nil {
 			return &ValidationError{Name: "userName", err: fmt.Errorf(`ent: validator failed for field "User.userName": %w`, err)}
-		}
-	}
-	if v, ok := uu.mutation.Etag(); ok {
-		if err := user.EtagValidator(v); err != nil {
-			return &ValidationError{Name: "etag", err: fmt.Errorf(`ent: validator failed for field "User.etag": %w`, err)}
 		}
 	}
 	return nil
@@ -879,6 +887,12 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Column: user.FieldEtag,
 		})
 	}
+	if uu.mutation.EtagCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Column: user.FieldEtag,
+		})
+	}
 	if uu.mutation.AddressesCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -935,15 +949,15 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if uu.mutation.GroupsCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2M,
+			Rel:     sqlgraph.O2M,
 			Inverse: false,
 			Table:   user.GroupsTable,
-			Columns: user.GroupsPrimaryKey,
+			Columns: []string{user.GroupsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeUUID,
-					Column: group.FieldID,
+					Type:   field.TypeInt,
+					Column: groupmember.FieldID,
 				},
 			},
 		}
@@ -951,15 +965,15 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if nodes := uu.mutation.RemovedGroupsIDs(); len(nodes) > 0 && !uu.mutation.GroupsCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2M,
+			Rel:     sqlgraph.O2M,
 			Inverse: false,
 			Table:   user.GroupsTable,
-			Columns: user.GroupsPrimaryKey,
+			Columns: []string{user.GroupsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeUUID,
-					Column: group.FieldID,
+					Type:   field.TypeInt,
+					Column: groupmember.FieldID,
 				},
 			},
 		}
@@ -970,15 +984,15 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if nodes := uu.mutation.GroupsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2M,
+			Rel:     sqlgraph.O2M,
 			Inverse: false,
 			Table:   user.GroupsTable,
-			Columns: user.GroupsPrimaryKey,
+			Columns: []string{user.GroupsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeUUID,
-					Column: group.FieldID,
+					Type:   field.TypeInt,
+					Column: groupmember.FieldID,
 				},
 			},
 		}
@@ -1184,12 +1198,12 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if uu.mutation.ImsesCleared() {
+	if uu.mutation.IMSCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   user.ImsesTable,
-			Columns: []string{user.ImsesColumn},
+			Table:   user.IMSTable,
+			Columns: []string{user.IMSColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{
@@ -1200,12 +1214,12 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := uu.mutation.RemovedImsesIDs(); len(nodes) > 0 && !uu.mutation.ImsesCleared() {
+	if nodes := uu.mutation.RemovedIMSIDs(); len(nodes) > 0 && !uu.mutation.IMSCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   user.ImsesTable,
-			Columns: []string{user.ImsesColumn},
+			Table:   user.IMSTable,
+			Columns: []string{user.IMSColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{
@@ -1219,12 +1233,12 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := uu.mutation.ImsesIDs(); len(nodes) > 0 {
+	if nodes := uu.mutation.IMSIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   user.ImsesTable,
-			Columns: []string{user.ImsesColumn},
+			Table:   user.IMSTable,
+			Columns: []string{user.IMSColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{
@@ -1651,6 +1665,20 @@ func (uuo *UserUpdateOne) SetEtag(s string) *UserUpdateOne {
 	return uuo
 }
 
+// SetNillableEtag sets the "etag" field if the given value is not nil.
+func (uuo *UserUpdateOne) SetNillableEtag(s *string) *UserUpdateOne {
+	if s != nil {
+		uuo.SetEtag(*s)
+	}
+	return uuo
+}
+
+// ClearEtag clears the value of the "etag" field.
+func (uuo *UserUpdateOne) ClearEtag() *UserUpdateOne {
+	uuo.mutation.ClearEtag()
+	return uuo
+}
+
 // AddAddressIDs adds the "addresses" edge to the Address entity by IDs.
 func (uuo *UserUpdateOne) AddAddressIDs(ids ...int) *UserUpdateOne {
 	uuo.mutation.AddAddressIDs(ids...)
@@ -1666,15 +1694,15 @@ func (uuo *UserUpdateOne) AddAddresses(a ...*Address) *UserUpdateOne {
 	return uuo.AddAddressIDs(ids...)
 }
 
-// AddGroupIDs adds the "groups" edge to the Group entity by IDs.
-func (uuo *UserUpdateOne) AddGroupIDs(ids ...uuid.UUID) *UserUpdateOne {
+// AddGroupIDs adds the "groups" edge to the GroupMember entity by IDs.
+func (uuo *UserUpdateOne) AddGroupIDs(ids ...int) *UserUpdateOne {
 	uuo.mutation.AddGroupIDs(ids...)
 	return uuo
 }
 
-// AddGroups adds the "groups" edges to the Group entity.
-func (uuo *UserUpdateOne) AddGroups(g ...*Group) *UserUpdateOne {
-	ids := make([]uuid.UUID, len(g))
+// AddGroups adds the "groups" edges to the GroupMember entity.
+func (uuo *UserUpdateOne) AddGroups(g ...*GroupMember) *UserUpdateOne {
+	ids := make([]int, len(g))
 	for i := range g {
 		ids[i] = g[i].ID
 	}
@@ -1745,19 +1773,19 @@ func (uuo *UserUpdateOne) AddRoles(r ...*Role) *UserUpdateOne {
 	return uuo.AddRoleIDs(ids...)
 }
 
-// AddImseIDs adds the "imses" edge to the IMS entity by IDs.
-func (uuo *UserUpdateOne) AddImseIDs(ids ...int) *UserUpdateOne {
-	uuo.mutation.AddImseIDs(ids...)
+// AddIMSIDs adds the "IMS" edge to the IMS entity by IDs.
+func (uuo *UserUpdateOne) AddIMSIDs(ids ...int) *UserUpdateOne {
+	uuo.mutation.AddIMSIDs(ids...)
 	return uuo
 }
 
-// AddImses adds the "imses" edges to the IMS entity.
-func (uuo *UserUpdateOne) AddImses(i ...*IMS) *UserUpdateOne {
+// AddIMS adds the "IMS" edges to the IMS entity.
+func (uuo *UserUpdateOne) AddIMS(i ...*IMS) *UserUpdateOne {
 	ids := make([]int, len(i))
 	for j := range i {
 		ids[j] = i[j].ID
 	}
-	return uuo.AddImseIDs(ids...)
+	return uuo.AddIMSIDs(ids...)
 }
 
 // AddPhoneNumberIDs adds the "phone_numbers" edge to the PhoneNumber entity by IDs.
@@ -1790,13 +1818,13 @@ func (uuo *UserUpdateOne) AddPhotos(p ...*Photo) *UserUpdateOne {
 	return uuo.AddPhotoIDs(ids...)
 }
 
-// AddX509CertificateIDs adds the "x509Certificates" edge to the X509Certificate entity by IDs.
+// AddX509CertificateIDs adds the "x509_certificates" edge to the X509Certificate entity by IDs.
 func (uuo *UserUpdateOne) AddX509CertificateIDs(ids ...int) *UserUpdateOne {
 	uuo.mutation.AddX509CertificateIDs(ids...)
 	return uuo
 }
 
-// AddX509Certificates adds the "x509Certificates" edges to the X509Certificate entity.
+// AddX509Certificates adds the "x509_certificates" edges to the X509Certificate entity.
 func (uuo *UserUpdateOne) AddX509Certificates(x ...*X509Certificate) *UserUpdateOne {
 	ids := make([]int, len(x))
 	for i := range x {
@@ -1831,21 +1859,21 @@ func (uuo *UserUpdateOne) RemoveAddresses(a ...*Address) *UserUpdateOne {
 	return uuo.RemoveAddressIDs(ids...)
 }
 
-// ClearGroups clears all "groups" edges to the Group entity.
+// ClearGroups clears all "groups" edges to the GroupMember entity.
 func (uuo *UserUpdateOne) ClearGroups() *UserUpdateOne {
 	uuo.mutation.ClearGroups()
 	return uuo
 }
 
-// RemoveGroupIDs removes the "groups" edge to Group entities by IDs.
-func (uuo *UserUpdateOne) RemoveGroupIDs(ids ...uuid.UUID) *UserUpdateOne {
+// RemoveGroupIDs removes the "groups" edge to GroupMember entities by IDs.
+func (uuo *UserUpdateOne) RemoveGroupIDs(ids ...int) *UserUpdateOne {
 	uuo.mutation.RemoveGroupIDs(ids...)
 	return uuo
 }
 
-// RemoveGroups removes "groups" edges to Group entities.
-func (uuo *UserUpdateOne) RemoveGroups(g ...*Group) *UserUpdateOne {
-	ids := make([]uuid.UUID, len(g))
+// RemoveGroups removes "groups" edges to GroupMember entities.
+func (uuo *UserUpdateOne) RemoveGroups(g ...*GroupMember) *UserUpdateOne {
+	ids := make([]int, len(g))
 	for i := range g {
 		ids[i] = g[i].ID
 	}
@@ -1921,25 +1949,25 @@ func (uuo *UserUpdateOne) RemoveRoles(r ...*Role) *UserUpdateOne {
 	return uuo.RemoveRoleIDs(ids...)
 }
 
-// ClearImses clears all "imses" edges to the IMS entity.
-func (uuo *UserUpdateOne) ClearImses() *UserUpdateOne {
-	uuo.mutation.ClearImses()
+// ClearIMS clears all "IMS" edges to the IMS entity.
+func (uuo *UserUpdateOne) ClearIMS() *UserUpdateOne {
+	uuo.mutation.ClearIMS()
 	return uuo
 }
 
-// RemoveImseIDs removes the "imses" edge to IMS entities by IDs.
-func (uuo *UserUpdateOne) RemoveImseIDs(ids ...int) *UserUpdateOne {
-	uuo.mutation.RemoveImseIDs(ids...)
+// RemoveIMSIDs removes the "IMS" edge to IMS entities by IDs.
+func (uuo *UserUpdateOne) RemoveIMSIDs(ids ...int) *UserUpdateOne {
+	uuo.mutation.RemoveIMSIDs(ids...)
 	return uuo
 }
 
-// RemoveImses removes "imses" edges to IMS entities.
-func (uuo *UserUpdateOne) RemoveImses(i ...*IMS) *UserUpdateOne {
+// RemoveIMS removes "IMS" edges to IMS entities.
+func (uuo *UserUpdateOne) RemoveIMS(i ...*IMS) *UserUpdateOne {
 	ids := make([]int, len(i))
 	for j := range i {
 		ids[j] = i[j].ID
 	}
-	return uuo.RemoveImseIDs(ids...)
+	return uuo.RemoveIMSIDs(ids...)
 }
 
 // ClearPhoneNumbers clears all "phone_numbers" edges to the PhoneNumber entity.
@@ -1984,19 +2012,19 @@ func (uuo *UserUpdateOne) RemovePhotos(p ...*Photo) *UserUpdateOne {
 	return uuo.RemovePhotoIDs(ids...)
 }
 
-// ClearX509Certificates clears all "x509Certificates" edges to the X509Certificate entity.
+// ClearX509Certificates clears all "x509_certificates" edges to the X509Certificate entity.
 func (uuo *UserUpdateOne) ClearX509Certificates() *UserUpdateOne {
 	uuo.mutation.ClearX509Certificates()
 	return uuo
 }
 
-// RemoveX509CertificateIDs removes the "x509Certificates" edge to X509Certificate entities by IDs.
+// RemoveX509CertificateIDs removes the "x509_certificates" edge to X509Certificate entities by IDs.
 func (uuo *UserUpdateOne) RemoveX509CertificateIDs(ids ...int) *UserUpdateOne {
 	uuo.mutation.RemoveX509CertificateIDs(ids...)
 	return uuo
 }
 
-// RemoveX509Certificates removes "x509Certificates" edges to X509Certificate entities.
+// RemoveX509Certificates removes "x509_certificates" edges to X509Certificate entities.
 func (uuo *UserUpdateOne) RemoveX509Certificates(x ...*X509Certificate) *UserUpdateOne {
 	ids := make([]int, len(x))
 	for i := range x {
@@ -2082,11 +2110,6 @@ func (uuo *UserUpdateOne) check() error {
 	if v, ok := uuo.mutation.UserName(); ok {
 		if err := user.UserNameValidator(v); err != nil {
 			return &ValidationError{Name: "userName", err: fmt.Errorf(`ent: validator failed for field "User.userName": %w`, err)}
-		}
-	}
-	if v, ok := uuo.mutation.Etag(); ok {
-		if err := user.EtagValidator(v); err != nil {
-			return &ValidationError{Name: "etag", err: fmt.Errorf(`ent: validator failed for field "User.etag": %w`, err)}
 		}
 	}
 	return nil
@@ -2284,6 +2307,12 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 			Column: user.FieldEtag,
 		})
 	}
+	if uuo.mutation.EtagCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Column: user.FieldEtag,
+		})
+	}
 	if uuo.mutation.AddressesCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
@@ -2340,15 +2369,15 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 	}
 	if uuo.mutation.GroupsCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2M,
+			Rel:     sqlgraph.O2M,
 			Inverse: false,
 			Table:   user.GroupsTable,
-			Columns: user.GroupsPrimaryKey,
+			Columns: []string{user.GroupsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeUUID,
-					Column: group.FieldID,
+					Type:   field.TypeInt,
+					Column: groupmember.FieldID,
 				},
 			},
 		}
@@ -2356,15 +2385,15 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 	}
 	if nodes := uuo.mutation.RemovedGroupsIDs(); len(nodes) > 0 && !uuo.mutation.GroupsCleared() {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2M,
+			Rel:     sqlgraph.O2M,
 			Inverse: false,
 			Table:   user.GroupsTable,
-			Columns: user.GroupsPrimaryKey,
+			Columns: []string{user.GroupsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeUUID,
-					Column: group.FieldID,
+					Type:   field.TypeInt,
+					Column: groupmember.FieldID,
 				},
 			},
 		}
@@ -2375,15 +2404,15 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 	}
 	if nodes := uuo.mutation.GroupsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2M,
+			Rel:     sqlgraph.O2M,
 			Inverse: false,
 			Table:   user.GroupsTable,
-			Columns: user.GroupsPrimaryKey,
+			Columns: []string{user.GroupsColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeUUID,
-					Column: group.FieldID,
+					Type:   field.TypeInt,
+					Column: groupmember.FieldID,
 				},
 			},
 		}
@@ -2589,12 +2618,12 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
-	if uuo.mutation.ImsesCleared() {
+	if uuo.mutation.IMSCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   user.ImsesTable,
-			Columns: []string{user.ImsesColumn},
+			Table:   user.IMSTable,
+			Columns: []string{user.IMSColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{
@@ -2605,12 +2634,12 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := uuo.mutation.RemovedImsesIDs(); len(nodes) > 0 && !uuo.mutation.ImsesCleared() {
+	if nodes := uuo.mutation.RemovedIMSIDs(); len(nodes) > 0 && !uuo.mutation.IMSCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   user.ImsesTable,
-			Columns: []string{user.ImsesColumn},
+			Table:   user.IMSTable,
+			Columns: []string{user.IMSColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{
@@ -2624,12 +2653,12 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
 	}
-	if nodes := uuo.mutation.ImsesIDs(); len(nodes) > 0 {
+	if nodes := uuo.mutation.IMSIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   user.ImsesTable,
-			Columns: []string{user.ImsesColumn},
+			Table:   user.IMSTable,
+			Columns: []string{user.IMSColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{

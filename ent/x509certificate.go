@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"entgo.io/ent/dialect/sql"
+	"github.com/cybozu-go/scim-server/ent/user"
 	"github.com/cybozu-go/scim-server/ent/x509certificate"
 	"github.com/google/uuid"
 )
@@ -23,8 +24,34 @@ type X509Certificate struct {
 	// Type holds the value of the "type" field.
 	Type string `json:"type,omitempty"`
 	// Value holds the value of the "value" field.
-	Value                 string `json:"value,omitempty"`
-	user_x509certificates *uuid.UUID
+	Value string `json:"value,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the X509CertificateQuery when eager-loading is set.
+	Edges                  X509CertificateEdges `json:"edges"`
+	user_x509_certificates *uuid.UUID
+}
+
+// X509CertificateEdges holds the relations/edges for other nodes in the graph.
+type X509CertificateEdges struct {
+	// User holds the value of the user edge.
+	User *User `json:"user,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// UserOrErr returns the User value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e X509CertificateEdges) UserOrErr() (*User, error) {
+	if e.loadedTypes[0] {
+		if e.User == nil {
+			// The edge user was loaded in eager-loading,
+			// but was not found.
+			return nil, &NotFoundError{label: user.Label}
+		}
+		return e.User, nil
+	}
+	return nil, &NotLoadedError{edge: "user"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -38,7 +65,7 @@ func (*X509Certificate) scanValues(columns []string) ([]interface{}, error) {
 			values[i] = new(sql.NullInt64)
 		case x509certificate.FieldDisplay, x509certificate.FieldType, x509certificate.FieldValue:
 			values[i] = new(sql.NullString)
-		case x509certificate.ForeignKeys[0]: // user_x509certificates
+		case x509certificate.ForeignKeys[0]: // user_x509_certificates
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		default:
 			return nil, fmt.Errorf("unexpected column %q for type X509Certificate", columns[i])
@@ -87,14 +114,19 @@ func (x *X509Certificate) assignValues(columns []string, values []interface{}) e
 			}
 		case x509certificate.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullScanner); !ok {
-				return fmt.Errorf("unexpected type %T for field user_x509certificates", values[i])
+				return fmt.Errorf("unexpected type %T for field user_x509_certificates", values[i])
 			} else if value.Valid {
-				x.user_x509certificates = new(uuid.UUID)
-				*x.user_x509certificates = *value.S.(*uuid.UUID)
+				x.user_x509_certificates = new(uuid.UUID)
+				*x.user_x509_certificates = *value.S.(*uuid.UUID)
 			}
 		}
 	}
 	return nil
+}
+
+// QueryUser queries the "user" edge of the X509Certificate entity.
+func (x *X509Certificate) QueryUser() *UserQuery {
+	return (&X509CertificateClient{config: x.config}).QueryUser(x)
 }
 
 // Update returns a builder for updating this X509Certificate.

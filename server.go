@@ -1,18 +1,14 @@
 //go:generate ./tools/genent.sh
-//go:generate go generate ./ent
+//go:generate env GOWORK=off go generate ./ent
 
 package server
 
 import (
 	"context"
 	"crypto/rand"
-	"crypto/sha256"
-	"encoding/base64"
 	"fmt"
-	"hash"
 	"math/big"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -35,9 +31,6 @@ import (
 
 // TODO: remove these when they have been incorporated
 var _ = groupPresencePredicate
-var _ = (&Backend{}).createIMS
-var _ = (&Backend{}).createEntitlements
-var _ = (&Backend{}).createPhotos
 
 var entTrace bool
 
@@ -152,38 +145,32 @@ func randomString(n int) string {
 	return b.String()
 }
 
-func (b *Backend) createAddresses(in *resource.User, h hash.Hash) ([]*ent.Address, error) {
-	list := make([]*ent.Address, len(in.Addresses()))
-	for i, v := range in.Addresses() {
+func (b *Backend) createAddress(in ...*resource.Address) ([]*ent.Address, error) {
+	list := make([]*ent.Address, len(in))
+	for i, v := range in {
 		addressCreateCall := b.db.Address.Create()
 		if v.HasCountry() {
 			addressCreateCall.SetCountry(v.Country())
-			fmt.Fprint(h, v.Country())
 		}
 
 		if v.HasFormatted() {
 			addressCreateCall.SetFormatted(v.Formatted())
-			fmt.Fprint(h, v.Formatted())
 		}
 
 		if v.HasLocality() {
 			addressCreateCall.SetLocality(v.Locality())
-			fmt.Fprint(h, v.Locality())
 		}
 
 		if v.HasPostalCode() {
 			addressCreateCall.SetPostalCode(v.PostalCode())
-			fmt.Fprint(h, v.PostalCode())
 		}
 
 		if v.HasRegion() {
 			addressCreateCall.SetRegion(v.Region())
-			fmt.Fprint(h, v.Region())
 		}
 
 		if v.HasStreetAddress() {
 			addressCreateCall.SetStreetAddress(v.StreetAddress())
-			fmt.Fprint(h, v.StreetAddress())
 		}
 
 		address, err := addressCreateCall.Save(context.TODO())
@@ -197,33 +184,25 @@ func (b *Backend) createAddresses(in *resource.User, h hash.Hash) ([]*ent.Addres
 	return list, nil
 }
 
-func (b *Backend) createName(v *resource.Names, h hash.Hash) (*ent.Names, error) {
+func (b *Backend) createName(v *resource.Names) (*ent.Names, error) {
 	nameCreateCall := b.db.Names.Create()
 	if v.HasFamilyName() {
 		nameCreateCall.SetFamilyName(v.FamilyName())
-		fmt.Fprint(h, v.FamilyName())
 	}
-
 	if v.HasFormatted() {
 		nameCreateCall.SetFormatted(v.Formatted())
-		fmt.Fprint(h, v.Formatted())
 	}
-
 	if v.HasGivenName() {
 		nameCreateCall.SetGivenName(v.GivenName())
-		fmt.Fprint(h, v.GivenName())
 	}
 	if v.HasHonorificPrefix() {
 		nameCreateCall.SetHonorificPrefix(v.HonorificPrefix())
-		fmt.Fprint(h, v.HonorificPrefix())
 	}
 	if v.HasHonorificSuffix() {
 		nameCreateCall.SetHonorificSuffix(v.HonorificSuffix())
-		fmt.Fprint(h, v.HonorificSuffix())
 	}
 	if v.HasMiddleName() {
 		nameCreateCall.SetMiddleName(v.MiddleName())
-		fmt.Fprint(h, v.MiddleName())
 	}
 
 	name, err := nameCreateCall.Save(context.TODO())
@@ -281,6 +260,48 @@ func (b *Backend) DeleteUser(id string) error {
 	return nil
 }
 
+/*
+func (b *Backend) createGroupMembers(members ...*resource.GroupMember) ([]*ent.GroupMember, error) {
+	ctx := context.TODO()
+
+	list := make([]*ent.GroupMember, len(members))
+	for i, in := range members {
+		createCall := b.db.GroupMember.Create()
+
+		if !in.HasValue() {
+			return nil, fmt.Errorf(`members.value is required`)
+		}
+
+		if !in.HasRef() {
+			return nil, fmt.Errorf(`members.$ref is required`)
+		}
+
+		createCall.SetValue(in.Value())
+		ref := in.Ref()
+		if in.HasType() {
+			createCall.SetType(in.Type())
+		} else {
+			switch {
+			case strings.Contains(ref, `/Users/`):
+				createCall.SetType(`User`)
+			case strings.Contains(ref, `/Groups/`):
+				createCall.SetType(`Group`)
+			default:
+				return nil, fmt.Errorf(`failed to determine if the resource is a group or a user`)
+			}
+		}
+		createCall.SetRef(ref)
+
+		gm, err := createCall.Save(ctx)
+		if err != nil {
+			return nil, fmt.Errorf(`failed to save object: %w`, err)
+		}
+		list[i] = gm
+	}
+	return list, nil
+}
+*/
+/*
 func (b *Backend) memberIDs(members []*resource.GroupMember) ([]uuid.UUID, []uuid.UUID, error) {
 	var userMembers []uuid.UUID
 	var groupMembers []uuid.UUID
@@ -309,28 +330,22 @@ func (b *Backend) memberIDs(members []*resource.GroupMember) ([]uuid.UUID, []uui
 	})
 
 	return userMembers, groupMembers, nil
-}
+}*/
 
+/*
 func (b *Backend) CreateGroup(in *resource.Group) (*resource.Group, error) {
-	userMembers, groupMembers, err := b.memberIDs(in.Members())
-	if err != nil {
-		return nil, err
-	}
-
 	createGroupCall := b.db.Group.Create().
 		SetDisplayName(in.DisplayName())
 
 	h := sha256.New()
 	fmt.Fprint(h, b.etagSalt)
 
-	if len(userMembers) > 0 {
-		createGroupCall.AddUserIDs(userMembers...)
+	members, err := b.createGroupMembers(in.Members()...)
+	if err != nil {
+		return nil, fmt.Errorf(`failed to create group members: %w`, err)
 	}
 
-	if len(groupMembers) > 0 {
-		createGroupCall.AddChildIDs(groupMembers...)
-	}
-
+	createGroupCall.AddMembers(members...)
 	createGroupCall.SetEtag(fmt.Sprintf(`W/%q`, base64.RawStdEncoding.EncodeToString(h.Sum(nil))))
 	g, err := createGroupCall.
 		Save(context.TODO())
@@ -340,21 +355,10 @@ func (b *Backend) CreateGroup(in *resource.Group) (*resource.Group, error) {
 
 	// Unfortunately we're going to have to load the actual members here
 	// because that's how we transform the data
-
-	children, err := b.db.Group.Query().Where(group.HasParentWith(group.ID(g.ID))).All(context.TODO())
-	if err != nil {
-		return nil, fmt.Errorf(`failed to load children for group`)
-	}
-	g.Edges.Children = children
-
-	users, err := b.db.User.Query().Where(user.HasGroupsWith(group.ID(g.ID))).All(context.TODO())
-	if err != nil {
-		return nil, fmt.Errorf(`failed to load member users for group`)
-	}
-	g.Edges.Users = users
+	g.Edges.Members = members
 
 	return GroupResourceFromEnt(g)
-}
+}*/
 
 // XXX passing these boolean variables is so ugly
 func (b *Backend) buildWhere(src string, buildUsers, buildGroups bool) ([]predicate.User, []predicate.Group, error) {
@@ -387,210 +391,6 @@ func (b *Backend) buildWhere(src string, buildUsers, buildGroups bool) ([]predic
 	}
 
 	return v.users, v.groups, nil
-}
-
-type filterVisitor struct {
-	uq     *ent.UserQuery
-	gq     *ent.GroupQuery
-	users  []predicate.User
-	groups []predicate.Group
-}
-
-func (v *filterVisitor) visit(expr filter.Expr) error {
-	switch expr := expr.(type) {
-	case filter.PresenceExpr:
-		return v.visitPresenceExpr(expr)
-	case filter.CompareExpr:
-		return v.visitCompareExpr(expr)
-	case filter.RegexExpr:
-		return v.visitRegexExpr(expr)
-	case filter.LogExpr: // RENAME ME TO LogicalStatement
-		return v.visitLogExpr(expr)
-	case filter.ParenExpr:
-		return v.visitParenExpr(expr)
-	case filter.ValuePath:
-		return v.visitValuePath(expr)
-	default:
-		return fmt.Errorf(`unhandled statement type: %T`, expr)
-	}
-}
-
-func exprAttr(expr interface{}) (interface{}, error) {
-	switch v := expr.(type) {
-	case string:
-		return v, nil
-	case interface{ Lit() string }: // IdentifierExpr, AttrValueExpr
-		return v.Lit(), nil
-	case filter.BoolExpr:
-		return v.Lit(), nil
-	case filter.NumberExpr:
-		return v.Lit(), nil
-	default:
-		return nil, fmt.Errorf(`unhandled type: %T`, v)
-	}
-}
-
-func (v *filterVisitor) visitPresenceExpr(expr filter.PresenceExpr) error {
-	attr, err := exprAttr(expr.Attr())
-	sattr, ok := attr.(string)
-	if err != nil || !ok {
-		if err == nil && !ok {
-			err = fmt.Errorf(`expected string, got %T`, attr)
-		}
-		return fmt.Errorf(`left hand side of PresenceExpr is not valid: %w`, err)
-	}
-
-	switch expr.Operator() {
-	case filter.PresenceOp:
-		if v.users != nil {
-			if pred := userPresencePredicate(sattr); pred != nil {
-				v.users = append(v.users, pred)
-			}
-		}
-		return nil
-	default:
-		return fmt.Errorf(`unhandled attr operator %q`, expr.Operator())
-	}
-}
-
-func (v *filterVisitor) visitRegexExpr(expr filter.RegexExpr) error {
-	lhe, err := exprAttr(expr.LHE())
-	slhe, ok := lhe.(string)
-	if err != nil || !ok {
-		return fmt.Errorf(`left hand side of RegexExpr is not valid`)
-	}
-
-	rhe, err := exprAttr(expr.Value())
-	if err != nil {
-		return fmt.Errorf(`right hand side of RegexExpr is not valid: %w`, err)
-	}
-	// convert rhe to string so it can be passed to regexp.QuoteMeta
-	srhe := fmt.Sprintf(`%v`, rhe)
-
-	switch expr.Operator() {
-	case filter.ContainsOp:
-		if v.users != nil {
-			pred, err := userContainsPredicate(v.uq, slhe, srhe)
-			if err != nil {
-				return err
-			}
-			v.users = append(v.users, pred)
-		}
-		if v.groups != nil {
-			pred, err := groupContainsPredicate(v.gq, slhe, srhe)
-			if err != nil {
-				return err
-			}
-			v.groups = append(v.groups, pred)
-		}
-		return nil
-	case filter.StartsWithOp:
-		if v.users != nil {
-			pred, err := userStartsWithPredicate(v.uq, slhe, srhe)
-			if err != nil {
-				return err
-			}
-			v.users = append(v.users, pred)
-		}
-		if v.groups != nil {
-			pred, err := groupStartsWithPredicate(v.gq, slhe, srhe)
-			if err != nil {
-				return err
-			}
-			v.groups = append(v.groups, pred)
-		}
-		return nil
-	case filter.EndsWithOp:
-		if v.users != nil {
-			pred, err := userEndsWithPredicate(v.uq, slhe, srhe)
-			if err != nil {
-				return err
-			}
-			v.users = append(v.users, pred)
-		}
-		if v.groups != nil {
-			pred, err := groupEndsWithPredicate(v.gq, slhe, srhe)
-			if err != nil {
-				return err
-			}
-			v.groups = append(v.groups, pred)
-		}
-		return nil
-	default:
-		return fmt.Errorf(`unhandled regexp operator %q`, expr.Operator())
-	}
-}
-
-func (v *filterVisitor) visitCompareExpr(expr filter.CompareExpr) error {
-	lhe, err := exprAttr(expr.LHE())
-	slhe, ok := lhe.(string)
-	if err != nil || !ok {
-		return fmt.Errorf(`left hand side of CompareExpr is not valid`)
-	}
-
-	rhe, err := exprAttr(expr.RHE())
-	if err != nil {
-		return fmt.Errorf(`right hand side of CompareExpr is not valid: %w`, err)
-	}
-	// convert rhe to string so it can be passed to regexp.QuoteMeta
-	srhe := fmt.Sprintf(`%v`, rhe)
-
-	switch expr.Operator() {
-	case filter.EqualOp:
-		if v.users != nil {
-			pred, err := userEqualsPredicate(v.uq, slhe, srhe)
-			if err != nil {
-				return err
-			}
-			v.users = append(v.users, pred)
-		}
-		if v.groups != nil {
-			pred, err := groupEqualsPredicate(v.gq, slhe, srhe)
-			if err != nil {
-				return err
-			}
-			v.groups = append(v.groups, pred)
-		}
-		return nil
-	default:
-		panic(expr.Operator())
-	}
-}
-
-func (v *filterVisitor) visitLogExpr(expr filter.LogExpr) error {
-	if err := v.visit(expr.LHE()); err != nil {
-		return fmt.Errorf(`failed to parse left hand side of %q statement: %w`, expr.Operator(), err)
-	}
-	if err := v.visit(expr.RHS()); err != nil {
-		return fmt.Errorf(`failed to parse right hand side of %q statement: %w`, expr.Operator(), err)
-	}
-
-	switch expr.Operator() {
-	case "and":
-		if v.users != nil {
-			v.users = []predicate.User{user.And(v.users...)}
-		}
-		if v.groups != nil {
-			v.groups = []predicate.Group{group.And(v.groups...)}
-		}
-	case "or":
-		if v.users != nil {
-			v.users = []predicate.User{user.Or(v.users...)}
-		}
-		if v.groups != nil {
-			v.groups = []predicate.Group{group.Or(v.groups...)}
-		}
-	default:
-		return fmt.Errorf(`unhandled logical statement operator %q`, expr.Operator())
-	}
-	return nil
-}
-func (v *filterVisitor) visitParenExpr(expr filter.Expr) error {
-	return fmt.Errorf(`unimplemented`)
-}
-
-func (v *filterVisitor) visitValuePath(expr filter.Expr) error {
-	return fmt.Errorf(`unimplemented`)
 }
 
 func (b *Backend) Search(in *resource.SearchRequest) (*resource.ListResponse, error) {
@@ -682,8 +482,7 @@ func (b *Backend) RetrieveGroup(id string, fields []string, excludedFields []str
 	}
 
 	groupQuery := b.db.Group.Query().
-		WithUsers().
-		WithChildren().
+		WithMembers().
 		Where(group.IDEQ(parsedUUID))
 
 	groupLoadEntFields(groupQuery, fields, excludedFields)
@@ -697,6 +496,7 @@ func (b *Backend) RetrieveGroup(id string, fields []string, excludedFields []str
 	return GroupResourceFromEnt(g)
 }
 
+/*
 func (b *Backend) ReplaceGroup(id string, in *resource.Group) (*resource.Group, error) {
 	parsedUUID, err := uuid.Parse(id)
 	if err != nil {
@@ -712,25 +512,20 @@ func (b *Backend) ReplaceGroup(id string, in *resource.Group) (*resource.Group, 
 	}
 
 	replaceGroupCall := g.Update().
-		ClearUsers().
-		ClearChildren()
+		ClearMembers()
 
 	// optional fields
 	if in.HasDisplayName() {
 		replaceGroupCall.SetDisplayName(in.DisplayName())
 	}
 
-	userMembers, groupMembers, err := b.memberIDs(in.Members())
+	members, err := b.createGroupMembers(in.Members()...)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(userMembers) > 0 {
-		replaceGroupCall.AddUserIDs(userMembers...)
-	}
-
-	if len(groupMembers) > 0 {
-		replaceGroupCall.AddChildIDs(groupMembers...)
+	if len(members) > 0 {
+		replaceGroupCall.AddMembers(members...)
 	}
 
 	if _, err := replaceGroupCall.Save(context.TODO()); err != nil {
@@ -740,7 +535,7 @@ func (b *Backend) ReplaceGroup(id string, in *resource.Group) (*resource.Group, 
 	// Okay, I'm sure we can get the edges (users+children -> members)
 	// somehow without re-fetching the data, but we're going to punt this
 	return b.RetrieveGroup(id, nil, nil)
-}
+}*/
 
 func (b *Backend) DeleteGroup(id string) error {
 	parsedUUID, err := uuid.Parse(id)
@@ -787,4 +582,427 @@ func (b *Backend) RetrieveSchema(id string) (*resource.Schema, error) {
 		return nil, fmt.Errorf(`schema %q not found`, id)
 	}
 	return s, nil
+}
+
+func rollbackTx(tx *ent.Tx, oerr error) error {
+	if err := tx.Rollback(); err != nil {
+		return fmt.Errorf(`failed to rollback transaction: %s (original error = %w)`, err, oerr)
+	}
+	return oerr
+}
+
+/*
+   o  If the target location does not exist, the attribute and value are
+      added.
+
+   o  If the target location specifies a complex attribute, a set of
+      sub-attributes SHALL be specified in the "value" parameter.
+
+   o  If the target location specifies a multi-valued attribute, a new
+      value is added to the attribute.
+
+   o  If the target location specifies a single-valued attribute, the
+      existing value is replaced.
+
+   o  If the target location specifies an attribute that does not exist
+      (has no value), the attribute is added with the new value.
+
+   o  If the target location exists, the value is replaced.
+
+   o  If the target location already contains the value specified, no
+      changes SHOULD be made to the resource, and a success response
+      SHOULD be returned.  Unless other operations change the resource,
+      this operation SHALL NOT change the modify timestamp of the
+      resource.
+*/
+
+/*
+func (m *multiValueMutator) Add(src json.RawMessage) error {
+	// Note: in this mode, the parent must exist, because multi-valued
+	// elements must be associated with a parent resource
+	switch m.field {
+	case resource.UserEmailKey:
+		var child resource.Email
+		if err := json.Unmarshal(src, &child); err != nil {
+
+		}
+	}
+	return nil
+}*/
+
+// The PATCH operation takes a path specifier that might take one of the following
+// forms:
+//
+//  1. "" (empty)
+//  2. attr
+//  3. attr.subAttr
+//  4. attr[...]
+//  5. attr[...].subAttr
+//
+// # Empty path
+//
+// The first one is special. It is effectively the same as
+// Replace, Add, Remove operations. For example,
+//
+//   PATCH /Users/...
+//   {"op":"replace", "path": "", "value": {...}}
+//
+// Would effectively be the same as PUT /Users, and
+//
+//   PATCH /Users/...
+//   {"op":"remove", "path":"", ...}
+//
+// Would effectively be the same as DELETE /Users/..., so we can
+// just delegate tehese operations to the equivalent operations
+//
+// The one exception is "add" operation with a path of "", because
+// while "add" for a singular value implies to only add if the value
+// is not previously present, by nature of the PATCH operation
+// we already know the ID of the resource being patched. Therefore
+// this case will result in an error
+//
+// # Everything else
+//
+// For all of the rest of cases, we know that you will have a top-level
+// object (User/Group, or a sub attribute), and its sub attribute to
+// perform operations on.
+//
+
+// when we use filter.Parse against a PATCH path, we would have
+// one of the four forms:
+//  1. attr
+//  2. attr.subAttr
+//  3. attr[...]
+//  4. attr[...].subAttr
+// Note that this isn't strictly "correct" for a filter query
+//
+// Cases 1 and 2 are handled by the previous block, and now
+// we need to build a where clause
+/*
+	var buildUsers, buildGroups bool
+	switch parent.(type) {
+	case *ent.User:
+		buildUsers = true
+	case *ent.Group:
+		buildGroups = true
+	default:
+		return nil, fmt.Errorf(`invalid parent type %T`, parent)
+	}
+	uw, gw, err := b.buildWhere(path, buildUsers, buildGroups)
+	if err != nil {
+		return nil, fmt.Errorf(`failed to build where: %w`, err)
+	}
+
+	log.Printf("uw = %#v", uw)
+	log.Printf("gw = %#v", gw)
+
+	switch parent := parent.(type) {
+	case *ent.Group:
+		// whoa, can this be multiple elements?
+		attr, err := parent.Query().Where(gw...).Only(ctx)
+		return &attrValueMutator{
+			backend: b,
+			parent:  parent,
+			attr:    attr,
+		}, nil
+	}
+*/
+
+func exprStr(expr filter.Expr) (string, error) {
+	v, err := exprAttr(expr)
+	if err != nil {
+		return "", err
+	}
+	sv, ok := v.(string)
+	if err != nil || !ok {
+		return "", fmt.Errorf(`expected string, got %T`, v)
+	}
+	return sv, nil
+}
+
+/*
+func (b *Backend) patchAddGroup(parent *ent.Group, op *resource.PatchOperation) error {
+	ctx := context.TODO()
+
+	root, err := filter.Parse(op.Path())
+	if err != nil {
+		return fmt.Errorf(`failed to parse PATH path %q`, op.Path())
+	}
+
+	expr, ok := root.(filter.ValuePath)
+	if !ok {
+		return fmt.Errorf(`root element should be a valuePath (got %T)`, root)
+	}
+
+	attr, err := exprAttr(expr.ParentAttr())
+	sattr, ok := attr.(string)
+	if err != nil || !ok {
+		return fmt.Errorf(`invalid attribute specification`)
+	}
+
+	switch sattr {
+	case resource.GroupMembersKey:
+		subExpr := expr.SubExpr()
+		if subExpr == nil {
+			// Adding to a subAttr of a multi-value element doesn't make
+			// sense
+			if subAttrExpr := expr.SubAttr(); subAttrExpr != nil {
+				return fmt.Errorf(`patch add operation on sub attribute of multi-value item members with unspecified element is not possible`)
+			}
+
+			// if we're adding to the list, we need the entire thing
+			var in resource.GroupMember
+			if err := json.Unmarshal(op.Value(), &in); err != nil {
+				return fmt.Errorf(`failed to decode patch add value: %w`, err)
+			}
+
+			created, err := b.createGroupMembers(&in)
+			if err != nil {
+				return fmt.Errorf(`failed to create GroupMember: %w`, err)
+			}
+			if _, err := parent.Update().AddMembers(created...).Save(ctx); err != nil {
+				return fmt.Errorf(`failed to save object: %w`, err)
+			}
+		} else {
+			// TODO: this looks fishy, as all fields in the members
+			// sub attribute are immutable
+
+			var pb GroupMemberPredicateBuilder
+			// so we have a subExpr, that must mean we must have have a subAttr
+			// "path": "members[value eq \"...\"].value"  // OK
+			// "path": "members[value eq \"...\"]"        // NOT OK
+			// also, the query must resolve to a single member element
+			// Load attr with the given conditions
+			predicates, err := pb.Build(subExpr)
+			if err != nil {
+				return fmt.Errorf(`failed to parse valuePath expression: %w`, err)
+			}
+			members, err := parent.QueryMembers().
+				Where(predicates...).
+				All(ctx)
+
+			if len(members) > 0 {
+				return fmt.Errorf(`query must resolve to one element, got multiple`)
+			}
+
+			member := members[0]
+			// we must have subAttr
+			subAttr, err := exprAttr(expr.SubAttr())
+			sSubAttr, ok := subAttr.(string)
+			if err != nil || !ok {
+				return fmt.Errorf(`query must have a sub attribute`)
+			}
+			switch sSubAttr {
+			case resource.GroupMemberValueKey:
+				var s string
+				if err := json.Unmarshal(op.Value(), &s); err != nil {
+					return fmt.Errorf(`failed to decode value: %w`, err)
+				}
+				if _, err := member.Update().SetValue(s).Save(ctx); err != nil {
+					return fmt.Errorf(`failed to save object: %w`, err)
+				}
+				return nil
+			}
+		}
+	}
+	return nil
+}*/
+
+/*
+func (b *Backend) patchRemoveGroup(parent *ent.Group, op *resource.PatchOperation) error {
+	ctx := context.TODO()
+
+	root, err := filter.Parse(op.Path())
+	if err != nil {
+		return fmt.Errorf(`failed to parse PATH path %q`, op.Path())
+	}
+
+	expr, ok := root.(filter.ValuePath)
+	if !ok {
+		return fmt.Errorf(`root element should be a valuePath (got %T)`, root)
+	}
+
+	sattr, err := exprStr(expr.ParentAttr())
+	if err != nil {
+		return fmt.Errorf(`invalid attribute specification`)
+	}
+
+	switch sattr {
+	case resource.GroupDisplayNameKey:
+		if subExpr := expr.SubExpr(); subExpr != nil {
+			return fmt.Errorf(`patch remove operation on displayName cannot have a query`)
+		}
+		if subAttr := expr.SubAttr(); subAttr != nil {
+			return fmt.Errorf(`patch remove operation on displayName cannot have a sub attribute`)
+		}
+
+		if _, err := parent.Update().ClearDisplayName().Save(ctx); err != nil {
+			return fmt.Errorf(`failed to save object: %w`, err)
+		}
+	case resource.GroupMembersKey:
+		subExpr := expr.SubExpr()
+		if subExpr == nil {
+			// Removing a subAttr of a multi-value element doesn't make sense
+			if subAttrExpr := expr.SubAttr(); subAttrExpr != nil {
+				return fmt.Errorf(`patch remove operation on sub attribute of multi-value item members with unspecified element is not possible`)
+			}
+
+			if _, err := parent.Update().ClearMembers().Save(ctx); err != nil {
+				return fmt.Errorf(`failed to save object: %w`, err)
+			}
+		} else {
+			var pb GroupMemberPredicateBuilder
+			predicates, err := pb.Build(subExpr)
+			if err != nil {
+				return fmt.Errorf(`failed to parse valuePath expression: %w`, err)
+			}
+			members, err := parent.QueryMembers().
+				Where(predicates...).
+				All(ctx)
+
+			if subAttrExpr := expr.SubAttr(); subAttrExpr != nil {
+				subAttr, err := exprStr(subAttrExpr)
+				if err != nil {
+					return fmt.Errorf(`invalid sub attribute specified`)
+				}
+				switch subAttr {
+				case resource.GroupMemberRefKey:
+					return fmt.Errorf(`$ref is not mutable`)
+				case resource.GroupMemberTypeKey:
+					return fmt.Errorf(`type is not mutable`)
+				case resource.GroupMemberValueKey:
+					return fmt.Errorf(`value is not mutable`)
+				default:
+					return fmt.Errorf(`unknown sub attribute specified`)
+				}
+			}
+
+			ids := make([]int, len(members))
+			for i, member := range members {
+				ids[i] = member.ID
+			}
+
+			b.db.GroupMember.Delete().
+				Where(groupmember.IDIn(ids...)).
+				Exec(ctx)
+		}
+	}
+	return nil
+}
+*/
+
+func (b *Backend) PatchUser(id string, r *resource.PatchRequest) (*resource.User, error) {
+	tx, err := b.db.Tx(context.TODO())
+	if err != nil {
+		return nil, fmt.Errorf(`failed to start transaction`)
+	}
+	old := b.db
+	b.db = tx.Client()
+	defer func() {
+		b.db = old
+	}()
+
+	parsedUUID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, rollbackTx(tx, fmt.Errorf(`failed to parse ID: %w`, err))
+	}
+
+	userQuery := b.db.User.Query().
+		Where(user.IDEQ(parsedUUID))
+
+	u, err := userQuery.
+		Only(context.TODO())
+	if err != nil {
+		return nil, rollbackTx(tx, fmt.Errorf(`failed to retrieve user: %w`, err))
+	}
+
+	retrieve := true
+	for _, op := range r.Operations() {
+		switch op.Op() {
+		case resource.PatchAdd:
+			if err := b.patchAddUser(u, op); err != nil {
+				return nil, rollbackTx(tx, err)
+			}
+		case resource.PatchRemove:
+			if err := b.patchRemoveUser(u, op); err != nil {
+				return nil, rollbackTx(tx, err)
+			}
+		default:
+			return nil, rollbackTx(tx, err)
+		}
+	}
+
+	var u2 *resource.User
+
+	if retrieve {
+		// This is silly, but we're going to have to re-load the object
+		u2, err = b.RetrieveUser(id, nil, nil)
+		if err != nil {
+			return nil, rollbackTx(tx, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf(`failed to commit transaction: %w`, err)
+	}
+
+	return u2, nil
+}
+
+func (b *Backend) PatchGroup(id string, r *resource.PatchRequest) (*resource.Group, error) {
+	tx, err := b.db.Tx(context.TODO())
+	if err != nil {
+		return nil, fmt.Errorf(`failed to start transaction`)
+	}
+	old := b.db
+	b.db = tx.Client()
+	defer func() {
+		b.db = old
+	}()
+
+	parsedUUID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, rollbackTx(tx, fmt.Errorf(`failed to parse ID: %w`, err))
+	}
+
+	groupQuery := b.db.Group.Query().
+		Where(group.IDEQ(parsedUUID))
+
+	g, err := groupQuery.
+		Only(context.TODO())
+	if err != nil {
+		return nil, rollbackTx(tx, fmt.Errorf(`failed to retrieve group: %w`, err))
+	}
+
+	retrieve := true
+	for _, op := range r.Operations() {
+		switch op.Op() {
+		case resource.PatchAdd:
+			if err := b.patchAddGroup(g, op); err != nil {
+				return nil, rollbackTx(tx, err)
+			}
+		case resource.PatchRemove:
+			if err := b.patchRemoveGroup(g, op); err != nil {
+				return nil, rollbackTx(tx, err)
+			}
+		default:
+			return nil, rollbackTx(tx, err)
+		}
+	}
+
+	var g2 *resource.Group
+
+	if retrieve {
+		// This is silly, but we're going to have to re-load the object
+		g2, err = b.RetrieveGroup(id, nil, nil)
+		if err != nil {
+			return nil, rollbackTx(tx, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf(`failed to commit transaction: %w`, err)
+	}
+
+	return g2, nil
 }

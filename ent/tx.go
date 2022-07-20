@@ -20,6 +20,8 @@ type Tx struct {
 	Entitlement *EntitlementClient
 	// Group is the client for interacting with the Group builders.
 	Group *GroupClient
+	// GroupMember is the client for interacting with the GroupMember builders.
+	GroupMember *GroupMemberClient
 	// IMS is the client for interacting with the IMS builders.
 	IMS *IMSClient
 	// Names is the client for interacting with the Names builders.
@@ -173,6 +175,7 @@ func (tx *Tx) init() {
 	tx.Email = NewEmailClient(tx.config)
 	tx.Entitlement = NewEntitlementClient(tx.config)
 	tx.Group = NewGroupClient(tx.config)
+	tx.GroupMember = NewGroupMemberClient(tx.config)
 	tx.IMS = NewIMSClient(tx.config)
 	tx.Names = NewNamesClient(tx.config)
 	tx.PhoneNumber = NewPhoneNumberClient(tx.config)

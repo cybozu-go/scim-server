@@ -14,6 +14,7 @@ import (
 	"github.com/cybozu-go/scim-server/ent/email"
 	"github.com/cybozu-go/scim-server/ent/entitlement"
 	"github.com/cybozu-go/scim-server/ent/group"
+	"github.com/cybozu-go/scim-server/ent/groupmember"
 	"github.com/cybozu-go/scim-server/ent/ims"
 	"github.com/cybozu-go/scim-server/ent/names"
 	"github.com/cybozu-go/scim-server/ent/phonenumber"
@@ -40,6 +41,8 @@ type Client struct {
 	Entitlement *EntitlementClient
 	// Group is the client for interacting with the Group builders.
 	Group *GroupClient
+	// GroupMember is the client for interacting with the GroupMember builders.
+	GroupMember *GroupMemberClient
 	// IMS is the client for interacting with the IMS builders.
 	IMS *IMSClient
 	// Names is the client for interacting with the Names builders.
@@ -71,6 +74,7 @@ func (c *Client) init() {
 	c.Email = NewEmailClient(c.config)
 	c.Entitlement = NewEntitlementClient(c.config)
 	c.Group = NewGroupClient(c.config)
+	c.GroupMember = NewGroupMemberClient(c.config)
 	c.IMS = NewIMSClient(c.config)
 	c.Names = NewNamesClient(c.config)
 	c.PhoneNumber = NewPhoneNumberClient(c.config)
@@ -115,6 +119,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Email:           NewEmailClient(cfg),
 		Entitlement:     NewEntitlementClient(cfg),
 		Group:           NewGroupClient(cfg),
+		GroupMember:     NewGroupMemberClient(cfg),
 		IMS:             NewIMSClient(cfg),
 		Names:           NewNamesClient(cfg),
 		PhoneNumber:     NewPhoneNumberClient(cfg),
@@ -145,6 +150,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Email:           NewEmailClient(cfg),
 		Entitlement:     NewEntitlementClient(cfg),
 		Group:           NewGroupClient(cfg),
+		GroupMember:     NewGroupMemberClient(cfg),
 		IMS:             NewIMSClient(cfg),
 		Names:           NewNamesClient(cfg),
 		PhoneNumber:     NewPhoneNumberClient(cfg),
@@ -185,6 +191,7 @@ func (c *Client) Use(hooks ...Hook) {
 	c.Email.Use(hooks...)
 	c.Entitlement.Use(hooks...)
 	c.Group.Use(hooks...)
+	c.GroupMember.Use(hooks...)
 	c.IMS.Use(hooks...)
 	c.Names.Use(hooks...)
 	c.PhoneNumber.Use(hooks...)
@@ -279,6 +286,22 @@ func (c *AddressClient) GetX(ctx context.Context, id int) *Address {
 	return obj
 }
 
+// QueryUser queries the user edge of a Address.
+func (c *AddressClient) QueryUser(a *Address) *UserQuery {
+	query := &UserQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := a.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(address.Table, address.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, address.UserTable, address.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(a.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *AddressClient) Hooks() []Hook {
 	return c.hooks.Address
@@ -367,6 +390,22 @@ func (c *EmailClient) GetX(ctx context.Context, id int) *Email {
 		panic(err)
 	}
 	return obj
+}
+
+// QueryUser queries the user edge of a Email.
+func (c *EmailClient) QueryUser(e *Email) *UserQuery {
+	query := &UserQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := e.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(email.Table, email.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, email.UserTable, email.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(e.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
 }
 
 // Hooks returns the client hooks.
@@ -459,6 +498,22 @@ func (c *EntitlementClient) GetX(ctx context.Context, id int) *Entitlement {
 	return obj
 }
 
+// QueryUser queries the user edge of a Entitlement.
+func (c *EntitlementClient) QueryUser(e *Entitlement) *UserQuery {
+	query := &UserQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := e.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(entitlement.Table, entitlement.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, entitlement.UserTable, entitlement.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(e.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *EntitlementClient) Hooks() []Hook {
 	return c.hooks.Entitlement
@@ -549,47 +604,15 @@ func (c *GroupClient) GetX(ctx context.Context, id uuid.UUID) *Group {
 	return obj
 }
 
-// QueryUsers queries the users edge of a Group.
-func (c *GroupClient) QueryUsers(gr *Group) *UserQuery {
-	query := &UserQuery{config: c.config}
+// QueryMembers queries the members edge of a Group.
+func (c *GroupClient) QueryMembers(gr *Group) *GroupMemberQuery {
+	query := &GroupMemberQuery{config: c.config}
 	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
 		id := gr.ID
 		step := sqlgraph.NewStep(
 			sqlgraph.From(group.Table, group.FieldID, id),
-			sqlgraph.To(user.Table, user.FieldID),
-			sqlgraph.Edge(sqlgraph.M2M, true, group.UsersTable, group.UsersPrimaryKey...),
-		)
-		fromV = sqlgraph.Neighbors(gr.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
-}
-
-// QueryParent queries the parent edge of a Group.
-func (c *GroupClient) QueryParent(gr *Group) *GroupQuery {
-	query := &GroupQuery{config: c.config}
-	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
-		id := gr.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(group.Table, group.FieldID, id),
-			sqlgraph.To(group.Table, group.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, group.ParentTable, group.ParentColumn),
-		)
-		fromV = sqlgraph.Neighbors(gr.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
-}
-
-// QueryChildren queries the children edge of a Group.
-func (c *GroupClient) QueryChildren(gr *Group) *GroupQuery {
-	query := &GroupQuery{config: c.config}
-	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
-		id := gr.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(group.Table, group.FieldID, id),
-			sqlgraph.To(group.Table, group.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, group.ChildrenTable, group.ChildrenColumn),
+			sqlgraph.To(groupmember.Table, groupmember.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, group.MembersTable, group.MembersColumn),
 		)
 		fromV = sqlgraph.Neighbors(gr.driver.Dialect(), step)
 		return fromV, nil
@@ -600,6 +623,128 @@ func (c *GroupClient) QueryChildren(gr *Group) *GroupQuery {
 // Hooks returns the client hooks.
 func (c *GroupClient) Hooks() []Hook {
 	return c.hooks.Group
+}
+
+// GroupMemberClient is a client for the GroupMember schema.
+type GroupMemberClient struct {
+	config
+}
+
+// NewGroupMemberClient returns a client for the GroupMember from the given config.
+func NewGroupMemberClient(c config) *GroupMemberClient {
+	return &GroupMemberClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `groupmember.Hooks(f(g(h())))`.
+func (c *GroupMemberClient) Use(hooks ...Hook) {
+	c.hooks.GroupMember = append(c.hooks.GroupMember, hooks...)
+}
+
+// Create returns a create builder for GroupMember.
+func (c *GroupMemberClient) Create() *GroupMemberCreate {
+	mutation := newGroupMemberMutation(c.config, OpCreate)
+	return &GroupMemberCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of GroupMember entities.
+func (c *GroupMemberClient) CreateBulk(builders ...*GroupMemberCreate) *GroupMemberCreateBulk {
+	return &GroupMemberCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for GroupMember.
+func (c *GroupMemberClient) Update() *GroupMemberUpdate {
+	mutation := newGroupMemberMutation(c.config, OpUpdate)
+	return &GroupMemberUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *GroupMemberClient) UpdateOne(gm *GroupMember) *GroupMemberUpdateOne {
+	mutation := newGroupMemberMutation(c.config, OpUpdateOne, withGroupMember(gm))
+	return &GroupMemberUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *GroupMemberClient) UpdateOneID(id int) *GroupMemberUpdateOne {
+	mutation := newGroupMemberMutation(c.config, OpUpdateOne, withGroupMemberID(id))
+	return &GroupMemberUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for GroupMember.
+func (c *GroupMemberClient) Delete() *GroupMemberDelete {
+	mutation := newGroupMemberMutation(c.config, OpDelete)
+	return &GroupMemberDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a delete builder for the given entity.
+func (c *GroupMemberClient) DeleteOne(gm *GroupMember) *GroupMemberDeleteOne {
+	return c.DeleteOneID(gm.ID)
+}
+
+// DeleteOneID returns a delete builder for the given id.
+func (c *GroupMemberClient) DeleteOneID(id int) *GroupMemberDeleteOne {
+	builder := c.Delete().Where(groupmember.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &GroupMemberDeleteOne{builder}
+}
+
+// Query returns a query builder for GroupMember.
+func (c *GroupMemberClient) Query() *GroupMemberQuery {
+	return &GroupMemberQuery{
+		config: c.config,
+	}
+}
+
+// Get returns a GroupMember entity by its id.
+func (c *GroupMemberClient) Get(ctx context.Context, id int) (*GroupMember, error) {
+	return c.Query().Where(groupmember.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *GroupMemberClient) GetX(ctx context.Context, id int) *GroupMember {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryUser queries the user edge of a GroupMember.
+func (c *GroupMemberClient) QueryUser(gm *GroupMember) *UserQuery {
+	query := &UserQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := gm.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(groupmember.Table, groupmember.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, groupmember.UserTable, groupmember.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(gm.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryGroup queries the group edge of a GroupMember.
+func (c *GroupMemberClient) QueryGroup(gm *GroupMember) *GroupQuery {
+	query := &GroupQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := gm.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(groupmember.Table, groupmember.FieldID, id),
+			sqlgraph.To(group.Table, group.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, groupmember.GroupTable, groupmember.GroupColumn),
+		)
+		fromV = sqlgraph.Neighbors(gm.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *GroupMemberClient) Hooks() []Hook {
+	return c.hooks.GroupMember
 }
 
 // IMSClient is a client for the IMS schema.
@@ -685,6 +830,22 @@ func (c *IMSClient) GetX(ctx context.Context, id int) *IMS {
 		panic(err)
 	}
 	return obj
+}
+
+// QueryUser queries the user edge of a IMS.
+func (c *IMSClient) QueryUser(i *IMS) *UserQuery {
+	query := &UserQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := i.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(ims.Table, ims.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, ims.UserTable, ims.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(i.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
 }
 
 // Hooks returns the client hooks.
@@ -883,6 +1044,22 @@ func (c *PhoneNumberClient) GetX(ctx context.Context, id int) *PhoneNumber {
 	return obj
 }
 
+// QueryUser queries the user edge of a PhoneNumber.
+func (c *PhoneNumberClient) QueryUser(pn *PhoneNumber) *UserQuery {
+	query := &UserQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := pn.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(phonenumber.Table, phonenumber.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, phonenumber.UserTable, phonenumber.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(pn.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *PhoneNumberClient) Hooks() []Hook {
 	return c.hooks.PhoneNumber
@@ -973,6 +1150,22 @@ func (c *PhotoClient) GetX(ctx context.Context, id int) *Photo {
 	return obj
 }
 
+// QueryUser queries the user edge of a Photo.
+func (c *PhotoClient) QueryUser(ph *Photo) *UserQuery {
+	query := &UserQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := ph.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(photo.Table, photo.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, photo.UserTable, photo.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(ph.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *PhotoClient) Hooks() []Hook {
 	return c.hooks.Photo
@@ -1061,6 +1254,22 @@ func (c *RoleClient) GetX(ctx context.Context, id int) *Role {
 		panic(err)
 	}
 	return obj
+}
+
+// QueryUser queries the user edge of a Role.
+func (c *RoleClient) QueryUser(r *Role) *UserQuery {
+	query := &UserQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := r.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(role.Table, role.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, role.UserTable, role.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(r.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
 }
 
 // Hooks returns the client hooks.
@@ -1170,14 +1379,14 @@ func (c *UserClient) QueryAddresses(u *User) *AddressQuery {
 }
 
 // QueryGroups queries the groups edge of a User.
-func (c *UserClient) QueryGroups(u *User) *GroupQuery {
-	query := &GroupQuery{config: c.config}
+func (c *UserClient) QueryGroups(u *User) *GroupMemberQuery {
+	query := &GroupMemberQuery{config: c.config}
 	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
 		id := u.ID
 		step := sqlgraph.NewStep(
 			sqlgraph.From(user.Table, user.FieldID, id),
-			sqlgraph.To(group.Table, group.FieldID),
-			sqlgraph.Edge(sqlgraph.M2M, false, user.GroupsTable, user.GroupsPrimaryKey...),
+			sqlgraph.To(groupmember.Table, groupmember.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.GroupsTable, user.GroupsColumn),
 		)
 		fromV = sqlgraph.Neighbors(u.driver.Dialect(), step)
 		return fromV, nil
@@ -1249,15 +1458,15 @@ func (c *UserClient) QueryRoles(u *User) *RoleQuery {
 	return query
 }
 
-// QueryImses queries the imses edge of a User.
-func (c *UserClient) QueryImses(u *User) *IMSQuery {
+// QueryIMS queries the IMS edge of a User.
+func (c *UserClient) QueryIMS(u *User) *IMSQuery {
 	query := &IMSQuery{config: c.config}
 	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
 		id := u.ID
 		step := sqlgraph.NewStep(
 			sqlgraph.From(user.Table, user.FieldID, id),
 			sqlgraph.To(ims.Table, ims.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, user.ImsesTable, user.ImsesColumn),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.IMSTable, user.IMSColumn),
 		)
 		fromV = sqlgraph.Neighbors(u.driver.Dialect(), step)
 		return fromV, nil
@@ -1297,7 +1506,7 @@ func (c *UserClient) QueryPhotos(u *User) *PhotoQuery {
 	return query
 }
 
-// QueryX509Certificates queries the x509Certificates edge of a User.
+// QueryX509Certificates queries the x509_certificates edge of a User.
 func (c *UserClient) QueryX509Certificates(u *User) *X509CertificateQuery {
 	query := &X509CertificateQuery{config: c.config}
 	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
@@ -1401,6 +1610,22 @@ func (c *X509CertificateClient) GetX(ctx context.Context, id int) *X509Certifica
 		panic(err)
 	}
 	return obj
+}
+
+// QueryUser queries the user edge of a X509Certificate.
+func (c *X509CertificateClient) QueryUser(x *X509Certificate) *UserQuery {
+	query := &UserQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := x.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(x509certificate.Table, x509certificate.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, x509certificate.UserTable, x509certificate.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(x.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
 }
 
 // Hooks returns the client hooks.

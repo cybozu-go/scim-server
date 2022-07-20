@@ -9,6 +9,8 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/cybozu-go/scim-server/ent/address"
+	"github.com/cybozu-go/scim-server/ent/user"
+	"github.com/google/uuid"
 )
 
 // AddressCreate is the builder for creating a Address entity.
@@ -100,6 +102,25 @@ func (ac *AddressCreate) SetNillableStreetAddress(s *string) *AddressCreate {
 		ac.SetStreetAddress(*s)
 	}
 	return ac
+}
+
+// SetUserID sets the "user" edge to the User entity by ID.
+func (ac *AddressCreate) SetUserID(id uuid.UUID) *AddressCreate {
+	ac.mutation.SetUserID(id)
+	return ac
+}
+
+// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
+func (ac *AddressCreate) SetNillableUserID(id *uuid.UUID) *AddressCreate {
+	if id != nil {
+		ac = ac.SetUserID(*id)
+	}
+	return ac
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (ac *AddressCreate) SetUser(u *User) *AddressCreate {
+	return ac.SetUserID(u.ID)
 }
 
 // Mutation returns the AddressMutation object of the builder.
@@ -246,6 +267,26 @@ func (ac *AddressCreate) createSpec() (*Address, *sqlgraph.CreateSpec) {
 			Column: address.FieldStreetAddress,
 		})
 		_node.StreetAddress = value
+	}
+	if nodes := ac.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   address.UserTable,
+			Columns: []string{address.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.user_addresses = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

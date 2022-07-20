@@ -9,6 +9,8 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/cybozu-go/scim-server/ent/role"
+	"github.com/cybozu-go/scim-server/ent/user"
+	"github.com/google/uuid"
 )
 
 // RoleCreate is the builder for creating a Role entity.
@@ -72,6 +74,25 @@ func (rc *RoleCreate) SetNillableValue(s *string) *RoleCreate {
 		rc.SetValue(*s)
 	}
 	return rc
+}
+
+// SetUserID sets the "user" edge to the User entity by ID.
+func (rc *RoleCreate) SetUserID(id uuid.UUID) *RoleCreate {
+	rc.mutation.SetUserID(id)
+	return rc
+}
+
+// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
+func (rc *RoleCreate) SetNillableUserID(id *uuid.UUID) *RoleCreate {
+	if id != nil {
+		rc = rc.SetUserID(*id)
+	}
+	return rc
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (rc *RoleCreate) SetUser(u *User) *RoleCreate {
+	return rc.SetUserID(u.ID)
 }
 
 // Mutation returns the RoleMutation object of the builder.
@@ -202,6 +223,26 @@ func (rc *RoleCreate) createSpec() (*Role, *sqlgraph.CreateSpec) {
 			Column: role.FieldValue,
 		})
 		_node.Value = value
+	}
+	if nodes := rc.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   role.UserTable,
+			Columns: []string{role.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.user_roles = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

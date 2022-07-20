@@ -4,13 +4,12 @@ package ent
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/cybozu-go/scim-server/ent/group"
-	"github.com/cybozu-go/scim-server/ent/user"
+	"github.com/cybozu-go/scim-server/ent/groupmember"
 	"github.com/google/uuid"
 )
 
@@ -55,6 +54,14 @@ func (gc *GroupCreate) SetEtag(s string) *GroupCreate {
 	return gc
 }
 
+// SetNillableEtag sets the "etag" field if the given value is not nil.
+func (gc *GroupCreate) SetNillableEtag(s *string) *GroupCreate {
+	if s != nil {
+		gc.SetEtag(*s)
+	}
+	return gc
+}
+
 // SetID sets the "id" field.
 func (gc *GroupCreate) SetID(u uuid.UUID) *GroupCreate {
 	gc.mutation.SetID(u)
@@ -69,53 +76,19 @@ func (gc *GroupCreate) SetNillableID(u *uuid.UUID) *GroupCreate {
 	return gc
 }
 
-// AddUserIDs adds the "users" edge to the User entity by IDs.
-func (gc *GroupCreate) AddUserIDs(ids ...uuid.UUID) *GroupCreate {
-	gc.mutation.AddUserIDs(ids...)
+// AddMemberIDs adds the "members" edge to the GroupMember entity by IDs.
+func (gc *GroupCreate) AddMemberIDs(ids ...int) *GroupCreate {
+	gc.mutation.AddMemberIDs(ids...)
 	return gc
 }
 
-// AddUsers adds the "users" edges to the User entity.
-func (gc *GroupCreate) AddUsers(u ...*User) *GroupCreate {
-	ids := make([]uuid.UUID, len(u))
-	for i := range u {
-		ids[i] = u[i].ID
-	}
-	return gc.AddUserIDs(ids...)
-}
-
-// SetParentID sets the "parent" edge to the Group entity by ID.
-func (gc *GroupCreate) SetParentID(id uuid.UUID) *GroupCreate {
-	gc.mutation.SetParentID(id)
-	return gc
-}
-
-// SetNillableParentID sets the "parent" edge to the Group entity by ID if the given value is not nil.
-func (gc *GroupCreate) SetNillableParentID(id *uuid.UUID) *GroupCreate {
-	if id != nil {
-		gc = gc.SetParentID(*id)
-	}
-	return gc
-}
-
-// SetParent sets the "parent" edge to the Group entity.
-func (gc *GroupCreate) SetParent(g *Group) *GroupCreate {
-	return gc.SetParentID(g.ID)
-}
-
-// AddChildIDs adds the "children" edge to the Group entity by IDs.
-func (gc *GroupCreate) AddChildIDs(ids ...uuid.UUID) *GroupCreate {
-	gc.mutation.AddChildIDs(ids...)
-	return gc
-}
-
-// AddChildren adds the "children" edges to the Group entity.
-func (gc *GroupCreate) AddChildren(g ...*Group) *GroupCreate {
-	ids := make([]uuid.UUID, len(g))
+// AddMembers adds the "members" edges to the GroupMember entity.
+func (gc *GroupCreate) AddMembers(g ...*GroupMember) *GroupCreate {
+	ids := make([]int, len(g))
 	for i := range g {
 		ids[i] = g[i].ID
 	}
-	return gc.AddChildIDs(ids...)
+	return gc.AddMemberIDs(ids...)
 }
 
 // Mutation returns the GroupMutation object of the builder.
@@ -197,14 +170,6 @@ func (gc *GroupCreate) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (gc *GroupCreate) check() error {
-	if _, ok := gc.mutation.Etag(); !ok {
-		return &ValidationError{Name: "etag", err: errors.New(`ent: missing required field "Group.etag"`)}
-	}
-	if v, ok := gc.mutation.Etag(); ok {
-		if err := group.EtagValidator(v); err != nil {
-			return &ValidationError{Name: "etag", err: fmt.Errorf(`ent: validator failed for field "Group.etag": %w`, err)}
-		}
-	}
 	return nil
 }
 
@@ -265,56 +230,17 @@ func (gc *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 		})
 		_node.Etag = value
 	}
-	if nodes := gc.mutation.UsersIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2M,
-			Inverse: true,
-			Table:   group.UsersTable,
-			Columns: group.UsersPrimaryKey,
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeUUID,
-					Column: user.FieldID,
-				},
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges = append(_spec.Edges, edge)
-	}
-	if nodes := gc.mutation.ParentIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.M2O,
-			Inverse: true,
-			Table:   group.ParentTable,
-			Columns: []string{group.ParentColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeUUID,
-					Column: group.FieldID,
-				},
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_node.group_children = &nodes[0]
-		_spec.Edges = append(_spec.Edges, edge)
-	}
-	if nodes := gc.mutation.ChildrenIDs(); len(nodes) > 0 {
+	if nodes := gc.mutation.MembersIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.O2M,
 			Inverse: false,
-			Table:   group.ChildrenTable,
-			Columns: []string{group.ChildrenColumn},
+			Table:   group.MembersTable,
+			Columns: []string{group.MembersColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeUUID,
-					Column: group.FieldID,
+					Type:   field.TypeInt,
+					Column: groupmember.FieldID,
 				},
 			},
 		}

@@ -12,6 +12,8 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/cybozu-go/scim-server/ent/predicate"
 	"github.com/cybozu-go/scim-server/ent/role"
+	"github.com/cybozu-go/scim-server/ent/user"
+	"github.com/google/uuid"
 )
 
 // RoleUpdate is the builder for updating Role entities.
@@ -107,9 +109,34 @@ func (ru *RoleUpdate) ClearValue() *RoleUpdate {
 	return ru
 }
 
+// SetUserID sets the "user" edge to the User entity by ID.
+func (ru *RoleUpdate) SetUserID(id uuid.UUID) *RoleUpdate {
+	ru.mutation.SetUserID(id)
+	return ru
+}
+
+// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
+func (ru *RoleUpdate) SetNillableUserID(id *uuid.UUID) *RoleUpdate {
+	if id != nil {
+		ru = ru.SetUserID(*id)
+	}
+	return ru
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (ru *RoleUpdate) SetUser(u *User) *RoleUpdate {
+	return ru.SetUserID(u.ID)
+}
+
 // Mutation returns the RoleMutation object of the builder.
 func (ru *RoleUpdate) Mutation() *RoleMutation {
 	return ru.mutation
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (ru *RoleUpdate) ClearUser() *RoleUpdate {
+	ru.mutation.ClearUser()
+	return ru
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -236,6 +263,41 @@ func (ru *RoleUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Column: role.FieldValue,
 		})
 	}
+	if ru.mutation.UserCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   role.UserTable,
+			Columns: []string{role.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := ru.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   role.UserTable,
+			Columns: []string{role.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if n, err = sqlgraph.UpdateNodes(ctx, ru.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{role.Label}
@@ -335,9 +397,34 @@ func (ruo *RoleUpdateOne) ClearValue() *RoleUpdateOne {
 	return ruo
 }
 
+// SetUserID sets the "user" edge to the User entity by ID.
+func (ruo *RoleUpdateOne) SetUserID(id uuid.UUID) *RoleUpdateOne {
+	ruo.mutation.SetUserID(id)
+	return ruo
+}
+
+// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
+func (ruo *RoleUpdateOne) SetNillableUserID(id *uuid.UUID) *RoleUpdateOne {
+	if id != nil {
+		ruo = ruo.SetUserID(*id)
+	}
+	return ruo
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (ruo *RoleUpdateOne) SetUser(u *User) *RoleUpdateOne {
+	return ruo.SetUserID(u.ID)
+}
+
 // Mutation returns the RoleMutation object of the builder.
 func (ruo *RoleUpdateOne) Mutation() *RoleMutation {
 	return ruo.mutation
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (ruo *RoleUpdateOne) ClearUser() *RoleUpdateOne {
+	ruo.mutation.ClearUser()
+	return ruo
 }
 
 // Select allows selecting one or more fields (columns) of the returned entity.
@@ -487,6 +574,41 @@ func (ruo *RoleUpdateOne) sqlSave(ctx context.Context) (_node *Role, err error) 
 			Type:   field.TypeString,
 			Column: role.FieldValue,
 		})
+	}
+	if ruo.mutation.UserCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   role.UserTable,
+			Columns: []string{role.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := ruo.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   role.UserTable,
+			Columns: []string{role.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &Role{config: ruo.config}
 	_spec.Assign = _node.assignValues

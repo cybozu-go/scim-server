@@ -1,0 +1,18 @@
+{{/* gotype: entgo.io/ent/entc/gen.Graph */}}
+
+{{ define "etag" }}
+
+{{ $pkg := base $.Config.Package }}
+{{ template "header" $ }}
+
+{{ range $n := $.Nodes }}
+	{{ $receiver := $n.Receiver }}
+	func ({{ $receiver }} *{{ $n.Name }}) ETag(h hash.Hash) {
+	{{ range $f := $.Fields }}
+		{{ $f.Name }}
+	{{ end }}
+	}
+{{ end }}
+
+{{ end }}
+

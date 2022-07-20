@@ -8,6 +8,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 	"github.com/cybozu-go/scim-server/ent/entitlement"
+	"github.com/cybozu-go/scim-server/ent/user"
 	"github.com/google/uuid"
 )
 
@@ -23,8 +24,34 @@ type Entitlement struct {
 	// Type holds the value of the "type" field.
 	Type string `json:"type,omitempty"`
 	// Value holds the value of the "value" field.
-	Value             string `json:"value,omitempty"`
+	Value string `json:"value,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the EntitlementQuery when eager-loading is set.
+	Edges             EntitlementEdges `json:"edges"`
 	user_entitlements *uuid.UUID
+}
+
+// EntitlementEdges holds the relations/edges for other nodes in the graph.
+type EntitlementEdges struct {
+	// User holds the value of the user edge.
+	User *User `json:"user,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// UserOrErr returns the User value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e EntitlementEdges) UserOrErr() (*User, error) {
+	if e.loadedTypes[0] {
+		if e.User == nil {
+			// The edge user was loaded in eager-loading,
+			// but was not found.
+			return nil, &NotFoundError{label: user.Label}
+		}
+		return e.User, nil
+	}
+	return nil, &NotLoadedError{edge: "user"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -95,6 +122,11 @@ func (e *Entitlement) assignValues(columns []string, values []interface{}) error
 		}
 	}
 	return nil
+}
+
+// QueryUser queries the "user" edge of the Entitlement entity.
+func (e *Entitlement) QueryUser() *UserQuery {
+	return (&EntitlementClient{config: e.config}).QueryUser(e)
 }
 
 // Update returns a builder for updating this Entitlement.

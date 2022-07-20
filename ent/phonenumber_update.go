@@ -12,6 +12,8 @@ import (
 	"entgo.io/ent/schema/field"
 	"github.com/cybozu-go/scim-server/ent/phonenumber"
 	"github.com/cybozu-go/scim-server/ent/predicate"
+	"github.com/cybozu-go/scim-server/ent/user"
+	"github.com/google/uuid"
 )
 
 // PhoneNumberUpdate is the builder for updating PhoneNumber entities.
@@ -107,9 +109,34 @@ func (pnu *PhoneNumberUpdate) ClearValue() *PhoneNumberUpdate {
 	return pnu
 }
 
+// SetUserID sets the "user" edge to the User entity by ID.
+func (pnu *PhoneNumberUpdate) SetUserID(id uuid.UUID) *PhoneNumberUpdate {
+	pnu.mutation.SetUserID(id)
+	return pnu
+}
+
+// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
+func (pnu *PhoneNumberUpdate) SetNillableUserID(id *uuid.UUID) *PhoneNumberUpdate {
+	if id != nil {
+		pnu = pnu.SetUserID(*id)
+	}
+	return pnu
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (pnu *PhoneNumberUpdate) SetUser(u *User) *PhoneNumberUpdate {
+	return pnu.SetUserID(u.ID)
+}
+
 // Mutation returns the PhoneNumberMutation object of the builder.
 func (pnu *PhoneNumberUpdate) Mutation() *PhoneNumberMutation {
 	return pnu.mutation
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (pnu *PhoneNumberUpdate) ClearUser() *PhoneNumberUpdate {
+	pnu.mutation.ClearUser()
+	return pnu
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -236,6 +263,41 @@ func (pnu *PhoneNumberUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Column: phonenumber.FieldValue,
 		})
 	}
+	if pnu.mutation.UserCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   phonenumber.UserTable,
+			Columns: []string{phonenumber.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := pnu.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   phonenumber.UserTable,
+			Columns: []string{phonenumber.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if n, err = sqlgraph.UpdateNodes(ctx, pnu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{phonenumber.Label}
@@ -335,9 +397,34 @@ func (pnuo *PhoneNumberUpdateOne) ClearValue() *PhoneNumberUpdateOne {
 	return pnuo
 }
 
+// SetUserID sets the "user" edge to the User entity by ID.
+func (pnuo *PhoneNumberUpdateOne) SetUserID(id uuid.UUID) *PhoneNumberUpdateOne {
+	pnuo.mutation.SetUserID(id)
+	return pnuo
+}
+
+// SetNillableUserID sets the "user" edge to the User entity by ID if the given value is not nil.
+func (pnuo *PhoneNumberUpdateOne) SetNillableUserID(id *uuid.UUID) *PhoneNumberUpdateOne {
+	if id != nil {
+		pnuo = pnuo.SetUserID(*id)
+	}
+	return pnuo
+}
+
+// SetUser sets the "user" edge to the User entity.
+func (pnuo *PhoneNumberUpdateOne) SetUser(u *User) *PhoneNumberUpdateOne {
+	return pnuo.SetUserID(u.ID)
+}
+
 // Mutation returns the PhoneNumberMutation object of the builder.
 func (pnuo *PhoneNumberUpdateOne) Mutation() *PhoneNumberMutation {
 	return pnuo.mutation
+}
+
+// ClearUser clears the "user" edge to the User entity.
+func (pnuo *PhoneNumberUpdateOne) ClearUser() *PhoneNumberUpdateOne {
+	pnuo.mutation.ClearUser()
+	return pnuo
 }
 
 // Select allows selecting one or more fields (columns) of the returned entity.
@@ -487,6 +574,41 @@ func (pnuo *PhoneNumberUpdateOne) sqlSave(ctx context.Context) (_node *PhoneNumb
 			Type:   field.TypeString,
 			Column: phonenumber.FieldValue,
 		})
+	}
+	if pnuo.mutation.UserCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   phonenumber.UserTable,
+			Columns: []string{phonenumber.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := pnuo.mutation.UserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   phonenumber.UserTable,
+			Columns: []string{phonenumber.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: user.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &PhoneNumber{config: pnuo.config}
 	_spec.Assign = _node.assignValues
