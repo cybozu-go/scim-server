@@ -1,0 +1,42 @@
+{{ define "etag" }}
+{{ $pkg := base $.Config.Package }}
+{{ template "header" $ }}
+
+{{ range $n := $.Nodes }}
+	{{- $receiver := $n.Receiver }}
+func ({{ $receiver }} *{{ $n.Name }}) ComputeETag(h hash.Hash) error {
+{{- range $f := $n.Fields }}
+	{{- if (eq $f.Name "etag") }}
+		{{- continue}}
+	{{- end }}
+	{{- if $f.Sensitive }}
+		{{- continue}}
+	{{- end }}
+	fmt.Fprint(h, {{ printf "%q" $f.StructField }})
+	fmt.Fprint(h, {{ $receiver }}.{{ $f.StructField }})
+{{- end}}
+{{- range $e := $n.Edges }}
+	{{- if (and (ne $n.Name "User") (ne $n.Name "Group")) }}
+		{{- continue}}
+	{{- end }}
+	if v := {{ $receiver }}.Edges.{{ $e.StructField }}; v != nil {
+	{{- if and (eq $n.Name "Group") (or (eq $e.StructField "Users") (eq $e.StructField "Children")) }}
+		fmt.Fprint(h, {{ printf "%q" $e.StructField }})
+		for i, e := range v {
+			fmt.Fprintf(h, "%d:%s", i, e.ID)
+		}
+	{{- else }}
+		{{- if $e.O2O }}
+		v.ComputeETag(h)
+		{{- else if $e.O2M }}
+		for _, e := range v {
+			e.ComputeETag(h)
+		}
+		{{- end}}
+	{{- end }}
+	}
+{{- end}}
+	return nil
+}
+{{- end }}
+{{- end }}
