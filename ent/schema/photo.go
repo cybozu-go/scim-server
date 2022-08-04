@@ -11,10 +11,8 @@ func (Photo) Edges() []ent.Edge {
 	}
 }
 
-/*
 func (Photo) Hooks() []ent.Hook {
 	return []ent.Hook{
 		UploadBlob(),
 	}
 }
-*/

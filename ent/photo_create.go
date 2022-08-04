@@ -120,7 +120,9 @@ func (pc *PhotoCreate) Save(ctx context.Context) (*Photo, error) {
 		err  error
 		node *Photo
 	)
-	pc.defaults()
+	if err := pc.defaults(); err != nil {
+		return nil, err
+	}
 	if len(pc.hooks) == 0 {
 		if err = pc.check(); err != nil {
 			return nil, err
@@ -185,11 +187,15 @@ func (pc *PhotoCreate) ExecX(ctx context.Context) {
 }
 
 // defaults sets the default values of the builder before save.
-func (pc *PhotoCreate) defaults() {
+func (pc *PhotoCreate) defaults() error {
 	if _, ok := pc.mutation.ID(); !ok {
+		if photo.DefaultID == nil {
+			return fmt.Errorf("ent: uninitialized photo.DefaultID (forgotten import ent/runtime?)")
+		}
 		v := photo.DefaultID()
 		pc.mutation.SetID(v)
 	}
+	return nil
 }
 
 // check runs all checks and user-defined validators on the builder.

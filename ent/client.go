@@ -1152,7 +1152,8 @@ func (c *PhotoClient) QueryUser(ph *Photo) *UserQuery {
 
 // Hooks returns the client hooks.
 func (c *PhotoClient) Hooks() []Hook {
-	return c.hooks.Photo
+	hooks := c.hooks.Photo
+	return append(hooks[:len(hooks):len(hooks)], photo.Hooks[:]...)
 }
 
 // RoleClient is a client for the Role schema.

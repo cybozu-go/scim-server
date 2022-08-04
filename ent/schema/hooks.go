@@ -1,7 +1,5 @@
 package schema
 
-/*
-
 import (
 	"context"
 	"fmt"
@@ -60,4 +58,4 @@ func UploadBlob() ent.Hook {
 		})
 	}
 	return hook.On(h, ent.OpCreate|ent.OpUpdate)
-}*/
+}
