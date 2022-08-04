@@ -12,7 +12,6 @@ import (
 	"github.com/cybozu-go/scim-server/ent/address"
 	"github.com/cybozu-go/scim-server/ent/email"
 	"github.com/cybozu-go/scim-server/ent/entitlement"
-	"github.com/cybozu-go/scim-server/ent/groupmember"
 	"github.com/cybozu-go/scim-server/ent/ims"
 	"github.com/cybozu-go/scim-server/ent/phonenumber"
 	"github.com/cybozu-go/scim-server/ent/photo"
@@ -53,8 +52,6 @@ func userLoadEntFields(q *ent.UserQuery, scimFields, excludedFields []string) {
 			q.WithEntitlements()
 		case resource.UserExternalIDKey:
 			selectNames = append(selectNames, user.FieldExternalID)
-		case resource.UserGroupsKey:
-			q.WithGroups()
 		case resource.UserIDKey:
 			selectNames = append(selectNames, user.FieldID)
 		case resource.UserIMSKey:
@@ -217,6 +214,22 @@ func UserResourceFromEnt(in *ent.User) (*resource.User, error) {
 			list = append(list, r)
 		}
 		builder.X509Certificates(list...)
+	}
+
+	if gl := len(in.Groups); gl > 0 {
+		memberships := make([]*resource.GroupMember, gl)
+		for i, m := range in.Groups {
+			var gmb resource.GroupMemberBuilder
+			gm, err := gmb.Value(m.Value).
+				Ref(m.Ref).
+				Type(m.Type).
+				Build()
+			if err != nil {
+				return nil, fmt.Errorf("failed to compute \"groups\" field: %w", err)
+			}
+			memberships[i] = gm
+		}
+		builder.Groups(memberships...)
 	}
 	if !reflect.ValueOf(in.Active).IsZero() {
 		builder.Active(in.Active)
@@ -826,7 +839,7 @@ func userPresencePredicate(scimField string) predicate.User {
 	}
 }
 
-func (b *Backend) existsAddress(parent *ent.User, in *resource.Address) bool {
+func (b *Backend) existsUserAddress(parent *ent.User, in *resource.Address) bool {
 	ctx := context.TODO()
 	queryCall := parent.QueryAddresses()
 	var predicates []predicate.Address
@@ -856,7 +869,7 @@ func (b *Backend) existsAddress(parent *ent.User, in *resource.Address) bool {
 	return v
 }
 
-func (b *Backend) existsEmail(parent *ent.User, in *resource.Email) bool {
+func (b *Backend) existsUserEmail(parent *ent.User, in *resource.Email) bool {
 	ctx := context.TODO()
 	queryCall := parent.QueryEmails()
 	var predicates []predicate.Email
@@ -880,7 +893,7 @@ func (b *Backend) existsEmail(parent *ent.User, in *resource.Email) bool {
 	return v
 }
 
-func (b *Backend) existsEntitlement(parent *ent.User, in *resource.Entitlement) bool {
+func (b *Backend) existsUserEntitlement(parent *ent.User, in *resource.Entitlement) bool {
 	ctx := context.TODO()
 	queryCall := parent.QueryEntitlements()
 	var predicates []predicate.Entitlement
@@ -904,28 +917,7 @@ func (b *Backend) existsEntitlement(parent *ent.User, in *resource.Entitlement) 
 	return v
 }
 
-func (b *Backend) existsUserGroupMember(parent *ent.User, in *resource.GroupMember) bool {
-	ctx := context.TODO()
-	queryCall := parent.QueryGroups()
-	var predicates []predicate.GroupMember
-	if in.HasRef() {
-		predicates = append(predicates, groupmember.Ref(in.Ref()))
-	}
-	if in.HasType() {
-		predicates = append(predicates, groupmember.Type(in.Type()))
-	}
-	if in.HasValue() {
-		predicates = append(predicates, groupmember.Value(in.Value()))
-	}
-
-	v, err := queryCall.Where(predicates...).Exist(ctx)
-	if err != nil {
-		return false
-	}
-	return v
-}
-
-func (b *Backend) existsIMS(parent *ent.User, in *resource.IMS) bool {
+func (b *Backend) existsUserIMS(parent *ent.User, in *resource.IMS) bool {
 	ctx := context.TODO()
 	queryCall := parent.QueryIMS()
 	var predicates []predicate.IMS
@@ -949,7 +941,7 @@ func (b *Backend) existsIMS(parent *ent.User, in *resource.IMS) bool {
 	return v
 }
 
-func (b *Backend) existsPhoneNumber(parent *ent.User, in *resource.PhoneNumber) bool {
+func (b *Backend) existsUserPhoneNumber(parent *ent.User, in *resource.PhoneNumber) bool {
 	ctx := context.TODO()
 	queryCall := parent.QueryPhoneNumbers()
 	var predicates []predicate.PhoneNumber
@@ -973,7 +965,7 @@ func (b *Backend) existsPhoneNumber(parent *ent.User, in *resource.PhoneNumber) 
 	return v
 }
 
-func (b *Backend) existsPhoto(parent *ent.User, in *resource.Photo) bool {
+func (b *Backend) existsUserPhoto(parent *ent.User, in *resource.Photo) bool {
 	ctx := context.TODO()
 	queryCall := parent.QueryPhotos()
 	var predicates []predicate.Photo
@@ -997,7 +989,7 @@ func (b *Backend) existsPhoto(parent *ent.User, in *resource.Photo) bool {
 	return v
 }
 
-func (b *Backend) existsRole(parent *ent.User, in *resource.Role) bool {
+func (b *Backend) existsUserRole(parent *ent.User, in *resource.Role) bool {
 	ctx := context.TODO()
 	queryCall := parent.QueryRoles()
 	var predicates []predicate.Role
@@ -1021,7 +1013,7 @@ func (b *Backend) existsRole(parent *ent.User, in *resource.Role) bool {
 	return v
 }
 
-func (b *Backend) existsX509Certificate(parent *ent.User, in *resource.X509Certificate) bool {
+func (b *Backend) existsUserX509Certificate(parent *ent.User, in *resource.X509Certificate) bool {
 	ctx := context.TODO()
 	queryCall := parent.QueryX509Certificates()
 	var predicates []predicate.X509Certificate
@@ -1045,9 +1037,8 @@ func (b *Backend) existsX509Certificate(parent *ent.User, in *resource.X509Certi
 	return v
 }
 
-func (b *Backend) createEmail(resources ...*resource.Email) ([]*ent.Email, error) {
-	ctx := context.TODO()
-	list := make([]*ent.Email, len(resources))
+func (b *Backend) createEmail(resources ...*resource.Email) ([]*ent.EmailCreate, error) {
+	list := make([]*ent.EmailCreate, len(resources))
 	for i, in := range resources {
 		createCall := b.db.Email.Create()
 		if in.HasDisplay() {
@@ -1062,18 +1053,13 @@ func (b *Backend) createEmail(resources ...*resource.Email) ([]*ent.Email, error
 		if in.HasValue() {
 			createCall.SetValue(in.Value())
 		}
-		created, err := createCall.Save(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create emails: %w", err)
-		}
-		list[i] = created
+		list[i] = createCall
 	}
 	return list, nil
 }
 
-func (b *Backend) createEntitlement(resources ...*resource.Entitlement) ([]*ent.Entitlement, error) {
-	ctx := context.TODO()
-	list := make([]*ent.Entitlement, len(resources))
+func (b *Backend) createEntitlement(resources ...*resource.Entitlement) ([]*ent.EntitlementCreate, error) {
+	list := make([]*ent.EntitlementCreate, len(resources))
 	for i, in := range resources {
 		createCall := b.db.Entitlement.Create()
 		if in.HasDisplay() {
@@ -1088,41 +1074,13 @@ func (b *Backend) createEntitlement(resources ...*resource.Entitlement) ([]*ent.
 		if in.HasValue() {
 			createCall.SetValue(in.Value())
 		}
-		created, err := createCall.Save(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create entitlements: %w", err)
-		}
-		list[i] = created
+		list[i] = createCall
 	}
 	return list, nil
 }
 
-func (b *Backend) createGroupMember(resources ...*resource.GroupMember) ([]*ent.GroupMember, error) {
-	ctx := context.TODO()
-	list := make([]*ent.GroupMember, len(resources))
-	for i, in := range resources {
-		createCall := b.db.GroupMember.Create()
-		if in.HasValue() {
-			createCall.SetValue(in.Value())
-		}
-		if in.HasType() {
-			createCall.SetType(in.Type())
-		}
-		if in.HasRef() {
-			createCall.SetRef(in.Ref())
-		}
-		created, err := createCall.Save(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create groups: %w", err)
-		}
-		list[i] = created
-	}
-	return list, nil
-}
-
-func (b *Backend) createIMS(resources ...*resource.IMS) ([]*ent.IMS, error) {
-	ctx := context.TODO()
-	list := make([]*ent.IMS, len(resources))
+func (b *Backend) createIMS(resources ...*resource.IMS) ([]*ent.IMSCreate, error) {
+	list := make([]*ent.IMSCreate, len(resources))
 	for i, in := range resources {
 		createCall := b.db.IMS.Create()
 		if in.HasDisplay() {
@@ -1137,18 +1095,13 @@ func (b *Backend) createIMS(resources ...*resource.IMS) ([]*ent.IMS, error) {
 		if in.HasValue() {
 			createCall.SetValue(in.Value())
 		}
-		created, err := createCall.Save(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create ims: %w", err)
-		}
-		list[i] = created
+		list[i] = createCall
 	}
 	return list, nil
 }
 
-func (b *Backend) createPhoneNumber(resources ...*resource.PhoneNumber) ([]*ent.PhoneNumber, error) {
-	ctx := context.TODO()
-	list := make([]*ent.PhoneNumber, len(resources))
+func (b *Backend) createPhoneNumber(resources ...*resource.PhoneNumber) ([]*ent.PhoneNumberCreate, error) {
+	list := make([]*ent.PhoneNumberCreate, len(resources))
 	for i, in := range resources {
 		createCall := b.db.PhoneNumber.Create()
 		if in.HasDisplay() {
@@ -1163,18 +1116,13 @@ func (b *Backend) createPhoneNumber(resources ...*resource.PhoneNumber) ([]*ent.
 		if in.HasValue() {
 			createCall.SetValue(in.Value())
 		}
-		created, err := createCall.Save(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create phoneNumbers: %w", err)
-		}
-		list[i] = created
+		list[i] = createCall
 	}
 	return list, nil
 }
 
-func (b *Backend) createPhoto(resources ...*resource.Photo) ([]*ent.Photo, error) {
-	ctx := context.TODO()
-	list := make([]*ent.Photo, len(resources))
+func (b *Backend) createPhoto(resources ...*resource.Photo) ([]*ent.PhotoCreate, error) {
+	list := make([]*ent.PhotoCreate, len(resources))
 	for i, in := range resources {
 		createCall := b.db.Photo.Create()
 		if in.HasDisplay() {
@@ -1189,18 +1137,13 @@ func (b *Backend) createPhoto(resources ...*resource.Photo) ([]*ent.Photo, error
 		if in.HasValue() {
 			createCall.SetValue(in.Value())
 		}
-		created, err := createCall.Save(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create photos: %w", err)
-		}
-		list[i] = created
+		list[i] = createCall
 	}
 	return list, nil
 }
 
-func (b *Backend) createRole(resources ...*resource.Role) ([]*ent.Role, error) {
-	ctx := context.TODO()
-	list := make([]*ent.Role, len(resources))
+func (b *Backend) createRole(resources ...*resource.Role) ([]*ent.RoleCreate, error) {
+	list := make([]*ent.RoleCreate, len(resources))
 	for i, in := range resources {
 		createCall := b.db.Role.Create()
 		if in.HasDisplay() {
@@ -1215,18 +1158,13 @@ func (b *Backend) createRole(resources ...*resource.Role) ([]*ent.Role, error) {
 		if in.HasValue() {
 			createCall.SetValue(in.Value())
 		}
-		created, err := createCall.Save(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create roles: %w", err)
-		}
-		list[i] = created
+		list[i] = createCall
 	}
 	return list, nil
 }
 
-func (b *Backend) createX509Certificate(resources ...*resource.X509Certificate) ([]*ent.X509Certificate, error) {
-	ctx := context.TODO()
-	list := make([]*ent.X509Certificate, len(resources))
+func (b *Backend) createX509Certificate(resources ...*resource.X509Certificate) ([]*ent.X509CertificateCreate, error) {
+	list := make([]*ent.X509CertificateCreate, len(resources))
 	for i, in := range resources {
 		createCall := b.db.X509Certificate.Create()
 		if in.HasDisplay() {
@@ -1241,11 +1179,7 @@ func (b *Backend) createX509Certificate(resources ...*resource.X509Certificate) 
 		if in.HasValue() {
 			createCall.SetValue(in.Value())
 		}
-		created, err := createCall.Save(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create x509Certificates: %w", err)
-		}
-		list[i] = created
+		list[i] = createCall
 	}
 	return list, nil
 }
@@ -1266,56 +1200,43 @@ func (b *Backend) CreateUser(in *resource.User) (*resource.User, error) {
 	if in.HasActive() {
 		createCall.SetActive(in.Active())
 	}
-	var addresses []*ent.Address
+	var addressCreateCalls []*ent.AddressCreate
 	if in.HasAddresses() {
-		created, err := b.createAddress(in.Addresses()...)
+		calls, err := b.createAddress(in.Addresses()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create addresses: %w", err)
 		}
-		createCall.AddAddresses(created...)
-		addresses = created
+		addressCreateCalls = calls
 	}
 	if in.HasDisplayName() {
 		createCall.SetDisplayName(in.DisplayName())
 	}
-	var emails []*ent.Email
+	var emailCreateCalls []*ent.EmailCreate
 	if in.HasEmails() {
-		created, err := b.createEmail(in.Emails()...)
+		calls, err := b.createEmail(in.Emails()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create emails: %w", err)
 		}
-		createCall.AddEmails(created...)
-		emails = created
+		emailCreateCalls = calls
 	}
-	var entitlements []*ent.Entitlement
+	var entitlementCreateCalls []*ent.EntitlementCreate
 	if in.HasEntitlements() {
-		created, err := b.createEntitlement(in.Entitlements()...)
+		calls, err := b.createEntitlement(in.Entitlements()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create entitlements: %w", err)
 		}
-		createCall.AddEntitlements(created...)
-		entitlements = created
+		entitlementCreateCalls = calls
 	}
 	if in.HasExternalID() {
 		createCall.SetExternalID(in.ExternalID())
 	}
-	var groups []*ent.GroupMember
-	if in.HasGroups() {
-		created, err := b.createGroupMember(in.Groups()...)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create groups: %w", err)
-		}
-		createCall.AddGroups(created...)
-		groups = created
-	}
-	var ims []*ent.IMS
+	var imsCreateCalls []*ent.IMSCreate
 	if in.HasIMS() {
-		created, err := b.createIMS(in.IMS()...)
+		calls, err := b.createIMS(in.IMS()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create ims: %w", err)
 		}
-		createCall.AddIMS(created...)
-		ims = created
+		imsCreateCalls = calls
 	}
 	if in.HasLocale() {
 		createCall.SetLocale(in.Locale())
@@ -1330,23 +1251,21 @@ func (b *Backend) CreateUser(in *resource.User) (*resource.User, error) {
 	if in.HasNickName() {
 		createCall.SetNickName(in.NickName())
 	}
-	var phoneNumbers []*ent.PhoneNumber
+	var phoneNumberCreateCalls []*ent.PhoneNumberCreate
 	if in.HasPhoneNumbers() {
-		created, err := b.createPhoneNumber(in.PhoneNumbers()...)
+		calls, err := b.createPhoneNumber(in.PhoneNumbers()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create phoneNumbers: %w", err)
 		}
-		createCall.AddPhoneNumbers(created...)
-		phoneNumbers = created
+		phoneNumberCreateCalls = calls
 	}
-	var photos []*ent.Photo
+	var photoCreateCalls []*ent.PhotoCreate
 	if in.HasPhotos() {
-		created, err := b.createPhoto(in.Photos()...)
+		calls, err := b.createPhoto(in.Photos()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create photos: %w", err)
 		}
-		createCall.AddPhotos(created...)
-		photos = created
+		photoCreateCalls = calls
 	}
 	if in.HasPreferredLanguage() {
 		createCall.SetPreferredLanguage(in.PreferredLanguage())
@@ -1354,14 +1273,13 @@ func (b *Backend) CreateUser(in *resource.User) (*resource.User, error) {
 	if in.HasProfileURL() {
 		createCall.SetProfileURL(in.ProfileURL())
 	}
-	var roles []*ent.Role
+	var roleCreateCalls []*ent.RoleCreate
 	if in.HasRoles() {
-		created, err := b.createRole(in.Roles()...)
+		calls, err := b.createRole(in.Roles()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create roles: %w", err)
 		}
-		createCall.AddRoles(created...)
-		roles = created
+		roleCreateCalls = calls
 	}
 	if in.HasTimezone() {
 		createCall.SetTimezone(in.Timezone())
@@ -1372,29 +1290,91 @@ func (b *Backend) CreateUser(in *resource.User) (*resource.User, error) {
 	if in.HasUserType() {
 		createCall.SetUserType(in.UserType())
 	}
-	var x509Certificates []*ent.X509Certificate
+	var x509CertificateCreateCalls []*ent.X509CertificateCreate
 	if in.HasX509Certificates() {
-		created, err := b.createX509Certificate(in.X509Certificates()...)
+		calls, err := b.createX509Certificate(in.X509Certificates()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create x509Certificates: %w", err)
 		}
-		createCall.AddX509Certificates(created...)
-		x509Certificates = created
+		x509CertificateCreateCalls = calls
 	}
 
 	rs, err := createCall.Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to save object: %w", err)
 	}
-	rs.Edges.Addresses = addresses
-	rs.Edges.Emails = emails
-	rs.Edges.Entitlements = entitlements
-	rs.Edges.Groups = groups
-	rs.Edges.IMS = ims
-	rs.Edges.PhoneNumbers = phoneNumbers
-	rs.Edges.Photos = photos
-	rs.Edges.Roles = roles
-	rs.Edges.X509Certificates = x509Certificates
+
+	for _, call := range addressCreateCalls {
+		call.SetUserID(rs.ID)
+		created, err := call.Save(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create addresses: %w", err)
+		}
+		rs.Edges.Addresses = append(rs.Edges.Addresses, created)
+	}
+
+	for _, call := range emailCreateCalls {
+		call.SetUserID(rs.ID)
+		created, err := call.Save(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create emails: %w", err)
+		}
+		rs.Edges.Emails = append(rs.Edges.Emails, created)
+	}
+
+	for _, call := range entitlementCreateCalls {
+		call.SetUserID(rs.ID)
+		created, err := call.Save(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create entitlements: %w", err)
+		}
+		rs.Edges.Entitlements = append(rs.Edges.Entitlements, created)
+	}
+
+	for _, call := range imsCreateCalls {
+		call.SetUserID(rs.ID)
+		created, err := call.Save(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create ims: %w", err)
+		}
+		rs.Edges.IMS = append(rs.Edges.IMS, created)
+	}
+
+	for _, call := range phoneNumberCreateCalls {
+		call.SetUserID(rs.ID)
+		created, err := call.Save(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create phoneNumbers: %w", err)
+		}
+		rs.Edges.PhoneNumbers = append(rs.Edges.PhoneNumbers, created)
+	}
+
+	for _, call := range photoCreateCalls {
+		call.SetUserID(rs.ID)
+		created, err := call.Save(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create photos: %w", err)
+		}
+		rs.Edges.Photos = append(rs.Edges.Photos, created)
+	}
+
+	for _, call := range roleCreateCalls {
+		call.SetUserID(rs.ID)
+		created, err := call.Save(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create roles: %w", err)
+		}
+		rs.Edges.Roles = append(rs.Edges.Roles, created)
+	}
+
+	for _, call := range x509CertificateCreateCalls {
+		call.SetUserID(rs.ID)
+		created, err := call.Save(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create x509Certificates: %w", err)
+		}
+		rs.Edges.X509Certificates = append(rs.Edges.X509Certificates, created)
+	}
 
 	h := sha256.New()
 	if err := rs.ComputeETag(h); err != nil {
@@ -1424,159 +1404,149 @@ func (b *Backend) ReplaceUser(id string, in *resource.User) (*resource.User, err
 
 	replaceCall := r.Update()
 
-	if in.HasActive() {
-		replaceCall.ClearActive()
-		replaceCall.SetActive(in.Active())
-	}
-
+	var addressesCreateCalls []*ent.AddressCreate
 	if in.HasAddresses() {
 		replaceCall.ClearAddresses()
-		created, err := b.createAddress(in.Addresses()...)
+		calls, err := b.createAddress(in.Addresses()...)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to create addresses: %w", err)
 		}
-		replaceCall.AddAddresses(created...)
+		addressesCreateCalls = calls
 	}
 
-	if in.HasDisplayName() {
-		replaceCall.ClearDisplayName()
-		replaceCall.SetDisplayName(in.DisplayName())
-	}
-
+	var emailsCreateCalls []*ent.EmailCreate
 	if in.HasEmails() {
 		replaceCall.ClearEmails()
-		created, err := b.createEmail(in.Emails()...)
+		calls, err := b.createEmail(in.Emails()...)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to create emails: %w", err)
 		}
-		replaceCall.AddEmails(created...)
+		emailsCreateCalls = calls
 	}
 
+	var entitlementsCreateCalls []*ent.EntitlementCreate
 	if in.HasEntitlements() {
 		replaceCall.ClearEntitlements()
-		created, err := b.createEntitlement(in.Entitlements()...)
+		calls, err := b.createEntitlement(in.Entitlements()...)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to create entitlements: %w", err)
 		}
-		replaceCall.AddEntitlements(created...)
+		entitlementsCreateCalls = calls
 	}
 
-	if in.HasExternalID() {
-		replaceCall.ClearExternalID()
-		replaceCall.SetExternalID(in.ExternalID())
-	}
-
-	if in.HasGroups() {
-		replaceCall.ClearGroups()
-		created, err := b.createGroupMember(in.Groups()...)
-		if err != nil {
-			return nil, err
-		}
-		replaceCall.AddGroups(created...)
-	}
-
+	var imsCreateCalls []*ent.IMSCreate
 	if in.HasIMS() {
 		replaceCall.ClearIMS()
-		created, err := b.createIMS(in.IMS()...)
+		calls, err := b.createIMS(in.IMS()...)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to create ims: %w", err)
 		}
-		replaceCall.AddIMS(created...)
+		imsCreateCalls = calls
 	}
 
-	if in.HasLocale() {
-		replaceCall.ClearLocale()
-		replaceCall.SetLocale(in.Locale())
-	}
-
-	if in.HasName() {
-		replaceCall.ClearName()
-		created, err := b.createName(in.Name())
-		if err != nil {
-			return nil, fmt.Errorf("failed to create name: %w", err)
-		}
-		replaceCall.SetName(created)
-	}
-
-	if in.HasNickName() {
-		replaceCall.ClearNickName()
-		replaceCall.SetNickName(in.NickName())
-	}
-
-	if in.HasPassword() {
-		replaceCall.ClearPassword()
-		replaceCall.SetPassword(in.Password())
-	}
-
+	var phoneNumbersCreateCalls []*ent.PhoneNumberCreate
 	if in.HasPhoneNumbers() {
 		replaceCall.ClearPhoneNumbers()
-		created, err := b.createPhoneNumber(in.PhoneNumbers()...)
+		calls, err := b.createPhoneNumber(in.PhoneNumbers()...)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to create phoneNumbers: %w", err)
 		}
-		replaceCall.AddPhoneNumbers(created...)
+		phoneNumbersCreateCalls = calls
 	}
 
+	var photosCreateCalls []*ent.PhotoCreate
 	if in.HasPhotos() {
 		replaceCall.ClearPhotos()
-		created, err := b.createPhoto(in.Photos()...)
+		calls, err := b.createPhoto(in.Photos()...)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to create photos: %w", err)
 		}
-		replaceCall.AddPhotos(created...)
+		photosCreateCalls = calls
 	}
 
-	if in.HasPreferredLanguage() {
-		replaceCall.ClearPreferredLanguage()
-		replaceCall.SetPreferredLanguage(in.PreferredLanguage())
-	}
-
-	if in.HasProfileURL() {
-		replaceCall.ClearProfileURL()
-		replaceCall.SetProfileURL(in.ProfileURL())
-	}
-
+	var rolesCreateCalls []*ent.RoleCreate
 	if in.HasRoles() {
 		replaceCall.ClearRoles()
-		created, err := b.createRole(in.Roles()...)
+		calls, err := b.createRole(in.Roles()...)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to create roles: %w", err)
 		}
-		replaceCall.AddRoles(created...)
+		rolesCreateCalls = calls
 	}
 
-	if in.HasTimezone() {
-		replaceCall.ClearTimezone()
-		replaceCall.SetTimezone(in.Timezone())
-	}
-
-	if in.HasTitle() {
-		replaceCall.ClearTitle()
-		replaceCall.SetTitle(in.Title())
-	}
-
-	if in.HasUserType() {
-		replaceCall.ClearUserType()
-		replaceCall.SetUserType(in.UserType())
-	}
-
+	var x509CertificatesCreateCalls []*ent.X509CertificateCreate
 	if in.HasX509Certificates() {
 		replaceCall.ClearX509Certificates()
-		created, err := b.createX509Certificate(in.X509Certificates()...)
+		calls, err := b.createX509Certificate(in.X509Certificates()...)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to create x509Certificates: %w", err)
 		}
-		replaceCall.AddX509Certificates(created...)
+		x509CertificatesCreateCalls = calls
 	}
 	if _, err := replaceCall.Save(ctx); err != nil {
 		return nil, fmt.Errorf("failed to save object: %w", err)
+	}
+	for _, call := range addressesCreateCalls {
+		call.SetUserID(parsedUUID)
+		_, err := call.Save(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to save Addresses: %w", err)
+		}
+	}
+	for _, call := range emailsCreateCalls {
+		call.SetUserID(parsedUUID)
+		_, err := call.Save(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to save Emails: %w", err)
+		}
+	}
+	for _, call := range entitlementsCreateCalls {
+		call.SetUserID(parsedUUID)
+		_, err := call.Save(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to save Entitlements: %w", err)
+		}
+	}
+	for _, call := range imsCreateCalls {
+		call.SetUserID(parsedUUID)
+		_, err := call.Save(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to save IMS: %w", err)
+		}
+	}
+	for _, call := range phoneNumbersCreateCalls {
+		call.SetUserID(parsedUUID)
+		_, err := call.Save(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to save PhoneNumbers: %w", err)
+		}
+	}
+	for _, call := range photosCreateCalls {
+		call.SetUserID(parsedUUID)
+		_, err := call.Save(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to save Photos: %w", err)
+		}
+	}
+	for _, call := range rolesCreateCalls {
+		call.SetUserID(parsedUUID)
+		_, err := call.Save(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to save Roles: %w", err)
+		}
+	}
+	for _, call := range x509CertificatesCreateCalls {
+		call.SetUserID(parsedUUID)
+		_, err := call.Save(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to save X509Certificates: %w", err)
+		}
 	}
 
 	r2, err := b.db.User.Query().Where(user.ID(parsedUUID)).
 		WithAddresses().
 		WithEmails().
 		WithEntitlements().
-		WithGroups().
 		WithIMS().
 		WithPhoneNumbers().
 		WithPhotos().
@@ -1632,17 +1602,22 @@ func (b *Backend) patchAddUser(parent *ent.User, op *resource.PatchOperation) er
 				return fmt.Errorf("failed to decode patch add value: %w", err)
 			}
 
-			if b.existsAddress(parent, &in) {
+			if b.existsUserAddress(parent, &in) {
 				return nil
 			}
 
-			created, err := b.createAddress(&in)
+			calls, err := b.createAddress(&in)
 			if err != nil {
 				return fmt.Errorf("failed to create Address: %w", err)
 			}
-
-			if _, err := parent.Update().AddAddresses(created...).Save(ctx); err != nil {
-				return fmt.Errorf("failed to save object: %w", err)
+			list := make([]*ent.Address, len(calls))
+			for i, call := range calls {
+				call.SetUserID(parent.ID)
+				created, err := call.Save(ctx)
+				if err != nil {
+					return fmt.Errorf("failed to create Address: %w", err)
+				}
+				list[i] = created
 			}
 		} else {
 			var pb AddressPredicateBuilder
@@ -1743,17 +1718,22 @@ func (b *Backend) patchAddUser(parent *ent.User, op *resource.PatchOperation) er
 				return fmt.Errorf("failed to decode patch add value: %w", err)
 			}
 
-			if b.existsEmail(parent, &in) {
+			if b.existsUserEmail(parent, &in) {
 				return nil
 			}
 
-			created, err := b.createEmail(&in)
+			calls, err := b.createEmail(&in)
 			if err != nil {
 				return fmt.Errorf("failed to create Email: %w", err)
 			}
-
-			if _, err := parent.Update().AddEmails(created...).Save(ctx); err != nil {
-				return fmt.Errorf("failed to save object: %w", err)
+			list := make([]*ent.Email, len(calls))
+			for i, call := range calls {
+				call.SetUserID(parent.ID)
+				created, err := call.Save(ctx)
+				if err != nil {
+					return fmt.Errorf("failed to create Email: %w", err)
+				}
+				list[i] = created
 			}
 		} else {
 			var pb EmailPredicateBuilder
@@ -1824,17 +1804,22 @@ func (b *Backend) patchAddUser(parent *ent.User, op *resource.PatchOperation) er
 				return fmt.Errorf("failed to decode patch add value: %w", err)
 			}
 
-			if b.existsEntitlement(parent, &in) {
+			if b.existsUserEntitlement(parent, &in) {
 				return nil
 			}
 
-			created, err := b.createEntitlement(&in)
+			calls, err := b.createEntitlement(&in)
 			if err != nil {
 				return fmt.Errorf("failed to create Entitlement: %w", err)
 			}
-
-			if _, err := parent.Update().AddEntitlements(created...).Save(ctx); err != nil {
-				return fmt.Errorf("failed to save object: %w", err)
+			list := make([]*ent.Entitlement, len(calls))
+			for i, call := range calls {
+				call.SetUserID(parent.ID)
+				created, err := call.Save(ctx)
+				if err != nil {
+					return fmt.Errorf("failed to create Entitlement: %w", err)
+				}
+				list[i] = created
 			}
 		} else {
 			var pb EntitlementPredicateBuilder
@@ -1912,80 +1897,7 @@ func (b *Backend) patchAddUser(parent *ent.User, op *resource.PatchOperation) er
 			return fmt.Errorf("failed to save object: %w", err)
 		}
 	case resource.UserGroupsKey:
-		subExpr := expr.SubExpr()
-		if subExpr == nil {
-			if subAttrExpr := expr.SubAttr(); subAttrExpr != nil {
-				return fmt.Errorf("patch add operation on sub attribute of multi-value item groups with unspecified element is not possible")
-			}
-
-			var in resource.GroupMember
-			if err := json.Unmarshal(op.Value(), &in); err != nil {
-				return fmt.Errorf("failed to decode patch add value: %w", err)
-			}
-
-			if b.existsUserGroupMember(parent, &in) {
-				return nil
-			}
-
-			created, err := b.createGroupMember(&in)
-			if err != nil {
-				return fmt.Errorf("failed to create GroupMember: %w", err)
-			}
-
-			if _, err := parent.Update().AddGroups(created...).Save(ctx); err != nil {
-				return fmt.Errorf("failed to save object: %w", err)
-			}
-		} else {
-			var pb GroupMemberPredicateBuilder
-			predicates, err := pb.Build(subExpr)
-			if err != nil {
-				return fmt.Errorf("failed to parse valuePath expression: %w", err)
-			}
-			list, err := parent.QueryGroups().
-				Where(predicates...).
-				All(ctx)
-			if err != nil {
-				return fmt.Errorf("failed to look up value: %w", err)
-			}
-
-			if len(list) > 0 {
-				return fmt.Errorf("query must resolve to one element, got multiple")
-			}
-
-			item := list[0]
-			sSubAttr, err := exprStr(expr.SubAttr())
-			if err != nil {
-				return fmt.Errorf("query must have a sub attribute")
-			}
-
-			updateCall := item.Update()
-
-			switch sSubAttr {
-			case resource.GroupMemberRefKey:
-				var v string
-				if err := json.Unmarshal(op.Value(), &v); err != nil {
-					return fmt.Errorf("failed to decode value: %w", err)
-				}
-				updateCall.SetRef(v)
-			case resource.GroupMemberTypeKey:
-				var v string
-				if err := json.Unmarshal(op.Value(), &v); err != nil {
-					return fmt.Errorf("failed to decode value: %w", err)
-				}
-				updateCall.SetType(v)
-			case resource.GroupMemberValueKey:
-				var v string
-				if err := json.Unmarshal(op.Value(), &v); err != nil {
-					return fmt.Errorf("failed to decode value: %w", err)
-				}
-				updateCall.SetValue(v)
-			}
-
-			if _, err := updateCall.Save(ctx); err != nil {
-				return fmt.Errorf("failed to save object: %w", err)
-			}
-			return nil
-		}
+		return fmt.Errorf("cannot create group memberships through User resource")
 	case resource.UserIMSKey:
 		subExpr := expr.SubExpr()
 		if subExpr == nil {
@@ -1998,17 +1910,22 @@ func (b *Backend) patchAddUser(parent *ent.User, op *resource.PatchOperation) er
 				return fmt.Errorf("failed to decode patch add value: %w", err)
 			}
 
-			if b.existsIMS(parent, &in) {
+			if b.existsUserIMS(parent, &in) {
 				return nil
 			}
 
-			created, err := b.createIMS(&in)
+			calls, err := b.createIMS(&in)
 			if err != nil {
 				return fmt.Errorf("failed to create IMS: %w", err)
 			}
-
-			if _, err := parent.Update().AddIMS(created...).Save(ctx); err != nil {
-				return fmt.Errorf("failed to save object: %w", err)
+			list := make([]*ent.IMS, len(calls))
+			for i, call := range calls {
+				call.SetUserID(parent.ID)
+				created, err := call.Save(ctx)
+				if err != nil {
+					return fmt.Errorf("failed to create IMS: %w", err)
+				}
+				list[i] = created
 			}
 		} else {
 			var pb IMSPredicateBuilder
@@ -2133,17 +2050,22 @@ func (b *Backend) patchAddUser(parent *ent.User, op *resource.PatchOperation) er
 				return fmt.Errorf("failed to decode patch add value: %w", err)
 			}
 
-			if b.existsPhoneNumber(parent, &in) {
+			if b.existsUserPhoneNumber(parent, &in) {
 				return nil
 			}
 
-			created, err := b.createPhoneNumber(&in)
+			calls, err := b.createPhoneNumber(&in)
 			if err != nil {
 				return fmt.Errorf("failed to create PhoneNumber: %w", err)
 			}
-
-			if _, err := parent.Update().AddPhoneNumbers(created...).Save(ctx); err != nil {
-				return fmt.Errorf("failed to save object: %w", err)
+			list := make([]*ent.PhoneNumber, len(calls))
+			for i, call := range calls {
+				call.SetUserID(parent.ID)
+				created, err := call.Save(ctx)
+				if err != nil {
+					return fmt.Errorf("failed to create PhoneNumber: %w", err)
+				}
+				list[i] = created
 			}
 		} else {
 			var pb PhoneNumberPredicateBuilder
@@ -2214,17 +2136,22 @@ func (b *Backend) patchAddUser(parent *ent.User, op *resource.PatchOperation) er
 				return fmt.Errorf("failed to decode patch add value: %w", err)
 			}
 
-			if b.existsPhoto(parent, &in) {
+			if b.existsUserPhoto(parent, &in) {
 				return nil
 			}
 
-			created, err := b.createPhoto(&in)
+			calls, err := b.createPhoto(&in)
 			if err != nil {
 				return fmt.Errorf("failed to create Photo: %w", err)
 			}
-
-			if _, err := parent.Update().AddPhotos(created...).Save(ctx); err != nil {
-				return fmt.Errorf("failed to save object: %w", err)
+			list := make([]*ent.Photo, len(calls))
+			for i, call := range calls {
+				call.SetUserID(parent.ID)
+				created, err := call.Save(ctx)
+				if err != nil {
+					return fmt.Errorf("failed to create Photo: %w", err)
+				}
+				list[i] = created
 			}
 		} else {
 			var pb PhotoPredicateBuilder
@@ -2331,17 +2258,22 @@ func (b *Backend) patchAddUser(parent *ent.User, op *resource.PatchOperation) er
 				return fmt.Errorf("failed to decode patch add value: %w", err)
 			}
 
-			if b.existsRole(parent, &in) {
+			if b.existsUserRole(parent, &in) {
 				return nil
 			}
 
-			created, err := b.createRole(&in)
+			calls, err := b.createRole(&in)
 			if err != nil {
 				return fmt.Errorf("failed to create Role: %w", err)
 			}
-
-			if _, err := parent.Update().AddRoles(created...).Save(ctx); err != nil {
-				return fmt.Errorf("failed to save object: %w", err)
+			list := make([]*ent.Role, len(calls))
+			for i, call := range calls {
+				call.SetUserID(parent.ID)
+				created, err := call.Save(ctx)
+				if err != nil {
+					return fmt.Errorf("failed to create Role: %w", err)
+				}
+				list[i] = created
 			}
 		} else {
 			var pb RolePredicateBuilder
@@ -2484,17 +2416,22 @@ func (b *Backend) patchAddUser(parent *ent.User, op *resource.PatchOperation) er
 				return fmt.Errorf("failed to decode patch add value: %w", err)
 			}
 
-			if b.existsX509Certificate(parent, &in) {
+			if b.existsUserX509Certificate(parent, &in) {
 				return nil
 			}
 
-			created, err := b.createX509Certificate(&in)
+			calls, err := b.createX509Certificate(&in)
 			if err != nil {
 				return fmt.Errorf("failed to create X509Certificate: %w", err)
 			}
-
-			if _, err := parent.Update().AddX509Certificates(created...).Save(ctx); err != nil {
-				return fmt.Errorf("failed to save object: %w", err)
+			list := make([]*ent.X509Certificate, len(calls))
+			for i, call := range calls {
+				call.SetUserID(parent.ID)
+				created, err := call.Save(ctx)
+				if err != nil {
+					return fmt.Errorf("failed to create X509Certificate: %w", err)
+				}
+				list[i] = created
 			}
 		} else {
 			var pb X509CertificatePredicateBuilder
@@ -2625,7 +2562,7 @@ func (b *Backend) patchRemoveUser(parent *ent.User, op *resource.PatchOperation)
 				}
 			}
 
-			ids := make([]int, len(list))
+			ids := make([]uuid.UUID, len(list))
 			for i, elem := range list {
 				ids[i] = elem.ID
 			}
@@ -2690,7 +2627,7 @@ func (b *Backend) patchRemoveUser(parent *ent.User, op *resource.PatchOperation)
 				}
 			}
 
-			ids := make([]int, len(list))
+			ids := make([]uuid.UUID, len(list))
 			for i, elem := range list {
 				ids[i] = elem.ID
 			}
@@ -2743,7 +2680,7 @@ func (b *Backend) patchRemoveUser(parent *ent.User, op *resource.PatchOperation)
 				}
 			}
 
-			ids := make([]int, len(list))
+			ids := make([]uuid.UUID, len(list))
 			for i, elem := range list {
 				ids[i] = elem.ID
 			}
@@ -2764,56 +2701,7 @@ func (b *Backend) patchRemoveUser(parent *ent.User, op *resource.PatchOperation)
 			return fmt.Errorf("failed to save object: %w", err)
 		}
 	case resource.UserGroupsKey:
-		subExpr := expr.SubExpr()
-		if subExpr == nil {
-			if subAttrExpr := expr.SubAttr(); subAttrExpr != nil {
-				return fmt.Errorf("patch remove operation on su attribute of multi-valued item groups without a query is not possible")
-			}
-			if _, err := b.db.GroupMember.Delete().Where(groupmember.HasUserWith(user.ID(parent.ID))).Exec(ctx); err != nil {
-				return fmt.Errorf("failed to remove elements from groups: %w", err)
-			}
-			if _, err := parent.Update().ClearGroups().Save(ctx); err != nil {
-				return fmt.Errorf("failed to remove references to groups: %w", err)
-			}
-		} else {
-			var pb GroupMemberPredicateBuilder
-			predicates, err := pb.Build(subExpr)
-			if err != nil {
-				return fmt.Errorf("failed to parse valuePath expression: %w", err)
-			}
-
-			list, err := parent.QueryGroups().
-				Where(predicates...).
-				All(ctx)
-			if err != nil {
-				return fmt.Errorf("failed to query context object: %w", err)
-			}
-
-			if subAttrExpr := expr.SubAttr(); subAttrExpr != nil {
-				subAttr, err := exprStr(subAttrExpr)
-				if err != nil {
-					return fmt.Errorf("invalid sub attribute specified")
-				}
-				switch subAttr {
-				case resource.GroupMemberRefKey:
-					return fmt.Errorf("$ref is not mutable")
-				case resource.GroupMemberTypeKey:
-					return fmt.Errorf("type is not mutable")
-				case resource.GroupMemberValueKey:
-					return fmt.Errorf("value is not mutable")
-				default:
-					return fmt.Errorf("unknown sub attribute specified")
-				}
-			}
-
-			ids := make([]int, len(list))
-			for i, elem := range list {
-				ids[i] = elem.ID
-			}
-			if _, err := b.db.GroupMember.Delete().Where(groupmember.IDIn(ids...)).Exec(ctx); err != nil {
-				return fmt.Errorf("failed to delete object: %w", err)
-			}
-		}
+		return fmt.Errorf("cannot delete group memberships through User resource")
 	case resource.UserIMSKey:
 		subExpr := expr.SubExpr()
 		if subExpr == nil {
@@ -2859,7 +2747,7 @@ func (b *Backend) patchRemoveUser(parent *ent.User, op *resource.PatchOperation)
 				}
 			}
 
-			ids := make([]int, len(list))
+			ids := make([]uuid.UUID, len(list))
 			for i, elem := range list {
 				ids[i] = elem.ID
 			}
@@ -2949,7 +2837,7 @@ func (b *Backend) patchRemoveUser(parent *ent.User, op *resource.PatchOperation)
 				}
 			}
 
-			ids := make([]int, len(list))
+			ids := make([]uuid.UUID, len(list))
 			for i, elem := range list {
 				ids[i] = elem.ID
 			}
@@ -3002,7 +2890,7 @@ func (b *Backend) patchRemoveUser(parent *ent.User, op *resource.PatchOperation)
 				}
 			}
 
-			ids := make([]int, len(list))
+			ids := make([]uuid.UUID, len(list))
 			for i, elem := range list {
 				ids[i] = elem.ID
 			}
@@ -3079,7 +2967,7 @@ func (b *Backend) patchRemoveUser(parent *ent.User, op *resource.PatchOperation)
 				}
 			}
 
-			ids := make([]int, len(list))
+			ids := make([]uuid.UUID, len(list))
 			for i, elem := range list {
 				ids[i] = elem.ID
 			}
@@ -3168,7 +3056,7 @@ func (b *Backend) patchRemoveUser(parent *ent.User, op *resource.PatchOperation)
 				}
 			}
 
-			ids := make([]int, len(list))
+			ids := make([]uuid.UUID, len(list))
 			for i, elem := range list {
 				ids[i] = elem.ID
 			}

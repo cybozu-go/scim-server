@@ -6,21 +6,20 @@ import (
 	"entgo.io/ent/schema/field"
 )
 
-type GroupMember struct {
+type Member struct {
 	ent.Schema
 }
 
-func (GroupMember) Fields() []ent.Field {
+func (Member) Fields() []ent.Field {
 	return []ent.Field{
-		field.String("value"),
-		field.String(`type`).Optional(),
+		field.String(`value`),
+		field.String(`type`),
 		field.String(`ref`).Optional(),
 	}
 }
 
-func (GroupMember) Edges() []ent.Edge {
+func (Member) Edges() []ent.Edge {
 	return []ent.Edge{
-		edge.From(`user`, User.Type).Ref(`groups`).Unique(),
 		edge.From(`group`, Group.Type).Ref(`members`).Unique(),
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,11 +18,12 @@ import (
 )
 
 var objectMap map[string]*codegen.Object
+var groupEdges = []string{
+	`Members`,
+}
 var userEdges = []string{
-	`Name`,
 	`Emails`,
 	`Roles`,
-	`Groups`,
 	`PhoneNumbers`,
 	`Entitlements`,
 	`IMS`,
@@ -30,12 +32,17 @@ var userEdges = []string{
 	`X509Certificates`,
 }
 
+var groupEdgeMap map[string]struct{}
 var userEdgeMap map[string]struct{}
 
 func main() {
 	userEdgeMap = make(map[string]struct{})
 	for _, e := range userEdges {
 		userEdgeMap[e] = struct{}{}
+	}
+	groupEdgeMap = make(map[string]struct{})
+	for _, e := range groupEdges {
+		groupEdgeMap[e] = struct{}{}
 	}
 
 	objectMap = make(map[string]*codegen.Object)
@@ -45,6 +52,11 @@ func main() {
 	}
 }
 
+func isGroupEdge(field codegen.Field) bool {
+	_, ok := groupEdgeMap[field.Name(true)]
+	return ok
+}
+
 func isUserEdge(field codegen.Field) bool {
 	_, ok := userEdgeMap[field.Name(true)]
 	return ok
@@ -52,6 +64,8 @@ func isUserEdge(field codegen.Field) bool {
 
 func isEdge(object *codegen.Object, field codegen.Field) bool {
 	switch object.Name(true) {
+	case `Group`:
+		return isGroupEdge(field)
 	case `User`:
 		return isUserEdge(field)
 	}
@@ -60,6 +74,23 @@ func isEdge(object *codegen.Object, field codegen.Field) bool {
 
 func isMutable(object *codegen.Object, field codegen.Field) bool {
 	return false
+}
+
+func entName(field codegen.Field, exported bool) string {
+	n := field.Name(false)
+	if v := field.String(`ent_name`); v != "" {
+		n = v
+	}
+
+	if exported {
+		n = xstrings.Camel(n)
+
+		// cheat
+		if strings.HasSuffix(n, `Id`) {
+			n = strings.TrimSuffix(n, `Id`) + `ID`
+		}
+	}
+	return n
 }
 
 func addMethod(field codegen.Field) string {
@@ -82,9 +113,23 @@ func edgeName(field codegen.Field) string {
 	return n
 }
 
-func resourceName(field codegen.Field) string {
-	typ := strings.TrimPrefix(strings.TrimPrefix(field.Type(), `[]`), `*`)
+func resourceName(src interface{}) string {
+	typ := scimResourceName(src)
+	if typ == `GroupMember` {
+		typ = `Member`
+	}
 	return typ
+}
+
+func scimResourceName(src interface{}) string {
+	switch src := src.(type) {
+	case *codegen.Object:
+		return src.Name(true)
+	case codegen.Field:
+		return strings.TrimPrefix(strings.TrimPrefix(src.Type(), `[]`), `*`)
+	default:
+		panic(fmt.Sprintf(`invalid object %T`, src))
+	}
 }
 
 func yaml2json(fn string) ([]byte, error) {
@@ -197,7 +242,6 @@ func generateCommon(objects []*codegen.Object) error {
 	o.L(`"github.com/cybozu-go/scim-server/ent/entitlement"`)
 	o.L(`"github.com/cybozu-go/scim-server/ent/email"`)
 	o.L(`"github.com/cybozu-go/scim-server/ent/ims"`)
-	o.L(`"github.com/cybozu-go/scim-server/ent/groupmember"`)
 	o.L(`"github.com/cybozu-go/scim-server/ent/phonenumber"`)
 	o.L(`"github.com/cybozu-go/scim-server/ent/photo"`)
 	o.L(`"github.com/cybozu-go/scim-server/ent/address"`)
@@ -205,44 +249,6 @@ func generateCommon(objects []*codegen.Object) error {
 	o.L(`"github.com/cybozu-go/scim-server/ent/group"`)
 	o.L(`"github.com/cybozu-go/scim-server/ent/x509certificate"`)
 	o.L(`)`)
-
-	/*
-		o.LL(`func (m *multiValueMutator) Remove() (bool, error) {`)
-		o.L(`ctx := context.TODO()`)
-		o.L(`switch e := m.target.(type) {`)
-		for _, object := range objects {
-			switch object.Name(true) {
-			case `User`, `Group`:
-			default:
-				continue
-			}
-			o.L(`case *ent.%s:`, object.Name(true))
-			o.L(`switch m.field {`)
-			for _, field := range object.Fields() {
-				if field.IsRequired() {
-					continue
-				}
-				if !strings.HasPrefix(field.Type(), `[]`) {
-					continue
-				}
-				switch field.Name(true) {
-				case "Schemas":
-					continue
-				}
-
-				o.L(`case resource.User%sKey:`, field.Name(true))
-				o.L(`if _, err := e.Update().Clear%s().Save(ctx); err != nil {`, field.Name(true))
-				o.L(`return false, fmt.Errorf("failed to clear value for \"%s\": %%w", err)`, field.JSON())
-				o.L(`}`)
-				o.L(`return false, nil`)
-			}
-			o.L(`default:`)
-			o.L(`return false, fmt.Errorf("unhandled field: %%s", m.field)`)
-			o.L(`}`)
-		}
-		o.L(`}`)
-		o.L(`}`)
-	*/
 
 	o.LL(`func (m *singleValueMutator) Remove() (bool, error) {`)
 	o.L(`ctx := context.TODO()`)
@@ -397,12 +403,20 @@ func generateCommon(objects []*codegen.Object) error {
 				o.L(`return nil // already exists`)
 				o.L(`}`)
 
-				o.L(`created, err := m.backend.%s(&in)`, createSubfieldMethod)
+				o.L(`calls, err := m.backend.%s(&in)`, createSubfieldMethod)
 				o.L(`if err != nil {`)
 				o.L(`return fmt.Errorf("failed to create new element: %%w", err)`)
 				o.L(`}`)
 				addMethod := addMethod(field)
-				o.L(`if _, err := e.Update().%s(created...).Save(ctx); err != nil {`, addMethod)
+				o.L(`list := make([]*ent.%s, len(calls))`, resourceName(field))
+				o.L(`for i, call := range calls {`)
+				o.L(`created, err := call.Save(ctx)`)
+				o.L(`if err != nil {`)
+				o.L(`return fmt.Errorf("failed to create new element: %%w", err)`)
+				o.L(`}`)
+				o.L(`list[i] = created`)
+				o.L(`}`)
+				o.L(`if _, err := e.Update().%s(list...).Save(ctx); err != nil {`, addMethod)
 				o.L(`return fmt.Errorf("failed to save value: %%w", err)`)
 				o.L(`}`)
 			} else if field.Name(true) == `Members` {
@@ -488,13 +502,14 @@ func generateEnt(object *codegen.Object) error {
 	// for the time being, only generate for hardcoded objects.
 	// later, move this definition to objects.yml
 	switch object.Name(true) {
-	case `User`, `Group`, `GroupMember`, `Email`, `Names`, `Role`, `Photo`, `IMS`, `PhoneNumber`, `Address`, `Entitlement`, `X509Certificate`:
+	case `User`, `Group`, `Email`, `Names`, `Role`, `Photo`, `IMS`, `PhoneNumber`, `Address`, `Entitlement`, `X509Certificate`, `GroupMember`:
 	default:
 		return nil
 	}
 
 	fmt.Printf("  ⌛ Generating ent adapters for %s...\n", object.Name(true))
 
+	// TODO: check if this is legit
 	if object.Name(true) != `GroupMember` {
 		if err := generateSchema(object); err != nil {
 			return fmt.Errorf(`failed to generate schema: %w`, err)
@@ -525,6 +540,9 @@ func singularName(s string) string {
 }
 
 func relationFilename(s string) string {
+	if s == "groupMember" || s == "member" {
+		return "member"
+	}
 	s = xstrings.Snake(s)
 	s = strings.Replace(s, `im_s`, `ims`, 1)
 	s = strings.Replace(s, `x_509`, `x509`, 1)
@@ -538,8 +556,8 @@ func packageName(s string) string {
 	if strings.Contains(s, "509") {
 		return strings.ToLower(s)
 	}
-	if s == "members" || s == "member" {
-		return "groupmember"
+	if s == "groupMember" || s == "member" {
+		return "member"
 	}
 	return strings.ToLower(s)
 }
@@ -550,32 +568,49 @@ func generateSchema(object *codegen.Object) error {
 
 	o.L(`package schema`)
 
+	pkgs := []string{
+		"entgo.io/ent/schema/edge",
+		"entgo.io/ent/schema/field",
+	}
+	o.L(`import (`)
+	for _, pkg := range pkgs {
+		o.L(`%q`, pkg)
+	}
+	o.L(`)`)
+
 	o.LL(`type %s struct {`, object.Name(true))
 	o.L(`ent.Schema`)
 	o.L(`}`)
 
 	o.LL(`func (%s) Fields() []ent.Field {`, object.Name(true))
 	o.L(`return []ent.Field{`)
+	o.L(`field.UUID("id", uuid.UUID{}).Default(uuid.New),`)
+
 	for _, field := range object.Fields() {
-		if field.Name(false) == "schemas" {
+		switch field.Name(true) {
+		case "Schemas", `Meta`:
 			continue
 		}
 
 		ft := field.Type()
-		if strings.HasPrefix(ft, `[]`) || strings.HasPrefix(ft, `*`) {
+		if strings.HasPrefix(ft, `[]`) {
 			continue
 		}
 
-		var entMethod = xstrings.Camel(ft)
+		var entType = field.String(`ent_type`)
+		var entMethod string
+		if strings.HasPrefix(ft, `*`) {
+			entMethod = `UUID`
+			entType = `uuid.UUID{}`
+		} else {
+			entMethod = xstrings.Camel(ft)
+		}
+
 		if v := field.String(`ent_build_method`); v != "" {
 			entMethod = v
 		}
 
-		var entName = field.Name(false)
-		if v := field.String(`ent_name`); v != "" {
-			entName = v
-		}
-		var entType = field.String(`ent_type`)
+		var entName = entName(field, false)
 		var entDefault = field.String(`ent_default`)
 
 		if entType != "" {
@@ -622,110 +657,99 @@ func generateSchema(object *codegen.Object) error {
 	return nil
 }
 
-func generateUtilities(object *codegen.Object) error {
-	var buf bytes.Buffer
-	o := codegen.NewOutput(&buf)
+func generateLoadEntFields(dst io.Writer, object *codegen.Object) error {
+	o := codegen.NewOutput(dst)
 
-	o.L(`package server`)
+	o.LL(`func %sLoadEntFields(q *ent.%sQuery, scimFields, excludedFields []string) {`, object.Name(false), object.Name(true))
+	o.L(`fields := make(map[string]struct{})`)
+	o.L(`if len(scimFields) == 0 {`)
+	o.L(`scimFields = []string {`)
 
-	o.LL(`import (`)
-	o.L(`"github.com/cybozu-go/scim/resource"`)
-	o.L(`"github.com/cybozu-go/scim-server/ent"`)
-	o.L(`"github.com/cybozu-go/scim-server/ent/predicate"`)
-	o.L(`"github.com/cybozu-go/scim-server/ent/%s"`, packageName(object.Name(false)))
-	for _, pkg := range []string{"address", "email", "entitlement", "group", "ims", "phonenumber", "photo", "role", "groupmember", "x509certificate"} {
-		o.L(`"github.com/cybozu-go/scim-server/ent/%s"`, pkg)
-	}
-	o.L(`)`)
-
-	if object.String(`schema`) != "" {
-		o.LL(`func %sLoadEntFields(q *ent.%sQuery, scimFields, excludedFields []string) {`, object.Name(false), object.Name(true))
-		o.L(`fields := make(map[string]struct{})`)
-		o.L(`if len(scimFields) == 0 {`)
-		o.L(`scimFields = []string {`)
-
-		for i, field := range object.Fields() {
+	for i, field := range object.Fields() {
+		switch field.Name(false) {
+		case "schemas", "meta": // These are handled separately
+			continue
+		}
+		if field.Bool(`skipCommonFields`) {
 			switch field.Name(false) {
-			case "schemas", "meta": // These are handled separately
+			case "id", "externalID": // these are only required when they are imported
 				continue
 			}
-			if field.Bool(`skipCommonFields`) {
-				switch field.Name(false) {
-				case "id", "externalID": // these are only required when they are imported
-					continue
-				}
-			}
-
-			// Theoretically, there cold be any number of fields that
-			// have the "returned" field set to `never` or `request`, but
-			// in practice only password is set to never, and
-			// there are no fields set to request (TODO: check again)
-			if i > 0 {
-				o.R(`,`)
-			}
-			o.R(`resource.%s%sKey`, object.Name(true), field.Name(true))
 		}
-		o.R(`}`)
-		o.L(`}`)
-		o.LL(`for _, name := range scimFields {`)
-		// Theoretically we need to prevent the user from deleting
-		// fields set to "always", but only "id" has this in practice
-		o.L(`fields[name] = struct{}{}`)
-		o.L(`}`)
 
-		o.LL(`for _, name := range excludedFields {`)
-		o.L(`delete(fields, name)`)
-		o.L(`}`)
-
-		o.L(`selectNames := make([]string, 0, len(fields))`)
-		o.L(`for f := range fields {`)
-		o.L(`switch f {`)
-		for _, field := range object.Fields() {
-			if field.Name(false) == "schemas" {
-				continue
-			}
-			if field.Bool(`skipCommonFields`) {
-				switch field.Name(false) {
-				case "id", "externalID", "meta":
-					continue
-				}
-			}
-
-			o.L(`case resource.%s%sKey:`, object.Name(true), field.Name(true))
-			if isEdge(object, field) {
-				o.L(`q.With%s()`, edgeName(field))
-				continue
-			}
-
-			switch field.Name(true) {
-			case `Meta`, `Members`:
-			default:
-				// Otherwise, accumulate in the list of names
-				o.L(`selectNames = append(selectNames, %s.Field%s)`, object.Name(false), field.Name(true))
-			}
+		// Theoretically, there cold be any number of fields that
+		// have the "returned" field set to `never` or `request`, but
+		// in practice only password is set to never, and
+		// there are no fields set to request (TODO: check again)
+		if i > 0 {
+			o.R(`,`)
 		}
-		o.L(`}`)
-		o.L(`}`)
-		// there are some fields that MUST exist
-		switch object.Name(true) {
-		case `User`, `Group`:
-			o.L(`selectNames = append(selectNames, %s.FieldEtag)`, object.Name(false))
-		}
-		o.L(`q.Select(selectNames...)`)
-		o.L(`}`)
+		o.R(`resource.%s%sKey`, object.Name(true), field.Name(true))
 	}
+	o.R(`}`)
+	o.L(`}`)
+	o.LL(`for _, name := range scimFields {`)
+	// Theoretically we need to prevent the user from deleting
+	// fields set to "always", but only "id" has this in practice
+	o.L(`fields[name] = struct{}{}`)
+	o.L(`}`)
 
-	// TODO: prefix is hard coded, need to fix
-	if !object.Bool(`skipCommonFields`) {
-		o.LL(`func %sLocation(id string) string {`, object.Name(false))
-		o.L(`return %q+id` /* TODO: FIXME */, fmt.Sprintf(`https://foobar.com/scim/v2/%ss/`, object.Name(true)))
-		o.L(`}`)
+	o.LL(`for _, name := range excludedFields {`)
+	o.L(`delete(fields, name)`)
+	o.L(`}`)
+
+	o.L(`selectNames := make([]string, 0, len(fields))`)
+	o.L(`for f := range fields {`)
+	o.L(`switch f {`)
+	for _, field := range object.Fields() {
+		if object.Name(true) == `User` && field.Name(true) == `Groups` {
+			continue
+		}
+		if field.Name(false) == "schemas" {
+			continue
+		}
+		if field.Bool(`skipCommonFields`) {
+			switch field.Name(false) {
+			case "id", "externalID", "meta":
+				continue
+			}
+		}
+
+		o.L(`case resource.%s%sKey:`, object.Name(true), field.Name(true))
+		if isEdge(object, field) || (object.Name(true) == `User` && field.Name(true) == `Name`) {
+			o.L(`q.With%s()`, edgeName(field))
+			continue
+		}
+
+		switch field.Name(true) {
+		case `Meta`, `Members`:
+		default:
+			// Otherwise, accumulate in the list of names
+			o.L(`selectNames = append(selectNames, %s.Field%s)`, object.Name(false), entName(field, true))
+		}
 	}
+	o.L(`}`)
+	o.L(`}`)
+	// there are some fields that MUST exist
+	switch object.Name(true) {
+	case `User`, `Group`:
+		o.L(`selectNames = append(selectNames, %s.FieldEtag)`, object.Name(false))
+	}
+	o.L(`q.Select(selectNames...)`)
+	o.L(`}`)
+	return nil
+}
 
-	o.LL(`func %[1]sResourceFromEnt(in *ent.%[1]s) (*resource.%[1]s, error) {`, object.Name(true))
+func generateResourceFromEnt(dst io.Writer, object *codegen.Object) error {
+	o := codegen.NewOutput(dst)
+
+	scimRsname := scimResourceName(object)
+	entRsname := resourceName(object)
+
+	o.LL(`func %[1]sResourceFromEnt(in *ent.%[2]s) (*resource.%[1]s, error) {`, scimRsname, entRsname)
 	o.L(`var b resource.Builder`)
 
-	o.LL(`builder := b.%s()`, object.Name(true))
+	o.LL(`builder := b.%s()`, scimRsname)
 
 	if !object.Bool(`skipCommonFields`) {
 		o.LL(`meta, err := b.Meta().`)
@@ -752,17 +776,12 @@ func generateUtilities(object *codegen.Object) error {
 		// I think it's better if we give people an escape hatch, so we're
 		// going to inject a call to a helper of your choice at the end.
 		edgeName := edgeName(field)
-		rsname := singularName(field.Name(true))
-		if rsname == "Meta" {
-			continue
-		}
-		if rsname == "Member" {
-			rsname = `GroupMember`
-		}
+		scimRsname := scimResourceName(field)
+		entRsname := resourceName(field)
 
-		switch rsname {
-		case "Name":
-			rsname = "Names"
+		switch scimRsname {
+		case `Names`:
+			entRsname = `Names`
 			o.LL(`if el := in.Edges.Name; el != nil {`)
 			o.L(`r, err := NamesResourceFromEnt(el)`)
 			o.L(`if err != nil {`)
@@ -770,22 +789,46 @@ func generateUtilities(object *codegen.Object) error {
 			o.L(`}`)
 			o.L(`builder.%s(r)`, field.Name(true))
 			o.L(`}`)
-		case "Group":
+		case "Group", `Meta`:
 			// no op. done in helper
 		default:
-			o.LL(`if el := len(in.Edges.%s); el > 0 {`, edgeName)
-			o.L(`list := make([]*resource.%s, 0, el)`, rsname)
-			o.L(`for _, ine := range in.Edges.%s {`, edgeName)
-			o.L(`r, err := %sResourceFromEnt(ine)`, rsname)
-			o.L(`if err != nil {`)
-			o.L(`return nil, fmt.Errorf("failed to build %s information for %s")`, field.Name(false), object.Name(true))
-			o.L(`}`)
-			o.L(`list = append(list, r)`)
-			o.L(`}`)
+			if isEdge(object, field) {
+				o.LL(`if el := len(in.Edges.%s); el > 0 {`, edgeName)
+				o.L(`list := make([]*resource.%s, 0, el)`, scimRsname)
+				o.L(`for _, ine := range in.Edges.%s {`, edgeName)
+				o.L(`r, err := %sResourceFromEnt(ine)`, entRsname)
+				o.L(`if err != nil {`)
+				o.L(`return nil, fmt.Errorf("failed to build %s information for %s")`, field.Name(false), object.Name(true))
+				o.L(`}`)
+				o.L(`list = append(list, r)`)
+				o.L(`}`)
 
-			o.L(`builder.%s(list...)`, field.Name(true))
-			o.L(`}`)
+				o.L(`builder.%s(list...)`, field.Name(true))
+				o.L(`}`)
+			}
 		}
+	}
+
+	if object.Name(true) == `User` {
+		// User has a special case... namely in.Groups, which is not technicaly
+		// and edge, bt something that is dynamically computed outside of the
+		// scope of entgo
+		o.LL(`if gl := len(in.Groups); gl > 0 {`)
+		o.L(`memberships := make([]*resource.GroupMember, gl)`)
+		o.L(`for i, m := range in.Groups {`)
+		o.L(`var gmb resource.GroupMemberBuilder`)
+		o.L(`gm, err := gmb.Value(m.Value).`)
+		// o.L(`Set("display", m.Display).`) // TODO
+		o.L(`Ref(m.Ref).`)
+		o.L(`Type(m.Type).`) // direct or indirect
+		o.L(`Build()`)
+		o.L(`if err != nil {`)
+		o.L(`return nil, fmt.Errorf("failed to compute \"groups\" field: %%w", err)`)
+		o.L(`}`) // end of if err != nil
+		o.L(`memberships[i] = gm`)
+		o.L(`}`) // end for
+		o.L(`builder.Groups(memberships...)`)
+		o.L(`}`) // end of if gl := len...
 	}
 
 	for _, field := range object.Fields() {
@@ -810,6 +853,11 @@ func generateUtilities(object *codegen.Object) error {
 	}
 	o.L(`return builder.Build()`)
 	o.L(`}`)
+	return nil
+}
+
+func generateEntFieldFromSCIM(dst io.Writer, object *codegen.Object) error {
+	o := codegen.NewOutput(dst)
 
 	o.LL(`func %sEntFieldFromSCIM(s string) string {`, object.Name(true))
 	o.L(`switch s {`)
@@ -823,226 +871,236 @@ func generateUtilities(object *codegen.Object) error {
 		default:
 		}
 		o.L(`case resource.%s%sKey:`, object.Name(true), field.Name(true))
-		o.L(`return %s.Field%s`, packageName(object.Name(false)), field.Name(true))
+		o.L(`return %s.Field%s`, packageName(object.Name(false)), entName(field, true))
 	}
 	o.L(`default:`)
 	o.L(`return s`)
 	o.L(`}`)
 	o.L(`}`)
+	return nil
+}
 
-	switch object.Name(true) {
-	case `User`, `Group`:
-		for _, pred := range []struct {
-			Name   string
-			Method string
-		}{
-			{Name: `StartsWith`, Method: `HasPrefix`},
-			{Name: `EndsWith`, Method: `HasSuffix`},
-			{Name: `Contains`, Method: `Contains`},
-			{Name: `Equals`, Method: `EQ`},
-		} {
-			o.LL(`func %[1]s%[2]sPredicate(q *ent.%[3]sQuery, scimField string, val interface{}) (predicate.%[3]s, error) {`, object.Name(false), pred.Name, object.Name(true))
-			o.L(`_ = q`) // in case the predicate doesn't actually need to use the query object
-			// The scim field may either be a flat (simple) field or a nested field.
-			o.L(`field, subfield, err := splitScimField(scimField)`)
-			o.L(`if err != nil {`)
-			o.L(`return nil, err`)
-			o.L(`}`)
-			o.L(`_ = subfield // TODO: remove later`)
+func generatePredicate(dst io.Writer, object *codegen.Object, scimMethod, entMethod string) error {
+	o := codegen.NewOutput(dst)
+	o.LL(`func %[1]s%[2]sPredicate(q *ent.%[3]sQuery, scimField string, val interface{}) (predicate.%[3]s, error) {`, object.Name(false), scimMethod, object.Name(true))
+	o.L(`_ = q`) // in case the predicate doesn't actually need to use the query object
+	// The scim field may either be a flat (simple) field or a nested field.
+	o.L(`field, subfield, err := splitScimField(scimField)`)
+	o.L(`if err != nil {`)
+	o.L(`return nil, err`)
+	o.L(`}`)
+	o.L(`_ = subfield // TODO: remove later`)
 
-			o.L(`switch field {`)
-			for _, field := range object.Fields() {
-				switch field.Name(false) {
-				case `schemas`:
-					continue
+	o.L(`switch field {`)
+	for _, field := range object.Fields() {
+		switch field.Name(false) {
+		case `schemas`:
+			continue
+		default:
+		}
+
+		switch field.Type() {
+		// predicates against a list actually means "... if any of the values match"
+		// so things like `roles.value eq "foo"` means `if any of the role.value is equal to "foo"`
+		case "[]*Role", "[]*Email", "[]*PhoneNumber":
+			o.L(`case resource.%s%sKey:`, object.Name(true), field.Name(true))
+			// It's going to be a relation, so add a query that goes into the separate entity
+			o.L(`switch subfield {`)
+
+			// TODO don't hardcode
+			// We know at this point that this type is something like []*Foo, so extract the Foo
+			// and get the object definition
+			subObjectName := strings.TrimPrefix(field.Type(), `[]*`)
+			subObject, ok := objectMap[subObjectName]
+			if !ok {
+				return fmt.Errorf(`could not find object %q`, subObjectName)
+			}
+			for _, subField := range subObject.Fields() {
+				switch entMethod {
+				case `EQ`:
+					// anything goes
 				default:
+					// only strings allowed
+					if subField.Type() != `string` {
+						continue
+					}
 				}
 
-				switch field.Type() {
-				// predicates against a list actually means "... if any of the values match"
-				// so things like `roles.value eq "foo"` means `if any of the role.value is equal to "foo"`
-				case "[]*Role", "[]*Email", "[]*PhoneNumber":
-					o.L(`case resource.%s%sKey:`, object.Name(true), field.Name(true))
-					// It's going to be a relation, so add a query that goes into the separate entity
-					o.L(`switch subfield {`)
-
-					// TODO don't hardcode
-					// We know at this point that this type is something like []*Foo, so extract the Foo
-					// and get the object definition
-					subObjectName := strings.TrimPrefix(field.Type(), `[]*`)
-					subObject, ok := objectMap[subObjectName]
-					if !ok {
-						return fmt.Errorf(`could not find object %q`, subObjectName)
-					}
-					for _, subField := range subObject.Fields() {
-						switch pred.Method {
-						case `EQ`:
-							// anything goes
-						default:
-							// only strings allowed
-							if subField.Type() != `string` {
-								continue
-							}
-						}
-
-						o.L(`case resource.%s%sKey:`, subObjectName, subField.Name(true))
-						o.L(`//nolint:forcetypeassert`)
-						o.L(`return %s.Has%sWith(%s.%s%s(val.(%s))), nil`, object.Name(false), field.Name(true), strings.ToLower(singularName(field.Name(false))), subField.Name(true), pred.Method, subField.Type())
-					}
-					o.L(`default:`)
-					o.L(`return nil, fmt.Errorf("invalid filter specification: invalid subfield for %%q", field)`)
-					o.L(`}`)
-				case "string":
-					o.L(`case resource.%s%sKey:`, object.Name(true), field.Name(true))
-					// We can't just use ${Field}HasPrefix here, because we're going to
-					// receive the field name as a parameter
-					o.L(`entFieldName := %sEntFieldFromSCIM(scimField)`, object.Name(true))
-					o.L(`return predicate.%[1]s(func(s *sql.Selector) {`, object.Name(true))
-					o.L(`//nolint:forcetypeassert`)
-					o.L(`s.Where(sql.%s(s.C(entFieldName), val.(%s)))`, pred.Method, field.Type())
-					o.L(`}), nil`)
-				}
+				o.L(`case resource.%s%sKey:`, subObjectName, subField.Name(true))
+				o.L(`//nolint:forcetypeassert`)
+				o.L(`return %s.Has%sWith(%s.%s%s(val.(%s))), nil`, object.Name(false), field.Name(true), strings.ToLower(singularName(field.Name(false))), subField.Name(true), entMethod, subField.Type())
 			}
 			o.L(`default:`)
-			o.L(`return nil, fmt.Errorf("invalid filter field specification")`)
+			o.L(`return nil, fmt.Errorf("invalid filter specification: invalid subfield for %%q", field)`)
 			o.L(`}`)
-			o.L(`}`)
-		}
-
-		o.LL(`func %sPresencePredicate(scimField string) predicate.%s {`, object.Name(false), object.Name(true))
-		o.L(`switch scimField {`)
-		for _, field := range object.Fields() {
-			switch field.Name(false) {
-			case `schemas`:
-				continue
-			default:
-			}
-			if field.Type() != "string" {
-				continue
-			}
-			if field.IsRequired() {
-				continue
-			}
+		case "string":
 			o.L(`case resource.%s%sKey:`, object.Name(true), field.Name(true))
-			o.L(`return %[1]s.And(%[1]s.%[2]sNotNil(), %[1]s.%[2]sNEQ(""))`, packageName(object.Name(false)), field.Name(true))
+			// We can't just use ${Field}HasPrefix here, because we're going to
+			// receive the field name as a parameter
+			o.L(`entFieldName := %sEntFieldFromSCIM(scimField)`, object.Name(true))
+			o.L(`return predicate.%[1]s(func(s *sql.Selector) {`, object.Name(true))
+			o.L(`//nolint:forcetypeassert`)
+			o.L(`s.Where(sql.%s(s.C(entFieldName), val.(%s)))`, entMethod, field.Type())
+			o.L(`}), nil`)
 		}
-		o.L(`default:`)
-		o.L(`return nil`)
-		o.L(`}`)
-		o.L(`}`)
-	default:
-		// visits filter.Expr to build predicates for PATCH operations against GroupMembers
-		// is only intended to parse the query portion (e.g. `members[HERE]`)
-		o.LL(`type %sPredicateBuilder struct {`, object.Name(true))
-		o.L(`predicates []predicate.%s`, object.Name(true))
-		o.L(`}`)
-
-		o.LL(`func (b *%[1]sPredicateBuilder) Build(expr filter.Expr) ([]predicate.%[1]s, error) {`, object.Name(true))
-		o.L(`b.predicates = nil`)
-		o.L(`if err := b.visit(expr); err != nil {`)
-		o.L(`return nil, err`)
-		o.L(`}`)
-		o.L(`return b.predicates, nil`)
-		o.L(`}`)
-
-		o.LL(`func (b *%sPredicateBuilder) visit(expr filter.Expr) error {`, object.Name(true))
-		o.L(`switch expr := expr.(type) {`)
-		o.L(`case filter.CompareExpr:`)
-		o.L(`return b.visitCompareExpr(expr)`)
-		o.L(`case filter.LogExpr:`)
-		o.L(`return b.visitLogExpr(expr)`)
-		o.L(`default:`)
-		o.L(`return fmt.Errorf("unhandled expression type %%T", expr)`)
-		o.L(`}`)
-		o.L(`}`)
-
-		o.LL(`func (b *%sPredicateBuilder) visitLogExpr(expr filter.LogExpr) error {`, object.Name(true))
-		o.L(`if err := b.visit(expr.LHE()); err != nil {`)
-		o.L(`return fmt.Errorf("failed to parse left hand side of %%q statement: %%w", expr.Operator(), err)`)
-		o.L(`}`)
-		o.L(`if err := b.visit(expr.RHS()); err != nil {`)
-		o.L(`return fmt.Errorf("failed to parse right hand side of %%q statement: %%w", expr.Operator(), err)`)
-		o.L(`}`)
-		o.LL(`switch expr.Operator() {`)
-		o.L(`case "and":`)
-		o.L(`b.predicates = []predicate.%s{%s.And(b.predicates...)}`, object.Name(true), packageName(object.Name(false)))
-		o.L(`case "or":`)
-		o.L(`b.predicates = []predicate.%s{%s.Or(b.predicates...)}`, object.Name(true), packageName(object.Name(false)))
-		o.L(`default:`)
-		o.L(`return fmt.Errorf("unhandled logical operator %%q", expr.Operator())`)
-		o.L(`}`)
-		o.L(`return nil`)
-		o.L(`}`)
-
-		o.LL(`func (b *%sPredicateBuilder) visitCompareExpr(expr filter.CompareExpr) error {`, object.Name(true))
-		o.L(`lhe, err := exprAttr(expr.LHE())`)
-		o.L(`slhe, ok := lhe.(string)`)
-		o.L(`if err != nil || !ok {`)
-		o.L(`return fmt.Errorf("left hand side of CompareExpr is not valid")`)
-		o.L(`}`)
-		o.LL(`rhe, err := exprAttr(expr.RHE())`)
-		o.L(`if err != nil {`)
-		o.L(`return fmt.Errorf("right hand side of CompareExpr is not valid: %%w", err)`)
-		o.L(`}`)
-		o.LL(`// convert rhe to string so it can be passed to regexp.QuoteMeta`)
-		o.L(`srhe := fmt.Sprintf("%%v", rhe)`)
-		o.LL(`switch expr.Operator() {`)
-		o.L(`case filter.EqualOp:`)
-		o.L(`switch slhe {`)
-		for _, field := range object.Fields() {
-			switch field.Name(true) {
-			case `Schemas`, `Meta`:
-				continue
-			}
-
-			o.L(`case resource.%s%sKey:`, object.Name(true), field.Name(true))
-			var localVar string
-			if field.Type() == `bool` {
-				localVar = `v`
-				o.L(`v, err := strconv.ParseBool(srhe)`)
-				o.L(`if err != nil {`)
-				o.L(`return fmt.Errorf("failed to parse boolean expression")`)
-				o.L(`}`)
-			} else if field.Name(false) == `id` {
-				localVar = `v`
-				o.L(`v, err := uuid.Parse(srhe)`)
-				o.L(`if err != nil {`)
-				o.L(`return fmt.Errorf("failed to parse UUID")`)
-				o.L(`}`)
-			} else {
-				localVar = `srhe`
-			}
-
-			o.L(`b.predicates = append(b.predicates, %s.%s(%s))`, packageName(object.Name(false)), field.Name(true), localVar)
-		}
-		o.L(`default:`)
-		o.L(`return fmt.Errorf("invalid field name for %s: %%q", slhe)`, object.Name(true))
-		o.L(`}`)
-		o.L(`default:`)
-		o.L(`return fmt.Errorf("invalid operator: %%q", expr.Operator())`)
-		o.L(`}`)
-		o.L(`return nil`)
-		o.L(`}`)
 	}
+	o.L(`default:`)
+	o.L(`return nil, fmt.Errorf("invalid filter field specification")`)
+	o.L(`}`)
+	o.L(`}`)
+	return nil
+}
+
+func generatePresencePredicate(dst io.Writer, object *codegen.Object) error {
+	o := codegen.NewOutput(dst)
+
+	o.LL(`func %sPresencePredicate(scimField string) predicate.%s {`, object.Name(false), object.Name(true))
+	o.L(`switch scimField {`)
+	for _, field := range object.Fields() {
+		switch field.Name(false) {
+		case `schemas`:
+			continue
+		default:
+		}
+		if field.Type() != "string" {
+			continue
+		}
+		if field.IsRequired() {
+			continue
+		}
+		o.L(`case resource.%s%sKey:`, object.Name(true), field.Name(true))
+		o.L(`return %[1]s.And(%[1]s.%[2]sNotNil(), %[1]s.%[2]sNEQ(""))`, packageName(object.Name(false)), field.Name(true))
+	}
+	o.L(`default:`)
+	o.L(`return nil`)
+	o.L(`}`)
+	o.L(`}`)
+	return nil
+}
+
+func generatePredicateBuilder(dst io.Writer, object *codegen.Object) error {
+	o := codegen.NewOutput(dst)
+
+	scimRsname := scimResourceName(object)
+	entRsname := resourceName(object)
+
+	// visits filter.Expr to build predicates for PATCH operations against GroupMembers
+	// is only intended to parse the query portion (e.g. `members[HERE]`)
+	o.LL(`type %sPredicateBuilder struct {`, entRsname)
+	o.L(`predicates []predicate.%s`, entRsname)
+	o.L(`}`)
+
+	o.LL(`func (b *%[1]sPredicateBuilder) Build(expr filter.Expr) ([]predicate.%[1]s, error) {`, entRsname)
+	o.L(`b.predicates = nil`)
+	o.L(`if err := b.visit(expr); err != nil {`)
+	o.L(`return nil, err`)
+	o.L(`}`)
+	o.L(`return b.predicates, nil`)
+	o.L(`}`)
+
+	o.LL(`func (b *%sPredicateBuilder) visit(expr filter.Expr) error {`, entRsname)
+	o.L(`switch expr := expr.(type) {`)
+	o.L(`case filter.CompareExpr:`)
+	o.L(`return b.visitCompareExpr(expr)`)
+	o.L(`case filter.LogExpr:`)
+	o.L(`return b.visitLogExpr(expr)`)
+	o.L(`default:`)
+	o.L(`return fmt.Errorf("unhandled expression type %%T", expr)`)
+	o.L(`}`)
+	o.L(`}`)
+
+	o.LL(`func (b *%sPredicateBuilder) visitLogExpr(expr filter.LogExpr) error {`, entRsname)
+	o.L(`if err := b.visit(expr.LHE()); err != nil {`)
+	o.L(`return fmt.Errorf("failed to parse left hand side of %%q statement: %%w", expr.Operator(), err)`)
+	o.L(`}`)
+	o.L(`if err := b.visit(expr.RHS()); err != nil {`)
+	o.L(`return fmt.Errorf("failed to parse right hand side of %%q statement: %%w", expr.Operator(), err)`)
+	o.L(`}`)
+	o.LL(`switch expr.Operator() {`)
+	o.L(`case "and":`)
+	o.L(`b.predicates = []predicate.%s{%s.And(b.predicates...)}`, entRsname, packageName(entRsname))
+	o.L(`case "or":`)
+	o.L(`b.predicates = []predicate.%s{%s.Or(b.predicates...)}`, entRsname, packageName(entRsname))
+	o.L(`default:`)
+	o.L(`return fmt.Errorf("unhandled logical operator %%q", expr.Operator())`)
+	o.L(`}`)
+	o.L(`return nil`)
+	o.L(`}`)
+
+	o.LL(`func (b *%sPredicateBuilder) visitCompareExpr(expr filter.CompareExpr) error {`, entRsname)
+	o.L(`lhe, err := exprAttr(expr.LHE())`)
+	o.L(`slhe, ok := lhe.(string)`)
+	o.L(`if err != nil || !ok {`)
+	o.L(`return fmt.Errorf("left hand side of CompareExpr is not valid")`)
+	o.L(`}`)
+	o.LL(`rhe, err := exprAttr(expr.RHE())`)
+	o.L(`if err != nil {`)
+	o.L(`return fmt.Errorf("right hand side of CompareExpr is not valid: %%w", err)`)
+	o.L(`}`)
+	o.LL(`// convert rhe to string so it can be passed to regexp.QuoteMeta`)
+	o.L(`srhe := fmt.Sprintf("%%v", rhe)`)
+	o.LL(`switch expr.Operator() {`)
+	o.L(`case filter.EqualOp:`)
+	o.L(`switch slhe {`)
+	for _, field := range object.Fields() {
+		switch field.Name(true) {
+		case `Schemas`, `Meta`:
+			continue
+		}
+
+		o.L(`case resource.%s%sKey:`, scimRsname, field.Name(true))
+		var localVar string
+		if field.Type() == `bool` {
+			localVar = `v`
+			o.L(`v, err := strconv.ParseBool(srhe)`)
+			o.L(`if err != nil {`)
+			o.L(`return fmt.Errorf("failed to parse boolean expression")`)
+			o.L(`}`)
+		} else if field.Name(false) == `id` {
+			localVar = `v`
+			o.L(`v, err := uuid.Parse(srhe)`)
+			o.L(`if err != nil {`)
+			o.L(`return fmt.Errorf("failed to parse UUID")`)
+			o.L(`}`)
+		} else {
+			localVar = `srhe`
+		}
+
+		o.L(`b.predicates = append(b.predicates, %s.%s(%s))`, packageName(entRsname), field.Name(true), localVar)
+	}
+	o.L(`default:`)
+	o.L(`return fmt.Errorf("invalid field name for %s: %%q", slhe)`, object.Name(true))
+	o.L(`}`)
+	o.L(`default:`)
+	o.L(`return fmt.Errorf("invalid operator: %%q", expr.Operator())`)
+	o.L(`}`)
+	o.L(`return nil`)
+	o.L(`}`)
+	return nil
+}
+
+func generateExistsPredicate(dst io.Writer, object *codegen.Object) error {
+	o := codegen.NewOutput(dst)
 
 	for _, field := range object.Fields() {
 		if !strings.HasPrefix(field.Type(), `[]`) {
 			continue
 		}
+
+		scimRsname := scimResourceName(field)
 		rsname := resourceName(field)
 
-		if rsname == `GroupMember` {
-			// This is a special case, because it belongs in both User and Group
-			o.LL(`func (b *Backend) exists%[2]s%[1]s(parent *ent.%[2]s, in *resource.%[1]s) bool {`, rsname, object.Name(true))
-		} else {
-			o.LL(`func (b *Backend) exists%[1]s(parent *ent.%[2]s, in *resource.%[1]s) bool {`, rsname, object.Name(true))
+		if object.Name(true) == `User` && scimRsname == `GroupMember` {
+			continue
 		}
+
+		o.LL(`func (b *Backend) exists%[2]s%[1]s(parent *ent.%[2]s, in *resource.%[3]s) bool {`, rsname, object.Name(true), scimRsname)
 		o.L(`ctx := context.TODO()`)
 		o.L(`queryCall := parent.Query%s()`, field.Name(true))
 
-		subObject, ok := objectMap[rsname]
+		subObject, ok := objectMap[scimRsname]
 		if !ok {
-			return fmt.Errorf(`could not locate object %s`, rsname)
+			return fmt.Errorf(`could not locate object %q`, scimRsname)
 		}
 
 		o.L(`var predicates []predicate.%s`, rsname)
@@ -1058,24 +1116,101 @@ func generateUtilities(object *codegen.Object) error {
 		o.L(`return v`)
 		o.L(`}`)
 	}
+	return nil
+}
 
-	if object.Name(true) == `User` {
+func generateUtilities(object *codegen.Object) error {
+	var buf bytes.Buffer
+	o := codegen.NewOutput(&buf)
+
+	lcObject := object.Name(false)
+
+	o.L(`package server`)
+
+	pkgs := []string{
+		`github.com/cybozu-go/scim/resource`,
+		`github.com/cybozu-go/scim-server/ent`,
+	}
+	for _, pkg := range []string{`predicate`, packageName(lcObject), `address`, `email`, `entitlement`, `group`, `ims`, `member`, `phonenumber`, `photo`, `user`, `role`, `x509certificate`} {
+		pkgs = append(pkgs, fmt.Sprintf(`github.com/cybozu-go/scim-server/ent/%s`, pkg))
+	}
+	o.LL(`import (`)
+	for _, pkg := range pkgs {
+		o.L(`%q`, pkg)
+	}
+	o.L(`)`)
+
+	if object.String(`schema`) != "" {
+		if err := generateLoadEntFields(&buf, object); err != nil {
+			return fmt.Errorf(`failed to generate XXXLoadEntFields utility: %w`, err)
+		}
+	}
+
+	// TODO: prefix is hard coded, need to fix
+	if !object.Bool(`skipCommonFields`) {
+		o.LL(`func %sLocation(id string) string {`, object.Name(false))
+		o.L(`return %q+id` /* TODO: FIXME */, fmt.Sprintf(`https://foobar.com/scim/v2/%ss/`, object.Name(true)))
+		o.L(`}`)
+	}
+
+	if err := generateResourceFromEnt(&buf, object); err != nil {
+		return fmt.Errorf(`failed to generate XXXResourceFromEnt utility: %w`, err)
+	}
+
+	if err := generateEntFieldFromSCIM(&buf, object); err != nil {
+		return fmt.Errorf(`failed to generate XXXEntFieldFromSCIM utility: %w`, err)
+	}
+
+	switch object.Name(true) {
+	case `User`, `Group`:
+		for _, pred := range []struct {
+			Name   string
+			Method string
+		}{
+			{Name: `StartsWith`, Method: `HasPrefix`},
+			{Name: `EndsWith`, Method: `HasSuffix`},
+			{Name: `Contains`, Method: `Contains`},
+			{Name: `Equals`, Method: `EQ`},
+		} {
+			if err := generatePredicate(&buf, object, pred.Name, pred.Method); err != nil {
+				return fmt.Errorf(`failed to generate predicate for %s: %w`, pred.Name, err)
+			}
+		}
+
+		if err := generatePresencePredicate(&buf, object); err != nil {
+			return fmt.Errorf(`failed to generate predicate for presence: %w`, err)
+		}
+	default:
+		if err := generatePredicateBuilder(&buf, object); err != nil {
+			return fmt.Errorf(`failed to generate predicate builder: %w`, err)
+		}
+	}
+
+	if err := generateExistsPredicate(&buf, object); err != nil {
+		return fmt.Errorf(`failed to generate exists predicate: %w`, err)
+	}
+
+	if object.Name(true) == `User` || object.Name(true) == `Group` {
 		for _, field := range object.Fields() {
 			if !strings.HasPrefix(field.Type(), `[]`) {
 				continue
 			}
-			if field.Name(true) == `Addresses` {
+
+			// These are defined elsewhere
+			switch field.Name(true) {
+			// Groups cannot created/modified via User resource
+			case `Addresses`, `Groups`:
 				continue
 			}
+			scimRsname := scimResourceName(field)
 			rsname := resourceName(field)
 
-			o.LL(`func (b *Backend) create%[1]s(resources ...*resource.%[1]s) ([]*ent.%[1]s, error) {`, rsname)
-			o.L(`ctx := context.TODO()`)
-			o.L(`list := make([]*ent.%s, len(resources))`, rsname)
+			o.LL(`func (b *Backend) create%[1]s(resources ...*resource.%[2]s) ([]*ent.%[1]sCreate, error) {`, rsname, scimRsname)
+			o.L(`list := make([]*ent.%sCreate, len(resources))`, rsname)
 			o.L(`for i, in := range resources {`)
 			o.L(`createCall := b.db.%s.Create()`, rsname)
 			var fields []string
-			if rsname == `GroupMember` {
+			if rsname == `Member` {
 				fields = []string{`Value`, `Type`, `Ref`}
 			} else {
 				fields = []string{"Display", "Primary", "Type", "Value"}
@@ -1083,13 +1218,26 @@ func generateUtilities(object *codegen.Object) error {
 			for _, subf := range fields {
 				o.L(`if in.Has%s() {`, subf)
 				o.L(`createCall.Set%[1]s(in.%[1]s())`, subf)
+
+				if subf == `Type` && rsname == `Member` {
+					o.L(`} else {`)
+					o.L(`ctx := context.TODO()`)
+					o.LL(`parsedUUID, err := uuid.Parse(in.Value())`)
+					o.L(`if err != nil {`)
+					o.L(`return nil, fmt.Errorf("failed to parse ID in \"value\" field: %%w", err)`)
+					o.L(`}`)
+					o.L(`if ok, _ := b.db.User.Query().Where(user.ID(parsedUUID)).Exist(ctx); ok {`)
+					o.L(`createCall.SetType("User")`)
+					o.L(`} else if ok, _ := b.db.Group.Query().Where(group.ID(parsedUUID)).Exist(ctx); ok {`)
+					o.L(`createCall.SetType("Group")`)
+					o.L(`} else {`)
+					o.L(`return nil, fmt.Errorf("could not determine resource type (User/Group) from provided ID")`)
+					o.L(`}`)
+				}
 				o.L(`}`)
+
 			}
-			o.L(`created, err := createCall.Save(ctx)`)
-			o.L(`if err != nil {`)
-			o.L(`return nil, fmt.Errorf("failed to create %s: %%w", err)`, field.JSON())
-			o.L(`}`)
-			o.L(`list[i] = created`)
+			o.L(`list[i] = createCall`)
 			o.L(`}`)
 			o.L(`return list, nil`)
 			o.L(`}`)
@@ -1131,16 +1279,17 @@ func generateUtilities(object *codegen.Object) error {
 		}
 
 		for _, field := range optional {
-			if strings.HasPrefix(field.Type(), `[]`) {
-				o.L(`var %s []*ent.%s`, field.Name(false), resourceName(field))
+			if isEdge(object, field) {
+				o.L(`var %[1]sCreateCalls []*ent.%[2]sCreate`, singularName(field.Name(false)), resourceName(field))
 				o.L(`if in.Has%s() {`, field.Name(true))
-				o.L(`created, err := b.create%s(in.%s()...)`, resourceName(field), field.Name(true))
+				o.L(`calls, err := b.create%s(in.%s()...)`, resourceName(field), field.Name(true))
 				o.L(`if err != nil {`)
 				o.L(`return nil, fmt.Errorf("failed to create %s: %%w", err)`, field.JSON())
 				o.L(`}`)
-				o.L(`createCall.%s(created...)`, addMethod(field))
-				o.L(`%s = created`, field.Name(false))
+				o.L(`%sCreateCalls = calls`, singularName(field.Name(false)))
 				o.L(`}`)
+			} else if object.Name(true) == `User` && field.Name(true) == `Groups` {
+				continue
 			} else if field.Name(true) == `Name` {
 				o.L(`if in.Has%s() {`, field.Name(true))
 				o.L(`created, err := b.create%[1]s(in.%[1]s())`, field.Name(true))
@@ -1162,12 +1311,19 @@ func generateUtilities(object *codegen.Object) error {
 		o.L(`}`)
 
 		for _, field := range optional {
-			if !strings.HasPrefix(field.Type(), `[]`) {
+			if !strings.HasPrefix(field.Type(), `[]`) || field.Name(true) == `Groups` {
 				continue
 			}
-
-			o.L(`rs.Edges.%s = %s`, edgeName(field), field.Name(false))
+			o.LL(`for _, call := range %sCreateCalls {`, singularName(field.Name(false)))
+			o.L(`call.Set%sID(rs.ID)`, object.Name(true))
+			o.L(`created, err := call.Save(ctx)`)
+			o.L(`if err != nil {`)
+			o.L(`return nil, fmt.Errorf("failed to create %s: %%w", err)`, field.JSON())
+			o.L(`}`)
+			o.L(`rs.Edges.%[1]s = append(rs.Edges.%[1]s, created)`, edgeName(field))
+			o.L(`}`)
 		}
+
 		o.LL(`h := sha256.New()`)
 		o.L(`if err := rs.ComputeETag(h); err != nil {`)
 		o.L(`return nil, fmt.Errorf("failed to compute etag: %%w", err)`)
@@ -1198,14 +1354,21 @@ func generateUtilities(object *codegen.Object) error {
 			case `ID`, `Meta`, `Schemas`, `UserName`:
 				continue
 			}
-			o.LL(`if in.Has%s() {`, field.Name(true))
+			if !isEdge(object, field) {
+				continue
+			}
+
+			entRsname := resourceName(field)
+
+			o.LL(`var %sCreateCalls []*ent.%sCreate`, field.Name(false), entRsname)
+			o.L(`if in.Has%s() {`, field.Name(true))
 			o.L(`replaceCall.Clear%s()`, field.Name(true))
 			if strings.HasPrefix(field.Type(), `[]`) {
-				o.L(`created, err := b.create%s(in.%s()...)`, resourceName(field), field.Name(true))
+				o.L(`calls, err := b.create%s(in.%s()...)`, entRsname, field.Name(true))
 				o.L(`if err != nil {`)
-				o.L(`return nil, err`)
+				o.L(`return nil, fmt.Errorf("failed to create %s: %%w", err)`, field.JSON())
 				o.L(`}`)
-				o.L(`replaceCall.Add%s(created...)`, field.Name(true))
+				o.L(`%sCreateCalls = calls`, field.Name(false))
 			} else if field.Name(true) == `Name` {
 				o.L(`created, err := b.createName(in.Name())`)
 				o.L(`if err != nil {`)
@@ -1221,9 +1384,27 @@ func generateUtilities(object *codegen.Object) error {
 		o.L(`return nil, fmt.Errorf("failed to save object: %%w", err)`)
 		o.L(`}`)
 
+		// Do the Edge updates AFTER we saved the results
+		for _, field := range object.Fields() {
+			if !isEdge(object, field) {
+				continue
+			}
+			if !strings.HasPrefix(field.Type(), `[]`) {
+				continue
+			}
+
+			o.L(`for _, call := range %sCreateCalls {`, field.Name(false))
+			o.L(`call.Set%sID(parsedUUID)`, object.Name(true))
+			o.L(`_, err := call.Save(ctx)`)
+			o.L(`if err != nil {`)
+			o.L(`return nil, fmt.Errorf("failed to save %s: %%w", err)`, field.Name(true))
+			o.L(`}`)
+			o.L(`}`)
+		}
+
 		o.LL(`r2, err := b.db.%s.Query().Where(%s.ID(parsedUUID)).`, object.Name(true), packageName(object.Name(false)))
 		for _, field := range object.Fields() {
-			if !strings.HasPrefix(field.Type(), `[]`) {
+			if !isEdge(object, field) || field.Name(true) == `Names` {
 				continue
 			}
 			o.L(`With%s().`, field.Name(true))
@@ -1266,7 +1447,11 @@ func generateUtilities(object *codegen.Object) error {
 			case `ID`, `Schema`, `Meta`:
 				continue
 			}
-			if field.Type() == `string` {
+
+			if object.Name(true) == `User` && field.Name(true) == `Groups` {
+				o.L(`case resource.%s%sKey:`, object.Name(true), field.Name(true))
+				o.L(`return fmt.Errorf("cannot create group memberships through User resource")`)
+			} else if field.Type() == `string` {
 				o.L(`case resource.%s%sKey:`, object.Name(true), field.Name(true))
 				o.L(`subExpr := expr.SubExpr()`) //
 				o.L(`if subExpr != nil {`)
@@ -1295,29 +1480,37 @@ func generateUtilities(object *codegen.Object) error {
 				o.L(`}`)
 
 				// if we're adding to the list, we need the entire thing
+				scimRsname := scimResourceName(field)
 				rsname := resourceName(field)
-				o.LL(`var in resource.%s`, rsname)
+				o.LL(`var in resource.%s`, scimRsname)
 				o.L(`if err := json.Unmarshal(op.Value(), &in); err != nil {`)
 				o.L(`return fmt.Errorf("failed to decode patch add value: %%w", err)`)
 				o.L(`}`)
 
-				if rsname == `GroupMember` {
-					// This is a special case, because it belongs in both User and Group
-					o.LL(`if b.exists%s%s(parent, &in) {`, object.Name(true), rsname)
-				} else {
-					o.LL(`if b.exists%s(parent, &in) {`, rsname)
-				}
+				o.LL(`if b.exists%s%s(parent, &in) {`, object.Name(true), rsname)
 				o.L(`return nil`)
 				o.L(`}`)
 
-				o.LL(`created, err := b.create%s(&in)`, rsname)
+				o.LL(`calls, err := b.create%s(&in)`, rsname)
 				o.L(`if err != nil {`)
 				o.L(`return fmt.Errorf("failed to create %s: %%w", err)`, rsname)
 				o.L(`}`)
 
-				o.LL(`if _, err := parent.Update().%s(created...).Save(ctx); err != nil {`, addMethod(field))
-				o.L(`return fmt.Errorf("failed to save object: %%w", err)`)
+				o.L(`list := make([]*ent.%s, len(calls))`, rsname)
+				o.L(`for i, call := range calls {`)
+				o.L(`call.Set%sID(parent.ID)`, object.Name(true))
+				o.L(`created, err := call.Save(ctx)`)
+				o.L(`if err != nil {`)
+				o.L(`return fmt.Errorf("failed to create %s: %%w", err)`, rsname)
 				o.L(`}`)
+				o.L(`list[i] = created`)
+				o.L(`}`)
+
+				/*
+					o.LL(`if _, err := parent.Update().%s(list...).Save(ctx); err != nil {`, addMethod(field))
+					o.L(`return fmt.Errorf("failed to save object: %%w", err)`)
+					o.L(`}`)
+				*/
 				o.L(`} else {`)
 				o.L(`var pb %sPredicateBuilder`, rsname)
 				// so we have a subExpr, that must mean we must have have a subAttr
@@ -1349,13 +1542,13 @@ func generateUtilities(object *codegen.Object) error {
 
 				o.LL(`updateCall := item.Update()`)
 				o.LL(`switch sSubAttr {`)
-				subObject, ok := objectMap[rsname]
+				subObject, ok := objectMap[scimRsname]
 				if !ok {
-					return fmt.Errorf(`could not find object for %q`, rsname)
+					return fmt.Errorf(`could not find object for %q`, scimRsname)
 				}
 				for _, subField := range subObject.Fields() {
 					// TODO check for mutability
-					o.L(`case resource.%s%sKey:`, rsname, subField.Name(true))
+					o.L(`case resource.%s%sKey:`, scimRsname, subField.Name(true))
 					o.L(`var v %s`, subField.Type())
 					o.L(`if err := json.Unmarshal(op.Value(), &v); err != nil {`)
 					o.L(`return fmt.Errorf("failed to decode value: %%w", err)`)
@@ -1396,7 +1589,10 @@ func generateUtilities(object *codegen.Object) error {
 				continue
 			}
 			o.L(`case resource.%s%sKey:`, object.Name(true), field.Name(true))
-			if field.Type() == `string` {
+
+			if object.Name(true) == `User` && field.Name(true) == `Groups` {
+				o.L(`return fmt.Errorf("cannot delete group memberships through User resource")`)
+			} else if field.Type() == `string` {
 				o.L(`if subexpr := expr.SubExpr(); subexpr != nil {`)
 				o.L(`return fmt.Errorf("patch remove operation on %s cannot have a sub attribute query")`, field.JSON())
 				o.L(`}`)
@@ -1407,6 +1603,9 @@ func generateUtilities(object *codegen.Object) error {
 				o.L(`return fmt.Errorf("failed to save object: %%w", err)`)
 				o.L(`}`)
 			} else if strings.HasPrefix(field.Type(), `[]`) {
+				scimRsname := scimResourceName(field)
+				rsname := resourceName(field)
+
 				o.L(`subExpr := expr.SubExpr()`)
 
 				// This means no query, so we can't specify which item in the multi-value element we're dealing with.
@@ -1417,14 +1616,14 @@ func generateUtilities(object *codegen.Object) error {
 				o.L(`return fmt.Errorf("patch remove operation on su attribute of multi-valued item %s without a query is not possible")`, field.JSON())
 				o.L(`}`)
 				// This means we have `attr` to remove. clear the entire thing
-				o.L(`if _, err := b.db.%s.Delete().Where(%s.Has%sWith(%s.ID(parent.ID))).Exec(ctx); err != nil {`, resourceName(field), packageName(resourceName(field)), object.Name(true), packageName(singularName(object.Name(false))))
+				o.L(`if _, err := b.db.%s.Delete().Where(%s.Has%sWith(%s.ID(parent.ID))).Exec(ctx); err != nil {`, rsname, packageName(rsname), object.Name(true), packageName(singularName(object.Name(false))))
 				o.L(`return fmt.Errorf("failed to remove elements from %s: %%w", err)`, field.JSON())
 				o.L(`}`)
 				o.L(`if _, err := parent.Update().%s().Save(ctx); err != nil {`, clearMethod(field))
 				o.L(`return fmt.Errorf("failed to remove references to %s: %%w", err)`, field.JSON())
 				o.L(`}`)
 				o.L(`} else {`) // subExpr == nil
-				o.L(`var pb %sPredicateBuilder`, resourceName(field))
+				o.L(`var pb %sPredicateBuilder`, rsname)
 				o.L(`predicates, err := pb.Build(subExpr)`)
 				o.L(`if err != nil {`)
 				o.L(`return fmt.Errorf("failed to parse valuePath expression: %%w", err)`)
@@ -1442,9 +1641,9 @@ func generateUtilities(object *codegen.Object) error {
 				o.L(`}`)
 				o.L(`switch subAttr {`)
 
-				subObject, ok := objectMap[resourceName(field)]
+				subObject, ok := objectMap[scimRsname]
 				if !ok {
-					return fmt.Errorf(`failed to find object %q`, resourceName(field))
+					return fmt.Errorf(`failed to find object %q`, scimRsname)
 				}
 				for _, subField := range subObject.Fields() {
 					o.L(`case resource.%s%sKey:`, subObject.Name(true), subField.Name(true))
@@ -1458,11 +1657,16 @@ func generateUtilities(object *codegen.Object) error {
 				o.L(`return fmt.Errorf("unknown sub attribute specified")`)
 				o.L(`}`)
 				o.L(`}`)
-				o.LL(`ids := make([]int, len(list))`)
+				if subObject.Name(true) == `GroupMember` {
+					o.LL(`ids := make([]int, len(list))`)
+				} else {
+					o.LL(`ids := make([]uuid.UUID, len(list))`)
+				}
 				o.L(`for i, elem := range list {`)
 				o.L(`ids[i] = elem.ID`)
 				o.L(`}`)
-				o.L(`if _, err := b.db.%s.Delete().Where(%s.IDIn(ids...)).Exec(ctx); err != nil {`, resourceName(field), packageName(resourceName(field)))
+
+				o.L(`if _, err := b.db.%s.Delete().Where(%s.IDIn(ids...)).Exec(ctx); err != nil {`, rsname, packageName(rsname))
 				o.L(`return fmt.Errorf("failed to delete object: %%w", err)`)
 				o.L(`}`)
 				o.L(`}`) // subExpr == nil

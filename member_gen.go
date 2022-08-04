@@ -5,13 +5,13 @@ import (
 	"reflect"
 
 	"github.com/cybozu-go/scim-server/ent"
-	"github.com/cybozu-go/scim-server/ent/groupmember"
+	"github.com/cybozu-go/scim-server/ent/member"
 	"github.com/cybozu-go/scim-server/ent/predicate"
 	"github.com/cybozu-go/scim/filter"
 	"github.com/cybozu-go/scim/resource"
 )
 
-func GroupMemberResourceFromEnt(in *ent.GroupMember) (*resource.GroupMember, error) {
+func GroupMemberResourceFromEnt(in *ent.Member) (*resource.GroupMember, error) {
 	var b resource.Builder
 
 	builder := b.GroupMember()
@@ -30,21 +30,21 @@ func GroupMemberResourceFromEnt(in *ent.GroupMember) (*resource.GroupMember, err
 func GroupMemberEntFieldFromSCIM(s string) string {
 	switch s {
 	case resource.GroupMemberRefKey:
-		return groupmember.FieldRef
+		return member.FieldRef
 	case resource.GroupMemberTypeKey:
-		return groupmember.FieldType
+		return member.FieldType
 	case resource.GroupMemberValueKey:
-		return groupmember.FieldValue
+		return member.FieldValue
 	default:
 		return s
 	}
 }
 
-type GroupMemberPredicateBuilder struct {
-	predicates []predicate.GroupMember
+type MemberPredicateBuilder struct {
+	predicates []predicate.Member
 }
 
-func (b *GroupMemberPredicateBuilder) Build(expr filter.Expr) ([]predicate.GroupMember, error) {
+func (b *MemberPredicateBuilder) Build(expr filter.Expr) ([]predicate.Member, error) {
 	b.predicates = nil
 	if err := b.visit(expr); err != nil {
 		return nil, err
@@ -52,7 +52,7 @@ func (b *GroupMemberPredicateBuilder) Build(expr filter.Expr) ([]predicate.Group
 	return b.predicates, nil
 }
 
-func (b *GroupMemberPredicateBuilder) visit(expr filter.Expr) error {
+func (b *MemberPredicateBuilder) visit(expr filter.Expr) error {
 	switch expr := expr.(type) {
 	case filter.CompareExpr:
 		return b.visitCompareExpr(expr)
@@ -63,7 +63,7 @@ func (b *GroupMemberPredicateBuilder) visit(expr filter.Expr) error {
 	}
 }
 
-func (b *GroupMemberPredicateBuilder) visitLogExpr(expr filter.LogExpr) error {
+func (b *MemberPredicateBuilder) visitLogExpr(expr filter.LogExpr) error {
 	if err := b.visit(expr.LHE()); err != nil {
 		return fmt.Errorf("failed to parse left hand side of %q statement: %w", expr.Operator(), err)
 	}
@@ -73,16 +73,16 @@ func (b *GroupMemberPredicateBuilder) visitLogExpr(expr filter.LogExpr) error {
 
 	switch expr.Operator() {
 	case "and":
-		b.predicates = []predicate.GroupMember{groupmember.And(b.predicates...)}
+		b.predicates = []predicate.Member{member.And(b.predicates...)}
 	case "or":
-		b.predicates = []predicate.GroupMember{groupmember.Or(b.predicates...)}
+		b.predicates = []predicate.Member{member.Or(b.predicates...)}
 	default:
 		return fmt.Errorf("unhandled logical operator %q", expr.Operator())
 	}
 	return nil
 }
 
-func (b *GroupMemberPredicateBuilder) visitCompareExpr(expr filter.CompareExpr) error {
+func (b *MemberPredicateBuilder) visitCompareExpr(expr filter.CompareExpr) error {
 	lhe, err := exprAttr(expr.LHE())
 	slhe, ok := lhe.(string)
 	if err != nil || !ok {
@@ -101,11 +101,11 @@ func (b *GroupMemberPredicateBuilder) visitCompareExpr(expr filter.CompareExpr) 
 	case filter.EqualOp:
 		switch slhe {
 		case resource.GroupMemberRefKey:
-			b.predicates = append(b.predicates, groupmember.Ref(srhe))
+			b.predicates = append(b.predicates, member.Ref(srhe))
 		case resource.GroupMemberTypeKey:
-			b.predicates = append(b.predicates, groupmember.Type(srhe))
+			b.predicates = append(b.predicates, member.Type(srhe))
 		case resource.GroupMemberValueKey:
-			b.predicates = append(b.predicates, groupmember.Value(srhe))
+			b.predicates = append(b.predicates, member.Value(srhe))
 		default:
 			return fmt.Errorf("invalid field name for GroupMember: %q", slhe)
 		}

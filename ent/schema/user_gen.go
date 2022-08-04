@@ -12,11 +12,13 @@ type User struct {
 
 func (User) Fields() []ent.Field {
 	return []ent.Field{
+		field.UUID("id", uuid.UUID{}).Default(uuid.New),
 		field.Bool("active").Optional(),
 		field.String("displayName").Optional(),
 		field.String("externalID").Optional(),
 		field.UUID("id", uuid.UUID{}).Default(uuid.New),
 		field.String("locale").Optional(),
+		field.UUID("names", uuid.UUID{}).Optional(),
 		field.String("nickName").Optional(),
 		field.String("password").Optional().NotEmpty().Sensitive(),
 		field.String("preferredLanguage").Optional(),

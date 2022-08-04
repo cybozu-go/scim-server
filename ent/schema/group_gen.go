@@ -12,6 +12,7 @@ type Group struct {
 
 func (Group) Fields() []ent.Field {
 	return []ent.Field{
+		field.UUID("id", uuid.UUID{}).Default(uuid.New),
 		field.String("displayName").Optional(),
 		field.String("externalID").Optional(),
 		field.UUID("id", uuid.UUID{}).Default(uuid.New),
