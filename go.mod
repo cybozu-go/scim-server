@@ -14,8 +14,6 @@ require (
 	golang.org/x/text v0.3.7
 )
 
-replace github.com/cybozu-go/scim => ../scim
-
 require (
 	ariga.io/atlas v0.4.3-0.20220711120113-a190b01c6ef9 // indirect
 	github.com/agext/levenshtein v1.2.1 // indirect
