@@ -9,7 +9,6 @@ import (
 func (User) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.To(`addresses`, Address.Type),
-		edge.To(`groups`, GroupMember.Type),
 		edge.To(`emails`, Email.Type),
 		edge.To(`name`, Names.Type).
 			Unique(),

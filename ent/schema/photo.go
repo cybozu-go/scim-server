@@ -10,3 +10,11 @@ func (Photo) Edges() []ent.Edge {
 		edge.From("user", User.Type).Ref("photos").Unique(),
 	}
 }
+
+/*
+func (Photo) Hooks() []ent.Hook {
+	return []ent.Hook{
+		UploadBlob(),
+	}
+}
+*/

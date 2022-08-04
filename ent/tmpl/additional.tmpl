@@ -1,0 +1,41 @@
+{{ define "dialect/sql/query/additional/load_user_groups" }}
+	{{- if eq $.Name "User" }}
+func LoadMembership(ctx context.Context, c *MemberClient, node *User) error {
+    	directs, err := c.Query().Where(member.Value(node.ID.String())).WithGroup().All(ctx)
+	if err != nil {
+		return fmt.Errorf(`failed to load group membership: %w`, err)
+	}
+
+	for _, direct := range directs {
+		node.Groups = append(node.Groups, &Membership{
+			Value: direct.Edges.Group.ID.String(),
+			Display: direct.Edges.Group.DisplayName,
+			Ref: `https://foobar.com`,
+			Type: `direct`,
+		})
+	}
+	return nil
+}
+{{- end }}
+{{ end }}
+
+{{ define "dialect/sql/query/all/nodes/load_user_groups" }}
+    {{- if eq $.Name "User" }}
+	c := NewMemberClient(uq.config)
+	for _, node := range nodes {
+		if err := LoadMembership(ctx, c, node); err != nil {
+			return nil, err
+		}
+	}
+    {{- end }}
+{{ end }}
+
+{{ define "model/fields/additional" }}
+    {{- if eq $.Name "User" }}
+        // Groups contain the membership information about the groups that
+	// this user directly or indirectly is part of. The membership
+	// information _may_ be cached, and may take some time before
+	// it is synchronized
+        Groups []*Membership `json:"groups,omitempty"`
+    {{- end }}
+{{ end }}

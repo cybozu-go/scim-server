@@ -2,6 +2,8 @@
 {{ $pkg := base $.Config.Package }}
 {{ template "header" $ }}
 
+import "hash"
+
 {{ range $n := $.Nodes }}
 	{{- $receiver := $n.Receiver }}
 func ({{ $receiver }} *{{ $n.Name }}) ComputeETag(h hash.Hash) error {

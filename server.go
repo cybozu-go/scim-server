@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	"entgo.io/ent/dialect"
+	"github.com/cybozu-go/scim"
 	"github.com/cybozu-go/scim-server/ent"
 	"github.com/cybozu-go/scim-server/ent/group"
 	"github.com/cybozu-go/scim-server/ent/predicate"
@@ -60,8 +61,51 @@ type Backend struct {
 	etagSalt []byte
 }
 
-func New(connspec string, spc *resource.ServiceProviderConfig) (*Backend, error) {
-	client, err := ent.Open(dialect.SQLite, connspec)
+func New(connspec string, options ...ent.Option) (*Backend, error) {
+	var b resource.Builder
+	spc, err := b.ServiceProviderConfig().
+		AuthenticationSchemes(
+			b.AuthenticationScheme().
+				Name("OAuth Bearer Token").
+				Description("Authentication scheme using the OAuth Bearer Token Standard").
+				SpecURI("http://www.rfc-editor.org/info/rfc6750").
+				DocumentationURI("http://example.com/help/oauth.html").
+				Type(resource.OAuthBearerToken).
+				MustBuild(),
+		).
+		Bulk(b.BulkSupport().
+			Supported(false).
+			MaxOperations(0).
+			MaxPayloadSize(0).
+			MustBuild(),
+		).
+		Filter(b.FilterSupport().
+			Supported(true).
+			MaxResults(200). // TODO: arbitrary value used
+			MustBuild(),
+		).
+		Sort(b.GenericSupport().
+			Supported(false).
+			MustBuild(),
+		).
+		Etag(b.GenericSupport().
+			Supported(false).
+			MustBuild(),
+		).
+		Patch(b.GenericSupport().
+			Supported(false).
+			MustBuild(),
+		).
+		ChangePassword(b.GenericSupport().
+			Supported(false).
+			MustBuild(),
+		).
+		Build()
+	if err != nil {
+		return nil, fmt.Errorf(`failed to setup ServiceProviderConfig: %w`, err)
+	}
+
+	client, err := ent.Open(dialect.SQLite, connspec, options...)
 	if err != nil {
 		return nil, fmt.Errorf(`failed to open database: %w`, err)
 	}
@@ -73,8 +117,6 @@ func New(connspec string, spc *resource.ServiceProviderConfig) (*Backend, error)
 	if err := client.Schema.Create(context.Background()); err != nil {
 		return nil, fmt.Errorf(`failed to create schema resources: %w`, err)
 	}
-
-	var b resource.Builder
 
 	rts := []*resource.ResourceType{
 		b.ResourceType().
@@ -145,8 +187,8 @@ func randomString(n int) string {
 	return b.String()
 }
 
-func (b *Backend) createAddress(in ...*resource.Address) ([]*ent.Address, error) {
-	list := make([]*ent.Address, len(in))
+func (b *Backend) createAddress(in ...*resource.Address) ([]*ent.AddressCreate, error) {
+	list := make([]*ent.AddressCreate, len(in))
 	for i, v := range in {
 		addressCreateCall := b.db.Address.Create()
 		if v.HasCountry() {
@@ -173,12 +215,7 @@ func (b *Backend) createAddress(in ...*resource.Address) ([]*ent.Address, error)
 			addressCreateCall.SetStreetAddress(v.StreetAddress())
 		}
 
-		address, err := addressCreateCall.Save(context.TODO())
-		if err != nil {
-			return nil, fmt.Errorf(`failed to save address: %w`, err)
-		}
-
-		list[i] = address
+		list[i] = addressCreateCall
 	}
 
 	return list, nil
@@ -234,6 +271,7 @@ func (b *Backend) RetrieveUser(id string, fields []string, excludedFields []stri
 	}
 
 	userQuery := b.db.User.Query().
+		Unique(false).
 		Where(user.IDEQ(parsedUUID))
 
 	userLoadEntFields(userQuery, fields, excludedFields)
@@ -241,7 +279,7 @@ func (b *Backend) RetrieveUser(id string, fields []string, excludedFields []stri
 	u, err := userQuery.
 		Only(context.TODO())
 	if err != nil {
-		return nil, fmt.Errorf(`failed to retrieve user: %w`, err)
+		return nil, scim.ResourceNotFoundError{} // fmt.Errorf(`failed to retrieve user: %w`, err)
 	}
 
 	return UserResourceFromEnt(u)

@@ -5,6 +5,14 @@ import (
 	"github.com/cybozu-go/scim/resource"
 )
 
+func MemberResourceFromEnt(in *ent.Member) (*resource.GroupMember, error) {
+	return resource.NewGroupMemberBuilder().
+		Value(in.Value).
+		Ref(userLocation(in.Value)).
+		Type(in.Type).
+		Build()
+}
+
 func groupResourceFromEntHelper(in *ent.Group, builder *resource.GroupBuilder) error {
 	/*
 		members := make([]*resource.GroupMember, 0, len(in.Edges.Users)+len(in.Edges.Children))

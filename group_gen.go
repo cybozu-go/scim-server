@@ -10,8 +10,9 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/cybozu-go/scim-server/ent"
 	"github.com/cybozu-go/scim-server/ent/group"
-	"github.com/cybozu-go/scim-server/ent/groupmember"
+	"github.com/cybozu-go/scim-server/ent/member"
 	"github.com/cybozu-go/scim-server/ent/predicate"
+	"github.com/cybozu-go/scim-server/ent/user"
 	"github.com/cybozu-go/scim/filter"
 	"github.com/cybozu-go/scim/resource"
 	"github.com/google/uuid"
@@ -40,6 +41,7 @@ func groupLoadEntFields(q *ent.GroupQuery, scimFields, excludedFields []string) 
 		case resource.GroupIDKey:
 			selectNames = append(selectNames, group.FieldID)
 		case resource.GroupMembersKey:
+			q.WithMembers()
 		case resource.GroupMetaKey:
 		}
 	}
@@ -71,7 +73,7 @@ func GroupResourceFromEnt(in *ent.Group) (*resource.Group, error) {
 	if el := len(in.Edges.Members); el > 0 {
 		list := make([]*resource.GroupMember, 0, el)
 		for _, ine := range in.Edges.Members {
-			r, err := GroupMemberResourceFromEnt(ine)
+			r, err := MemberResourceFromEnt(ine)
 			if err != nil {
 				return nil, fmt.Errorf("failed to build members information for Group")
 			}
@@ -240,18 +242,18 @@ func groupPresencePredicate(scimField string) predicate.Group {
 	}
 }
 
-func (b *Backend) existsGroupGroupMember(parent *ent.Group, in *resource.GroupMember) bool {
+func (b *Backend) existsGroupMember(parent *ent.Group, in *resource.GroupMember) bool {
 	ctx := context.TODO()
 	queryCall := parent.QueryMembers()
-	var predicates []predicate.GroupMember
+	var predicates []predicate.Member
 	if in.HasRef() {
-		predicates = append(predicates, groupmember.Ref(in.Ref()))
+		predicates = append(predicates, member.Ref(in.Ref()))
 	}
 	if in.HasType() {
-		predicates = append(predicates, groupmember.Type(in.Type()))
+		predicates = append(predicates, member.Type(in.Type()))
 	}
 	if in.HasValue() {
-		predicates = append(predicates, groupmember.Value(in.Value()))
+		predicates = append(predicates, member.Value(in.Value()))
 	}
 
 	v, err := queryCall.Where(predicates...).Exist(ctx)
@@ -259,6 +261,38 @@ func (b *Backend) existsGroupGroupMember(parent *ent.Group, in *resource.GroupMe
 		return false
 	}
 	return v
+}
+
+func (b *Backend) createMember(resources ...*resource.GroupMember) ([]*ent.MemberCreate, error) {
+	list := make([]*ent.MemberCreate, len(resources))
+	for i, in := range resources {
+		createCall := b.db.Member.Create()
+		if in.HasValue() {
+			createCall.SetValue(in.Value())
+		}
+		if in.HasType() {
+			createCall.SetType(in.Type())
+		} else {
+			ctx := context.TODO()
+
+			parsedUUID, err := uuid.Parse(in.Value())
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse ID in \"value\" field: %w", err)
+			}
+			if ok, _ := b.db.User.Query().Where(user.ID(parsedUUID)).Exist(ctx); ok {
+				createCall.SetType("User")
+			} else if ok, _ := b.db.Group.Query().Where(group.ID(parsedUUID)).Exist(ctx); ok {
+				createCall.SetType("Group")
+			} else {
+				return nil, fmt.Errorf("could not determine resource type (User/Group) from provided ID")
+			}
+		}
+		if in.HasRef() {
+			createCall.SetRef(in.Ref())
+		}
+		list[i] = createCall
+	}
+	return list, nil
 }
 
 func (b *Backend) CreateGroup(in *resource.Group) (*resource.Group, error) {
@@ -271,21 +305,28 @@ func (b *Backend) CreateGroup(in *resource.Group) (*resource.Group, error) {
 	if in.HasExternalID() {
 		createCall.SetExternalID(in.ExternalID())
 	}
-	var members []*ent.GroupMember
+	var memberCreateCalls []*ent.MemberCreate
 	if in.HasMembers() {
-		created, err := b.createGroupMember(in.Members()...)
+		calls, err := b.createMember(in.Members()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create members: %w", err)
 		}
-		createCall.AddMembers(created...)
-		members = created
+		memberCreateCalls = calls
 	}
 
 	rs, err := createCall.Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to save object: %w", err)
 	}
-	rs.Edges.Members = members
+
+	for _, call := range memberCreateCalls {
+		call.SetGroupID(rs.ID)
+		created, err := call.Save(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create members: %w", err)
+		}
+		rs.Edges.Members = append(rs.Edges.Members, created)
+	}
 
 	h := sha256.New()
 	if err := rs.ComputeETag(h); err != nil {
@@ -315,26 +356,24 @@ func (b *Backend) ReplaceGroup(id string, in *resource.Group) (*resource.Group, 
 
 	replaceCall := r.Update()
 
-	if in.HasDisplayName() {
-		replaceCall.ClearDisplayName()
-		replaceCall.SetDisplayName(in.DisplayName())
-	}
-
-	if in.HasExternalID() {
-		replaceCall.ClearExternalID()
-		replaceCall.SetExternalID(in.ExternalID())
-	}
-
+	var membersCreateCalls []*ent.MemberCreate
 	if in.HasMembers() {
 		replaceCall.ClearMembers()
-		created, err := b.createGroupMember(in.Members()...)
+		calls, err := b.createMember(in.Members()...)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to create members: %w", err)
 		}
-		replaceCall.AddMembers(created...)
+		membersCreateCalls = calls
 	}
 	if _, err := replaceCall.Save(ctx); err != nil {
 		return nil, fmt.Errorf("failed to save object: %w", err)
+	}
+	for _, call := range membersCreateCalls {
+		call.SetGroupID(parsedUUID)
+		_, err := call.Save(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to save Members: %w", err)
+		}
 	}
 
 	r2, err := b.db.Group.Query().Where(group.ID(parsedUUID)).
@@ -425,20 +464,25 @@ func (b *Backend) patchAddGroup(parent *ent.Group, op *resource.PatchOperation) 
 				return fmt.Errorf("failed to decode patch add value: %w", err)
 			}
 
-			if b.existsGroupGroupMember(parent, &in) {
+			if b.existsGroupMember(parent, &in) {
 				return nil
 			}
 
-			created, err := b.createGroupMember(&in)
+			calls, err := b.createMember(&in)
 			if err != nil {
-				return fmt.Errorf("failed to create GroupMember: %w", err)
+				return fmt.Errorf("failed to create Member: %w", err)
 			}
-
-			if _, err := parent.Update().AddMembers(created...).Save(ctx); err != nil {
-				return fmt.Errorf("failed to save object: %w", err)
+			list := make([]*ent.Member, len(calls))
+			for i, call := range calls {
+				call.SetGroupID(parent.ID)
+				created, err := call.Save(ctx)
+				if err != nil {
+					return fmt.Errorf("failed to create Member: %w", err)
+				}
+				list[i] = created
 			}
 		} else {
-			var pb GroupMemberPredicateBuilder
+			var pb MemberPredicateBuilder
 			predicates, err := pb.Build(subExpr)
 			if err != nil {
 				return fmt.Errorf("failed to parse valuePath expression: %w", err)
@@ -540,14 +584,14 @@ func (b *Backend) patchRemoveGroup(parent *ent.Group, op *resource.PatchOperatio
 			if subAttrExpr := expr.SubAttr(); subAttrExpr != nil {
 				return fmt.Errorf("patch remove operation on su attribute of multi-valued item members without a query is not possible")
 			}
-			if _, err := b.db.GroupMember.Delete().Where(groupmember.HasGroupWith(group.ID(parent.ID))).Exec(ctx); err != nil {
+			if _, err := b.db.Member.Delete().Where(member.HasGroupWith(group.ID(parent.ID))).Exec(ctx); err != nil {
 				return fmt.Errorf("failed to remove elements from members: %w", err)
 			}
 			if _, err := parent.Update().ClearMembers().Save(ctx); err != nil {
 				return fmt.Errorf("failed to remove references to members: %w", err)
 			}
 		} else {
-			var pb GroupMemberPredicateBuilder
+			var pb MemberPredicateBuilder
 			predicates, err := pb.Build(subExpr)
 			if err != nil {
 				return fmt.Errorf("failed to parse valuePath expression: %w", err)
@@ -581,7 +625,7 @@ func (b *Backend) patchRemoveGroup(parent *ent.Group, op *resource.PatchOperatio
 			for i, elem := range list {
 				ids[i] = elem.ID
 			}
-			if _, err := b.db.GroupMember.Delete().Where(groupmember.IDIn(ids...)).Exec(ctx); err != nil {
+			if _, err := b.db.Member.Delete().Where(member.IDIn(ids...)).Exec(ctx); err != nil {
 				return fmt.Errorf("failed to delete object: %w", err)
 			}
 		}

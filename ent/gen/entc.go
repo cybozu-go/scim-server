@@ -8,12 +8,17 @@ import (
 
 	"entgo.io/ent/entc"
 	"entgo.io/ent/entc/gen"
+	"gocloud.dev/blob"
 )
 
 func main() {
 	err := entc.Generate("./schema",
 		&gen.Config{},
 		entc.Extensions(&ETag{}),
+		entc.Dependency(
+			entc.DependencyName("Bucket"),
+			entc.DependencyType(&blob.Bucket{}),
+		),
 	)
 
 	if err != nil {
@@ -29,7 +34,7 @@ type ETag struct {
 func (*ETag) Templates() []*gen.Template {
 	return []*gen.Template{
 		gen.MustParse(
-			gen.NewTemplate(`etag`).ParseFiles(`./tmpl/etag.tmpl`),
+			gen.NewTemplate(`etag`).ParseDir(`./tmpl/`),
 		),
 	}
 }
