@@ -15,6 +15,9 @@ func GroupMemberResourceFromEnt(in *ent.Member) (*resource.GroupMember, error) {
 	var b resource.Builder
 
 	builder := b.GroupMember()
+	if !reflect.ValueOf(in.Display).IsZero() {
+		builder.Display(in.Display)
+	}
 	if !reflect.ValueOf(in.Ref).IsZero() {
 		builder.Ref(in.Ref)
 	}
@@ -29,6 +32,8 @@ func GroupMemberResourceFromEnt(in *ent.Member) (*resource.GroupMember, error) {
 
 func GroupMemberEntFieldFromSCIM(s string) string {
 	switch s {
+	case resource.GroupMemberDisplayKey:
+		return member.FieldDisplay
 	case resource.GroupMemberRefKey:
 		return member.FieldRef
 	case resource.GroupMemberTypeKey:
@@ -100,6 +105,8 @@ func (b *MemberPredicateBuilder) visitCompareExpr(expr filter.CompareExpr) error
 	switch expr.Operator() {
 	case filter.EqualOp:
 		switch slhe {
+		case resource.GroupMemberDisplayKey:
+			b.predicates = append(b.predicates, member.Display(srhe))
 		case resource.GroupMemberRefKey:
 			b.predicates = append(b.predicates, member.Ref(srhe))
 		case resource.GroupMemberTypeKey:

@@ -3269,6 +3269,7 @@ type MemberMutation struct {
 	typ           string
 	id            *int
 	value         *string
+	display       *string
 	_type         *string
 	ref           *string
 	clearedFields map[string]struct{}
@@ -3411,6 +3412,55 @@ func (m *MemberMutation) OldValue(ctx context.Context) (v string, err error) {
 // ResetValue resets all changes to the "value" field.
 func (m *MemberMutation) ResetValue() {
 	m.value = nil
+}
+
+// SetDisplay sets the "display" field.
+func (m *MemberMutation) SetDisplay(s string) {
+	m.display = &s
+}
+
+// Display returns the value of the "display" field in the mutation.
+func (m *MemberMutation) Display() (r string, exists bool) {
+	v := m.display
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDisplay returns the old "display" field's value of the Member entity.
+// If the Member object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MemberMutation) OldDisplay(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDisplay is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDisplay requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDisplay: %w", err)
+	}
+	return oldValue.Display, nil
+}
+
+// ClearDisplay clears the value of the "display" field.
+func (m *MemberMutation) ClearDisplay() {
+	m.display = nil
+	m.clearedFields[member.FieldDisplay] = struct{}{}
+}
+
+// DisplayCleared returns if the "display" field was cleared in this mutation.
+func (m *MemberMutation) DisplayCleared() bool {
+	_, ok := m.clearedFields[member.FieldDisplay]
+	return ok
+}
+
+// ResetDisplay resets all changes to the "display" field.
+func (m *MemberMutation) ResetDisplay() {
+	m.display = nil
+	delete(m.clearedFields, member.FieldDisplay)
 }
 
 // SetType sets the "type" field.
@@ -3556,9 +3606,12 @@ func (m *MemberMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *MemberMutation) Fields() []string {
-	fields := make([]string, 0, 3)
+	fields := make([]string, 0, 4)
 	if m.value != nil {
 		fields = append(fields, member.FieldValue)
+	}
+	if m.display != nil {
+		fields = append(fields, member.FieldDisplay)
 	}
 	if m._type != nil {
 		fields = append(fields, member.FieldType)
@@ -3576,6 +3629,8 @@ func (m *MemberMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case member.FieldValue:
 		return m.Value()
+	case member.FieldDisplay:
+		return m.Display()
 	case member.FieldType:
 		return m.GetType()
 	case member.FieldRef:
@@ -3591,6 +3646,8 @@ func (m *MemberMutation) OldField(ctx context.Context, name string) (ent.Value, 
 	switch name {
 	case member.FieldValue:
 		return m.OldValue(ctx)
+	case member.FieldDisplay:
+		return m.OldDisplay(ctx)
 	case member.FieldType:
 		return m.OldType(ctx)
 	case member.FieldRef:
@@ -3610,6 +3667,13 @@ func (m *MemberMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetValue(v)
+		return nil
+	case member.FieldDisplay:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDisplay(v)
 		return nil
 	case member.FieldType:
 		v, ok := value.(string)
@@ -3655,6 +3719,9 @@ func (m *MemberMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *MemberMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(member.FieldDisplay) {
+		fields = append(fields, member.FieldDisplay)
+	}
 	if m.FieldCleared(member.FieldRef) {
 		fields = append(fields, member.FieldRef)
 	}
@@ -3672,6 +3739,9 @@ func (m *MemberMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *MemberMutation) ClearField(name string) error {
 	switch name {
+	case member.FieldDisplay:
+		m.ClearDisplay()
+		return nil
 	case member.FieldRef:
 		m.ClearRef()
 		return nil
@@ -3685,6 +3755,9 @@ func (m *MemberMutation) ResetField(name string) error {
 	switch name {
 	case member.FieldValue:
 		m.ResetValue()
+		return nil
+	case member.FieldDisplay:
+		m.ResetDisplay()
 		return nil
 	case member.FieldType:
 		m.ResetType()

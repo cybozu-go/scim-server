@@ -35,6 +35,26 @@ func (mu *MemberUpdate) SetValue(s string) *MemberUpdate {
 	return mu
 }
 
+// SetDisplay sets the "display" field.
+func (mu *MemberUpdate) SetDisplay(s string) *MemberUpdate {
+	mu.mutation.SetDisplay(s)
+	return mu
+}
+
+// SetNillableDisplay sets the "display" field if the given value is not nil.
+func (mu *MemberUpdate) SetNillableDisplay(s *string) *MemberUpdate {
+	if s != nil {
+		mu.SetDisplay(*s)
+	}
+	return mu
+}
+
+// ClearDisplay clears the value of the "display" field.
+func (mu *MemberUpdate) ClearDisplay() *MemberUpdate {
+	mu.mutation.ClearDisplay()
+	return mu
+}
+
 // SetType sets the "type" field.
 func (mu *MemberUpdate) SetType(s string) *MemberUpdate {
 	mu.mutation.SetType(s)
@@ -170,6 +190,19 @@ func (mu *MemberUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Column: member.FieldValue,
 		})
 	}
+	if value, ok := mu.mutation.Display(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: member.FieldDisplay,
+		})
+	}
+	if mu.mutation.DisplayCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Column: member.FieldDisplay,
+		})
+	}
 	if value, ok := mu.mutation.GetType(); ok {
 		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
 			Type:   field.TypeString,
@@ -247,6 +280,26 @@ type MemberUpdateOne struct {
 // SetValue sets the "value" field.
 func (muo *MemberUpdateOne) SetValue(s string) *MemberUpdateOne {
 	muo.mutation.SetValue(s)
+	return muo
+}
+
+// SetDisplay sets the "display" field.
+func (muo *MemberUpdateOne) SetDisplay(s string) *MemberUpdateOne {
+	muo.mutation.SetDisplay(s)
+	return muo
+}
+
+// SetNillableDisplay sets the "display" field if the given value is not nil.
+func (muo *MemberUpdateOne) SetNillableDisplay(s *string) *MemberUpdateOne {
+	if s != nil {
+		muo.SetDisplay(*s)
+	}
+	return muo
+}
+
+// ClearDisplay clears the value of the "display" field.
+func (muo *MemberUpdateOne) ClearDisplay() *MemberUpdateOne {
+	muo.mutation.ClearDisplay()
 	return muo
 }
 
@@ -413,6 +466,19 @@ func (muo *MemberUpdateOne) sqlSave(ctx context.Context) (_node *Member, err err
 			Type:   field.TypeString,
 			Value:  value,
 			Column: member.FieldValue,
+		})
+	}
+	if value, ok := muo.mutation.Display(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: member.FieldDisplay,
+		})
+	}
+	if muo.mutation.DisplayCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Column: member.FieldDisplay,
 		})
 	}
 	if value, ok := muo.mutation.GetType(); ok {

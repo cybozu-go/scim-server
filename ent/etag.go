@@ -70,6 +70,8 @@ func (i *IMS) ComputeETag(h hash.Hash) error {
 func (m *Member) ComputeETag(h hash.Hash) error {
 	fmt.Fprint(h, "Value")
 	fmt.Fprint(h, m.Value)
+	fmt.Fprint(h, "Display")
+	fmt.Fprint(h, m.Display)
 	fmt.Fprint(h, "Type")
 	fmt.Fprint(h, m.Type)
 	fmt.Fprint(h, "Ref")

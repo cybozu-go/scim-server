@@ -246,6 +246,9 @@ func (b *Backend) existsGroupMember(parent *ent.Group, in *resource.GroupMember)
 	ctx := context.TODO()
 	queryCall := parent.QueryMembers()
 	var predicates []predicate.Member
+	if in.HasDisplay() {
+		predicates = append(predicates, member.Display(in.Display()))
+	}
 	if in.HasRef() {
 		predicates = append(predicates, member.Ref(in.Ref()))
 	}
@@ -507,6 +510,12 @@ func (b *Backend) patchAddGroup(parent *ent.Group, op *resource.PatchOperation) 
 			updateCall := item.Update()
 
 			switch sSubAttr {
+			case resource.GroupMemberDisplayKey:
+				var v string
+				if err := json.Unmarshal(op.Value(), &v); err != nil {
+					return fmt.Errorf("failed to decode value: %w", err)
+				}
+				updateCall.SetDisplay(v)
 			case resource.GroupMemberRefKey:
 				var v string
 				if err := json.Unmarshal(op.Value(), &v); err != nil {
@@ -610,6 +619,8 @@ func (b *Backend) patchRemoveGroup(parent *ent.Group, op *resource.PatchOperatio
 					return fmt.Errorf("invalid sub attribute specified")
 				}
 				switch subAttr {
+				case resource.GroupMemberDisplayKey:
+					return fmt.Errorf("display is not mutable")
 				case resource.GroupMemberRefKey:
 					return fmt.Errorf("$ref is not mutable")
 				case resource.GroupMemberTypeKey:

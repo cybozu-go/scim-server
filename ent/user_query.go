@@ -1043,7 +1043,7 @@ func (uq *UserQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	return selector
 }
 
-func recursiveLoadMembership(ctx context.Context, c *MemberClient, id string) ([]*Membership, error) {
+func recursiveLoadMembership(ctx context.Context, c *MemberClient, id string, depth int) ([]*Membership, error) {
 	directs, err := c.Query().Where(member.Value(id)).WithGroup().All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf(`failed to load group membership: %w`, err)
@@ -1055,15 +1055,23 @@ func recursiveLoadMembership(ctx context.Context, c *MemberClient, id string) ([
 	}
 
 	res := make([]*Membership, 0, dl)
+
+	var typ string
+	if depth == 0 {
+		typ = `direct`
+	} else {
+		typ = `indirect`
+	}
+
 	for _, direct := range directs {
 		res = append(res, &Membership{
 			Value:   direct.Edges.Group.ID.String(),
 			Display: direct.Edges.Group.DisplayName,
 			Ref:     `https://foobar.com`,
-			Type:    `direct`,
+			Type:    typ,
 		})
 
-		children, err := recursiveLoadMembership(ctx, c, direct.Edges.Group.ID.String())
+		children, err := recursiveLoadMembership(ctx, c, direct.Edges.Group.ID.String(), depth+1)
 		if err != nil {
 			return nil, fmt.Errorf(`failed to load children for %q: %w`, direct.Edges.Group.ID.String(), err)
 		}
@@ -1075,7 +1083,7 @@ func recursiveLoadMembership(ctx context.Context, c *MemberClient, id string) ([
 }
 
 func LoadMembership(ctx context.Context, c *MemberClient, node *User) error {
-	groups, err := recursiveLoadMembership(ctx, c, node.ID.String())
+	groups, err := recursiveLoadMembership(ctx, c, node.ID.String(), 0)
 	if err != nil {
 		return err
 	}
