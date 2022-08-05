@@ -1,19 +1,50 @@
 {{ define "dialect/sql/query/additional/load_user_groups" }}
 	{{- if eq $.Name "User" }}
-func LoadMembership(ctx context.Context, c *MemberClient, node *User) error {
-    	directs, err := c.Query().Where(member.Value(node.ID.String())).WithGroup().All(ctx)
+func recursiveLoadMembership(ctx context.Context, c *MemberClient, id string, depth int) ([]*Membership, error) {
+	directs, err := c.Query().Where(member.Value(id)).WithGroup().All(ctx)
 	if err != nil {
-		return fmt.Errorf(`failed to load group membership: %w`, err)
+		return nil, fmt.Errorf(`failed to load group membership: %w`, err)
+	}
+
+	dl := len(directs)
+	if dl == 0 {
+		return nil, nil
+	}
+
+	res := make([]*Membership, 0, dl)
+
+	var typ string
+	if depth == 0 {
+		typ = `direct`
+	} else {
+		typ = `indirect`
 	}
 
 	for _, direct := range directs {
-		node.Groups = append(node.Groups, &Membership{
+		res = append(res, &Membership{
 			Value: direct.Edges.Group.ID.String(),
 			Display: direct.Edges.Group.DisplayName,
 			Ref: `https://foobar.com`,
-			Type: `direct`,
+			Type: typ,
 		})
+
+		children, err := recursiveLoadMembership(ctx, c, direct.Edges.Group.ID.String(), depth+1)
+		if err != nil {
+			return nil, fmt.Errorf(`failed to load children for %q: %w`, direct.Edges.Group.ID.String(), err)
+		}
+		if len(children) > 0 {
+			res = append(res, children...)
+		}
 	}
+	return res, nil
+}
+
+func LoadMembership(ctx context.Context, c *MemberClient, node *User) error {
+	groups, err := recursiveLoadMembership(ctx, c,node.ID.String(), 0)
+	if err != nil {
+		return err
+	}
+	node.Groups = append(node.Groups, groups...)
 	return nil
 }
 {{- end }}

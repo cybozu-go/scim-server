@@ -13,6 +13,7 @@ type Member struct {
 func (Member) Fields() []ent.Field {
 	return []ent.Field{
 		field.String(`value`),
+		field.String(`display`).Optional(),
 		field.String(`type`),
 		field.String(`ref`).Optional(),
 	}

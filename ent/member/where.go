@@ -86,6 +86,13 @@ func Value(v string) predicate.Member {
 	})
 }
 
+// Display applies equality check predicate on the "display" field. It's identical to DisplayEQ.
+func Display(v string) predicate.Member {
+	return predicate.Member(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldDisplay), v))
+	})
+}
+
 // Type applies equality check predicate on the "type" field. It's identical to TypeEQ.
 func Type(v string) predicate.Member {
 	return predicate.Member(func(s *sql.Selector) {
@@ -208,6 +215,131 @@ func ValueEqualFold(v string) predicate.Member {
 func ValueContainsFold(v string) predicate.Member {
 	return predicate.Member(func(s *sql.Selector) {
 		s.Where(sql.ContainsFold(s.C(FieldValue), v))
+	})
+}
+
+// DisplayEQ applies the EQ predicate on the "display" field.
+func DisplayEQ(v string) predicate.Member {
+	return predicate.Member(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldDisplay), v))
+	})
+}
+
+// DisplayNEQ applies the NEQ predicate on the "display" field.
+func DisplayNEQ(v string) predicate.Member {
+	return predicate.Member(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldDisplay), v))
+	})
+}
+
+// DisplayIn applies the In predicate on the "display" field.
+func DisplayIn(vs ...string) predicate.Member {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.Member(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.In(s.C(FieldDisplay), v...))
+	})
+}
+
+// DisplayNotIn applies the NotIn predicate on the "display" field.
+func DisplayNotIn(vs ...string) predicate.Member {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.Member(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.NotIn(s.C(FieldDisplay), v...))
+	})
+}
+
+// DisplayGT applies the GT predicate on the "display" field.
+func DisplayGT(v string) predicate.Member {
+	return predicate.Member(func(s *sql.Selector) {
+		s.Where(sql.GT(s.C(FieldDisplay), v))
+	})
+}
+
+// DisplayGTE applies the GTE predicate on the "display" field.
+func DisplayGTE(v string) predicate.Member {
+	return predicate.Member(func(s *sql.Selector) {
+		s.Where(sql.GTE(s.C(FieldDisplay), v))
+	})
+}
+
+// DisplayLT applies the LT predicate on the "display" field.
+func DisplayLT(v string) predicate.Member {
+	return predicate.Member(func(s *sql.Selector) {
+		s.Where(sql.LT(s.C(FieldDisplay), v))
+	})
+}
+
+// DisplayLTE applies the LTE predicate on the "display" field.
+func DisplayLTE(v string) predicate.Member {
+	return predicate.Member(func(s *sql.Selector) {
+		s.Where(sql.LTE(s.C(FieldDisplay), v))
+	})
+}
+
+// DisplayContains applies the Contains predicate on the "display" field.
+func DisplayContains(v string) predicate.Member {
+	return predicate.Member(func(s *sql.Selector) {
+		s.Where(sql.Contains(s.C(FieldDisplay), v))
+	})
+}
+
+// DisplayHasPrefix applies the HasPrefix predicate on the "display" field.
+func DisplayHasPrefix(v string) predicate.Member {
+	return predicate.Member(func(s *sql.Selector) {
+		s.Where(sql.HasPrefix(s.C(FieldDisplay), v))
+	})
+}
+
+// DisplayHasSuffix applies the HasSuffix predicate on the "display" field.
+func DisplayHasSuffix(v string) predicate.Member {
+	return predicate.Member(func(s *sql.Selector) {
+		s.Where(sql.HasSuffix(s.C(FieldDisplay), v))
+	})
+}
+
+// DisplayIsNil applies the IsNil predicate on the "display" field.
+func DisplayIsNil() predicate.Member {
+	return predicate.Member(func(s *sql.Selector) {
+		s.Where(sql.IsNull(s.C(FieldDisplay)))
+	})
+}
+
+// DisplayNotNil applies the NotNil predicate on the "display" field.
+func DisplayNotNil() predicate.Member {
+	return predicate.Member(func(s *sql.Selector) {
+		s.Where(sql.NotNull(s.C(FieldDisplay)))
+	})
+}
+
+// DisplayEqualFold applies the EqualFold predicate on the "display" field.
+func DisplayEqualFold(v string) predicate.Member {
+	return predicate.Member(func(s *sql.Selector) {
+		s.Where(sql.EqualFold(s.C(FieldDisplay), v))
+	})
+}
+
+// DisplayContainsFold applies the ContainsFold predicate on the "display" field.
+func DisplayContainsFold(v string) predicate.Member {
+	return predicate.Member(func(s *sql.Selector) {
+		s.Where(sql.ContainsFold(s.C(FieldDisplay), v))
 	})
 }
 

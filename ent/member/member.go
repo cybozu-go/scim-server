@@ -9,6 +9,8 @@ const (
 	FieldID = "id"
 	// FieldValue holds the string denoting the value field in the database.
 	FieldValue = "value"
+	// FieldDisplay holds the string denoting the display field in the database.
+	FieldDisplay = "display"
 	// FieldType holds the string denoting the type field in the database.
 	FieldType = "type"
 	// FieldRef holds the string denoting the ref field in the database.
@@ -30,6 +32,7 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldValue,
+	FieldDisplay,
 	FieldType,
 	FieldRef,
 }

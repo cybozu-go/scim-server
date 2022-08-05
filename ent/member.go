@@ -19,6 +19,8 @@ type Member struct {
 	ID int `json:"id,omitempty"`
 	// Value holds the value of the "value" field.
 	Value string `json:"value,omitempty"`
+	// Display holds the value of the "display" field.
+	Display string `json:"display,omitempty"`
 	// Type holds the value of the "type" field.
 	Type string `json:"type,omitempty"`
 	// Ref holds the value of the "ref" field.
@@ -59,7 +61,7 @@ func (*Member) scanValues(columns []string) ([]interface{}, error) {
 		switch columns[i] {
 		case member.FieldID:
 			values[i] = new(sql.NullInt64)
-		case member.FieldValue, member.FieldType, member.FieldRef:
+		case member.FieldValue, member.FieldDisplay, member.FieldType, member.FieldRef:
 			values[i] = new(sql.NullString)
 		case member.ForeignKeys[0]: // group_members
 			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
@@ -89,6 +91,12 @@ func (m *Member) assignValues(columns []string, values []interface{}) error {
 				return fmt.Errorf("unexpected type %T for field value", values[i])
 			} else if value.Valid {
 				m.Value = value.String
+			}
+		case member.FieldDisplay:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field display", values[i])
+			} else if value.Valid {
+				m.Display = value.String
 			}
 		case member.FieldType:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -144,6 +152,9 @@ func (m *Member) String() string {
 	builder.WriteString(fmt.Sprintf("id=%v, ", m.ID))
 	builder.WriteString("value=")
 	builder.WriteString(m.Value)
+	builder.WriteString(", ")
+	builder.WriteString("display=")
+	builder.WriteString(m.Display)
 	builder.WriteString(", ")
 	builder.WriteString("type=")
 	builder.WriteString(m.Type)

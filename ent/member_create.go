@@ -27,6 +27,20 @@ func (mc *MemberCreate) SetValue(s string) *MemberCreate {
 	return mc
 }
 
+// SetDisplay sets the "display" field.
+func (mc *MemberCreate) SetDisplay(s string) *MemberCreate {
+	mc.mutation.SetDisplay(s)
+	return mc
+}
+
+// SetNillableDisplay sets the "display" field if the given value is not nil.
+func (mc *MemberCreate) SetNillableDisplay(s *string) *MemberCreate {
+	if s != nil {
+		mc.SetDisplay(*s)
+	}
+	return mc
+}
+
 // SetType sets the "type" field.
 func (mc *MemberCreate) SetType(s string) *MemberCreate {
 	mc.mutation.SetType(s)
@@ -182,6 +196,14 @@ func (mc *MemberCreate) createSpec() (*Member, *sqlgraph.CreateSpec) {
 			Column: member.FieldValue,
 		})
 		_node.Value = value
+	}
+	if value, ok := mc.mutation.Display(); ok {
+		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: member.FieldDisplay,
+		})
+		_node.Display = value
 	}
 	if value, ok := mc.mutation.GetType(); ok {
 		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{

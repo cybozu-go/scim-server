@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	entgo.io/ent v0.11.0
-	github.com/cybozu-go/scim v0.0.0-20220804141626-81b75c68e67b
+	github.com/cybozu-go/scim v0.0.0-20220805000829-9408fe63648a
 	github.com/google/uuid v1.3.0
 	github.com/lestrrat-go/dataurl v0.0.0-20220721131304-b60017625013
 	github.com/lestrrat-go/rungroup v0.0.0-20220304094823-8e9bd0a89f18

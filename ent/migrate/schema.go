@@ -119,6 +119,7 @@ var (
 	MembersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "value", Type: field.TypeString},
+		{Name: "display", Type: field.TypeString, Nullable: true},
 		{Name: "type", Type: field.TypeString},
 		{Name: "ref", Type: field.TypeString, Nullable: true},
 		{Name: "group_members", Type: field.TypeUUID, Nullable: true},
@@ -131,7 +132,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "members_groups_members",
-				Columns:    []*schema.Column{MembersColumns[4]},
+				Columns:    []*schema.Column{MembersColumns[5]},
 				RefColumns: []*schema.Column{GroupsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
