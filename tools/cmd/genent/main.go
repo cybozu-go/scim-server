@@ -1351,10 +1351,15 @@ func generateUtilities(object *codegen.Object) error {
 		o.LL(`replaceCall := r.Update()`)
 		for _, field := range object.Fields() {
 			switch field.Name(true) {
-			case `ID`, `Meta`, `Schemas`, `UserName`, `Groups`:
+			case `ID`, `Meta`, `Schemas`, `Groups`:
 				continue
 			}
-			o.LL(`replaceCall.Clear%s()`, field.Name(true))
+
+			// UserName cannot be empty
+			if field.Name(true) != `UserName` {
+				o.LL(`replaceCall.Clear%s()`, field.Name(true))
+			}
+
 			if isEdge(object, field) {
 				entRsname := resourceName(field)
 
@@ -1568,6 +1573,13 @@ func generateUtilities(object *codegen.Object) error {
 		o.L(`}`) // patchAdd%[1]s
 
 		o.LL(`func (b *Backend) patchRemove%[1]s(parent *ent.%[1]s, op *resource.PatchOperation) error {`, object.Name(true))
+		o.L(`if op.Path() == "" {`)
+		o.L(`return resource.NewErrorBuilder().`)
+		o.L(`Status(http.StatusBadRequest).`)
+		o.L(`ScimType(resource.ErrNoTarget).`)
+		o.L(`Detail("empty path").`)
+		o.L(`MustBuild()`)
+		o.L(`}`)
 		o.L(`ctx := context.TODO()`)
 		o.LL(`root, err := filter.Parse(op.Path(), filter.WithPatchExpression(true))`)
 		o.L(`if err != nil {`)
