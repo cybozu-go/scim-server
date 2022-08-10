@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"reflect"
 
 	"entgo.io/ent/dialect/sql"
@@ -557,6 +558,13 @@ func (b *Backend) patchAddGroup(parent *ent.Group, op *resource.PatchOperation) 
 }
 
 func (b *Backend) patchRemoveGroup(parent *ent.Group, op *resource.PatchOperation) error {
+	if op.Path() == "" {
+		return resource.NewErrorBuilder().
+			Status(http.StatusBadRequest).
+			ScimType(resource.ErrNoTarget).
+			Detail("empty path").
+			MustBuild()
+	}
 	ctx := context.TODO()
 
 	root, err := filter.Parse(op.Path(), filter.WithPatchExpression(true))

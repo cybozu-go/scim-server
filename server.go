@@ -8,13 +8,13 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
 
 	"entgo.io/ent/dialect"
-	"github.com/cybozu-go/scim"
 	"github.com/cybozu-go/scim-server/ent"
 	"github.com/cybozu-go/scim-server/ent/group"
 	"github.com/cybozu-go/scim-server/ent/predicate"
@@ -92,8 +92,26 @@ func New(connspec string, options ...ent.Option) (*Backend, error) {
 			Supported(false).
 			MustBuild(),
 		).
+		// Notes on PATCH support.
+		//
+		// * fully qualified field names are currently not supported.
+		//   Copied from RFC7644:
+		//
+		//   The attribute notation rules described in Section 3.10 apply for
+		//   describing attribute paths.  For all operations, the value of the
+		//   "schemas" attribute on the SCIM service provider's representation of
+		//   the resource SHALL be assumed by default.  If one of the PATCH
+		//   operations modifies the "schemas" attribute, subsequent operations
+		//   SHALL assume the modified state of the "schemas" attribute.  Clients
+		//   MAY implicitly modify the "schemas" attribute by adding (or
+		//   replacing) an attribute with its fully qualified name, including
+		//   schema URN.  For example, adding the attribute "urn:ietf:params:scim:
+		//   schemas:extension:enterprise:2.0:User:employeeNumber" automatically
+		//   adds the value
+		//   "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User" to the
+		//   resource's "schemas" attribute.
 		Patch(b.GenericSupport().
-			Supported(false).
+			Supported(true).
 			MustBuild(),
 		).
 		ChangePassword(b.GenericSupport().
@@ -279,7 +297,11 @@ func (b *Backend) RetrieveUser(id string, fields []string, excludedFields []stri
 	u, err := userQuery.
 		Only(context.TODO())
 	if err != nil {
-		return nil, scim.ResourceNotFoundError{} // fmt.Errorf(`failed to retrieve user: %w`, err)
+		return nil, resource.NewErrorBuilder().
+			Status(http.StatusNotFound).
+			Detail(fmt.Sprintf(`failed to retrieve user: %s`, err)).
+			ScimType(resource.ErrUnknown).
+			MustBuild()
 	}
 
 	return UserResourceFromEnt(u)

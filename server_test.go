@@ -14,7 +14,7 @@ import (
 	_ "gocloud.dev/blob/memblob"
 )
 
-func TestSample(t *testing.T) {
+func TestServer(t *testing.T) {
 	ctx := context.TODO()
 
 	bucket, err := blob.OpenBucket(ctx, "mem://photos/")
@@ -28,5 +28,5 @@ func TestSample(t *testing.T) {
 	)
 	require.NoError(t, err, `server.New should succeed`)
 
-	test.RunConformanceTests(t, "Sample backend", s)
+	test.RunConformanceTests(t, "scim-server", s)
 }
