@@ -359,15 +359,26 @@ func (b *Backend) ReplaceGroup(id string, in *resource.Group) (*resource.Group, 
 
 	replaceCall := r.Update()
 
+	replaceCall.ClearDisplayName()
+	if in.HasDisplayName() {
+		replaceCall.SetDisplayName(in.DisplayName())
+	}
+
+	replaceCall.ClearExternalID()
+	if in.HasExternalID() {
+		replaceCall.SetExternalID(in.ExternalID())
+	}
+
+	replaceCall.ClearMembers()
 	var membersCreateCalls []*ent.MemberCreate
 	if in.HasMembers() {
-		replaceCall.ClearMembers()
 		calls, err := b.createMember(in.Members()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create members: %w", err)
 		}
 		membersCreateCalls = calls
 	}
+
 	if _, err := replaceCall.Save(ctx); err != nil {
 		return nil, fmt.Errorf("failed to save object: %w", err)
 	}

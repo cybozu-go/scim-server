@@ -1351,36 +1351,36 @@ func generateUtilities(object *codegen.Object) error {
 		o.LL(`replaceCall := r.Update()`)
 		for _, field := range object.Fields() {
 			switch field.Name(true) {
-			case `ID`, `Meta`, `Schemas`, `UserName`:
+			case `ID`, `Meta`, `Schemas`, `UserName`, `Groups`:
 				continue
 			}
-			if !isEdge(object, field) {
-				continue
-			}
+			o.LL(`replaceCall.Clear%s()`, field.Name(true))
+			if isEdge(object, field) {
+				entRsname := resourceName(field)
 
-			entRsname := resourceName(field)
-
-			o.LL(`var %sCreateCalls []*ent.%sCreate`, field.Name(false), entRsname)
-			o.L(`if in.Has%s() {`, field.Name(true))
-			o.L(`replaceCall.Clear%s()`, field.Name(true))
-			if strings.HasPrefix(field.Type(), `[]`) {
+				o.L(`var %sCreateCalls []*ent.%sCreate`, field.Name(false), entRsname)
+				o.L(`if in.Has%s() {`, field.Name(true))
 				o.L(`calls, err := b.create%s(in.%s()...)`, entRsname, field.Name(true))
 				o.L(`if err != nil {`)
 				o.L(`return nil, fmt.Errorf("failed to create %s: %%w", err)`, field.JSON())
 				o.L(`}`)
 				o.L(`%sCreateCalls = calls`, field.Name(false))
+				o.L(`}`)
 			} else if field.Name(true) == `Name` {
+				o.L(`if in.Has%s() {`, field.Name(true))
 				o.L(`created, err := b.createName(in.Name())`)
 				o.L(`if err != nil {`)
 				o.L(`return nil, fmt.Errorf("failed to create name: %%w", err)`)
 				o.L(`}`)
 				o.L(`replaceCall.SetName(created)`)
+				o.L(`}`)
 			} else {
+				o.L(`if in.Has%s() {`, field.Name(true))
 				o.L(`replaceCall.Set%[1]s(in.%[1]s())`, field.Name(true))
+				o.L(`}`)
 			}
-			o.L(`}`)
 		}
-		o.L(`if _, err := replaceCall.Save(ctx); err != nil {`)
+		o.LL(`if _, err := replaceCall.Save(ctx); err != nil {`)
 		o.L(`return nil, fmt.Errorf("failed to save object: %%w", err)`)
 		o.L(`}`)
 

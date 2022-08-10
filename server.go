@@ -79,16 +79,16 @@ func New(connspec string, options ...ent.Option) (*Backend, error) {
 			MaxPayloadSize(0).
 			MustBuild(),
 		).
+		ETag(b.GenericSupport().
+			Supported(true).
+			MustBuild(),
+		).
 		Filter(b.FilterSupport().
 			Supported(true).
 			MaxResults(200). // TODO: arbitrary value used
 			MustBuild(),
 		).
 		Sort(b.GenericSupport().
-			Supported(false).
-			MustBuild(),
-		).
-		Etag(b.GenericSupport().
 			Supported(false).
 			MustBuild(),
 		).

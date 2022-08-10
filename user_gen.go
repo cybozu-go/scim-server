@@ -1404,9 +1404,14 @@ func (b *Backend) ReplaceUser(id string, in *resource.User) (*resource.User, err
 
 	replaceCall := r.Update()
 
+	replaceCall.ClearActive()
+	if in.HasActive() {
+		replaceCall.SetActive(in.Active())
+	}
+
+	replaceCall.ClearAddresses()
 	var addressesCreateCalls []*ent.AddressCreate
 	if in.HasAddresses() {
-		replaceCall.ClearAddresses()
 		calls, err := b.createAddress(in.Addresses()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create addresses: %w", err)
@@ -1414,9 +1419,14 @@ func (b *Backend) ReplaceUser(id string, in *resource.User) (*resource.User, err
 		addressesCreateCalls = calls
 	}
 
+	replaceCall.ClearDisplayName()
+	if in.HasDisplayName() {
+		replaceCall.SetDisplayName(in.DisplayName())
+	}
+
+	replaceCall.ClearEmails()
 	var emailsCreateCalls []*ent.EmailCreate
 	if in.HasEmails() {
-		replaceCall.ClearEmails()
 		calls, err := b.createEmail(in.Emails()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create emails: %w", err)
@@ -1424,9 +1434,9 @@ func (b *Backend) ReplaceUser(id string, in *resource.User) (*resource.User, err
 		emailsCreateCalls = calls
 	}
 
+	replaceCall.ClearEntitlements()
 	var entitlementsCreateCalls []*ent.EntitlementCreate
 	if in.HasEntitlements() {
-		replaceCall.ClearEntitlements()
 		calls, err := b.createEntitlement(in.Entitlements()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create entitlements: %w", err)
@@ -1434,9 +1444,14 @@ func (b *Backend) ReplaceUser(id string, in *resource.User) (*resource.User, err
 		entitlementsCreateCalls = calls
 	}
 
+	replaceCall.ClearExternalID()
+	if in.HasExternalID() {
+		replaceCall.SetExternalID(in.ExternalID())
+	}
+
+	replaceCall.ClearIMS()
 	var imsCreateCalls []*ent.IMSCreate
 	if in.HasIMS() {
-		replaceCall.ClearIMS()
 		calls, err := b.createIMS(in.IMS()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create ims: %w", err)
@@ -1444,9 +1459,33 @@ func (b *Backend) ReplaceUser(id string, in *resource.User) (*resource.User, err
 		imsCreateCalls = calls
 	}
 
+	replaceCall.ClearLocale()
+	if in.HasLocale() {
+		replaceCall.SetLocale(in.Locale())
+	}
+
+	replaceCall.ClearName()
+	if in.HasName() {
+		created, err := b.createName(in.Name())
+		if err != nil {
+			return nil, fmt.Errorf("failed to create name: %w", err)
+		}
+		replaceCall.SetName(created)
+	}
+
+	replaceCall.ClearNickName()
+	if in.HasNickName() {
+		replaceCall.SetNickName(in.NickName())
+	}
+
+	replaceCall.ClearPassword()
+	if in.HasPassword() {
+		replaceCall.SetPassword(in.Password())
+	}
+
+	replaceCall.ClearPhoneNumbers()
 	var phoneNumbersCreateCalls []*ent.PhoneNumberCreate
 	if in.HasPhoneNumbers() {
-		replaceCall.ClearPhoneNumbers()
 		calls, err := b.createPhoneNumber(in.PhoneNumbers()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create phoneNumbers: %w", err)
@@ -1454,9 +1493,9 @@ func (b *Backend) ReplaceUser(id string, in *resource.User) (*resource.User, err
 		phoneNumbersCreateCalls = calls
 	}
 
+	replaceCall.ClearPhotos()
 	var photosCreateCalls []*ent.PhotoCreate
 	if in.HasPhotos() {
-		replaceCall.ClearPhotos()
 		calls, err := b.createPhoto(in.Photos()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create photos: %w", err)
@@ -1464,9 +1503,19 @@ func (b *Backend) ReplaceUser(id string, in *resource.User) (*resource.User, err
 		photosCreateCalls = calls
 	}
 
+	replaceCall.ClearPreferredLanguage()
+	if in.HasPreferredLanguage() {
+		replaceCall.SetPreferredLanguage(in.PreferredLanguage())
+	}
+
+	replaceCall.ClearProfileURL()
+	if in.HasProfileURL() {
+		replaceCall.SetProfileURL(in.ProfileURL())
+	}
+
+	replaceCall.ClearRoles()
 	var rolesCreateCalls []*ent.RoleCreate
 	if in.HasRoles() {
-		replaceCall.ClearRoles()
 		calls, err := b.createRole(in.Roles()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create roles: %w", err)
@@ -1474,15 +1523,31 @@ func (b *Backend) ReplaceUser(id string, in *resource.User) (*resource.User, err
 		rolesCreateCalls = calls
 	}
 
+	replaceCall.ClearTimezone()
+	if in.HasTimezone() {
+		replaceCall.SetTimezone(in.Timezone())
+	}
+
+	replaceCall.ClearTitle()
+	if in.HasTitle() {
+		replaceCall.SetTitle(in.Title())
+	}
+
+	replaceCall.ClearUserType()
+	if in.HasUserType() {
+		replaceCall.SetUserType(in.UserType())
+	}
+
+	replaceCall.ClearX509Certificates()
 	var x509CertificatesCreateCalls []*ent.X509CertificateCreate
 	if in.HasX509Certificates() {
-		replaceCall.ClearX509Certificates()
 		calls, err := b.createX509Certificate(in.X509Certificates()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create x509Certificates: %w", err)
 		}
 		x509CertificatesCreateCalls = calls
 	}
+
 	if _, err := replaceCall.Save(ctx); err != nil {
 		return nil, fmt.Errorf("failed to save object: %w", err)
 	}

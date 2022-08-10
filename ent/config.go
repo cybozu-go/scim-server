@@ -5,6 +5,7 @@ package ent
 import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
+	"github.com/cybozu-go/scim-server/helper"
 	"gocloud.dev/blob"
 )
 
@@ -20,8 +21,9 @@ type config struct {
 	// log used for logging on debug mode.
 	log func(...interface{})
 	// hooks to execute on mutations.
-	hooks  *hooks
-	Bucket *blob.Bucket
+	hooks    *hooks
+	PhotoURL helper.PhotoURLFunc
+	Bucket   *blob.Bucket
 }
 
 // hooks per client, for fast access.
@@ -68,6 +70,13 @@ func Log(fn func(...interface{})) Option {
 func Driver(driver dialect.Driver) Option {
 	return func(c *config) {
 		c.driver = driver
+	}
+}
+
+// PhotoURL configures the PhotoURL.
+func PhotoURL(v helper.PhotoURLFunc) Option {
+	return func(c *config) {
+		c.PhotoURL = v
 	}
 }
 
