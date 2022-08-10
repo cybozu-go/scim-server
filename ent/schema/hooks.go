@@ -1,5 +1,15 @@
 package schema
 
+// NOTE: This file has a dependency on generated files in ../ent.
+// This means that if we generated code that does not compile
+// in ../ent, we now run the risk of not being able to compile
+// this hook either.
+//
+// It also won't work if the hook depends on some code that has
+// not yet been generated in the ../ent directory
+//
+// In those cases, remove this from the files to be compiled
+
 import (
 	"context"
 	"fmt"
@@ -10,6 +20,12 @@ import (
 	"github.com/cybozu-go/scim-server/ent/hook"
 	"github.com/lestrrat-go/dataurl"
 )
+
+func (Photo) Hooks() []ent.Hook {
+	return []ent.Hook{
+		UploadBlob(),
+	}
+}
 
 func UploadBlob() ent.Hook {
 	h := func(next ent.Mutator) ent.Mutator {
@@ -53,7 +69,12 @@ func UploadBlob() ent.Hook {
 				return nil, fmt.Errorf(`failed to store blob`)
 			}
 
-			m.SetValue(fmt.Sprintf(`https://random/%s/%s`, userID.String(), id.String()+suffix))
+			u, err := m.PhotoURL.Make(userID.String(), id.String()+suffix)
+			if err != nil {
+				// TODO: if this happens, we need to delete the old one?
+				return nil, fmt.Errorf(`failed to create URL for new object: %w`, err)
+			}
+			m.SetValue(u)
 			return next.Mutate(ctx, m)
 		})
 	}
