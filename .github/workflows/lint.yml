@@ -12,6 +12,7 @@ jobs:
           check-latest: true
       - uses: golangci/golangci-lint-action@v3
         with:
+          args: --timeout=10m
           version: v1.46.2
       - name: Run go vet
         run: |

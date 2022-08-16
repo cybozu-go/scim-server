@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/cybozu-go/scim/resource"
+	"github.com/cybozu-go/scim/schema"
 	"github.com/goccy/go-yaml"
 	"github.com/lestrrat-go/codegen"
 	"github.com/lestrrat-go/runcmd"
@@ -34,8 +36,21 @@ var userEdges = []string{
 
 var groupEdgeMap map[string]struct{}
 var userEdgeMap map[string]struct{}
+var groupSchema *resource.Schema
+var userSchema *resource.Schema
 
 func main() {
+	s, ok := schema.GetByResourceType(`User`)
+	if !ok {
+		panic("could not find User resource schema")
+	}
+	userSchema = s
+	s, ok = schema.GetByResourceType(`Group`)
+	if !ok {
+		panic("could not find Group resource schema")
+	}
+	groupSchema = s
+
 	userEdgeMap = make(map[string]struct{})
 	for _, e := range userEdges {
 		userEdgeMap[e] = struct{}{}
@@ -1244,6 +1259,12 @@ func generateUtilities(object *codegen.Object) error {
 		}
 	}
 
+	var resourceSchema *resource.Schema
+	if object.Name(true) == `User` {
+		resourceSchema = userSchema
+	} else {
+		resourceSchema = groupSchema
+	}
 	switch object.Name(true) {
 	case `User`, `Group`:
 		var required []codegen.Field
@@ -1350,8 +1371,12 @@ func generateUtilities(object *codegen.Object) error {
 		// TODO: THIS IS NOT THE RIGHT IMPLEMENTATION
 		o.LL(`replaceCall := r.Update()`)
 		for _, field := range object.Fields() {
-			switch field.Name(true) {
-			case `ID`, `Meta`, `Schemas`, `Groups`:
+			attr, ok := resourceSchema.AttributeByName(field.JSON())
+			if !ok {
+				continue
+			}
+
+			if !attr.CanWrite() {
 				continue
 			}
 
