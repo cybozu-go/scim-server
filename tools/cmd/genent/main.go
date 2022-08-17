@@ -235,267 +235,7 @@ func _main() error {
 		}
 	}
 
-	/*
-		if err := generateCommon(def.Objects); err != nil {
-			return fmt.Errorf(`failed to generate common utilities: %w`, err)
-		}*/
-
 	return nil
-}
-
-func generateCommon(objects []*codegen.Object) error {
-	var buf bytes.Buffer
-	o := codegen.NewOutput(&buf)
-
-	o.L(`package server`)
-
-	o.LL(`import (`)
-	o.L(`"github.com/cybozu-go/scim/resource"`)
-	o.L(`"github.com/cybozu-go/scim-server/ent"`)
-	o.L(`"github.com/cybozu-go/scim-server/ent/predicate"`)
-	o.L(`"github.com/cybozu-go/scim-server/ent/role"`)
-	o.L(`"github.com/cybozu-go/scim-server/ent/entitlement"`)
-	o.L(`"github.com/cybozu-go/scim-server/ent/email"`)
-	o.L(`"github.com/cybozu-go/scim-server/ent/ims"`)
-	o.L(`"github.com/cybozu-go/scim-server/ent/phonenumber"`)
-	o.L(`"github.com/cybozu-go/scim-server/ent/photo"`)
-	o.L(`"github.com/cybozu-go/scim-server/ent/address"`)
-	o.L(`"github.com/cybozu-go/scim-server/ent/user"`)
-	o.L(`"github.com/cybozu-go/scim-server/ent/group"`)
-	o.L(`"github.com/cybozu-go/scim-server/ent/x509certificate"`)
-	o.L(`)`)
-
-	o.LL(`func (m *singleValueMutator) Remove() (bool, error) {`)
-	o.L(`ctx := context.TODO()`)
-	o.L(`// special case, delete itself`)
-	o.L(`if m.field == "" {`)
-	o.L(`switch e := m.target.(type) {`)
-	for _, rt := range []string{`User`, `Group`} {
-		o.L(`case *ent.%s:`, rt)
-		o.L(`return true, m.backend.db.%s.DeleteOne(e).Exec(ctx)`, rt)
-	}
-	o.L(`default:`)
-	o.L(`return true, fmt.Errorf("unhandled resource type %%T", m.target)`)
-	o.L(`}`) // switch m.target.type
-	o.L(`}`) // if m.field == ""
-	o.LL(`// clear subfield`)
-	o.L(`switch e := m.target.(type) {`)
-	for _, object := range objects {
-		switch object.Name(true) {
-		case `User`, `Group`:
-		default:
-			continue
-		}
-		o.L(`case *ent.%s:`, object.Name(true))
-		o.L(`switch m.field {`)
-		for _, field := range object.Fields() {
-			if field.IsRequired() {
-				continue
-			}
-			switch field.Name(true) {
-			case "ID", "Schemas", "Meta":
-				continue
-			default:
-				o.L(`case resource.%s%sKey:`, object.Name(true), field.Name(true))
-				o.L(`if _, err := e.Update().%s().Save(ctx); err != nil {`, clearMethod(field))
-				o.L(`return false, fmt.Errorf("failed to clear value for \"%s\": %%w", err)`, field.JSON())
-				o.L(`}`)
-				o.L(`return false, nil`)
-			}
-		}
-		o.L(`default:`)
-		o.L(`return false, fmt.Errorf("unhandled field in mutator: %%s", m.field)`)
-		o.L(`}`)
-	}
-	o.L(`}`) // %switch m.target.(type)
-	o.L(`return false, fmt.Errorf("unimplemented")`)
-	o.L(`}`) // func Remove
-
-	o.LL(`func (m *singleValueMutator) Add(src json.RawMessage) error {`)
-	o.L(`ctx := context.TODO()`)
-	o.L(`// special case, mutate itself`)
-	o.L(`if m.field == "" {`)
-	o.L(`switch e := m.target.(type) {`)
-	for _, rt := range []string{`User`, `Group`} {
-		o.L(`case *ent.%s:`, rt)
-		o.L(`r, err := %sResourceFromEnt(e)`, rt)
-		o.L(`if err != nil {`)
-		o.L(`return fmt.Errorf("failed to convert resource: %%w", err)`)
-		o.L(`}`)
-		o.LL(`if err := json.Unmarshal(src, &r); err != nil {`)
-		o.L(`return fmt.Errorf("failed to unmarshal JSON for %s: %%w", err)`, rt)
-		o.L(`}`)
-		o.LL(`if _, err := m.backend.Replace%s(r.ID(), r); err != nil {`, rt)
-		o.L(`return err`)
-		o.L(`}`)
-	}
-	o.L(`default:`)
-	o.L(`return fmt.Errorf("unhandled resource type %%T", m.target)`)
-	o.L(`}`) // switch m.target.type
-	o.L(`}`) // if m.field == ""
-
-	o.LL(`// mutate subfield`)
-	o.L(`switch e := m.target.(type) {`)
-	for _, object := range objects {
-		switch object.Name(true) {
-		case `User`, `Group`:
-		default:
-			continue
-		}
-		o.L(`case *ent.%s:`, object.Name(true))
-		o.L(`switch m.field {`)
-		for _, field := range object.Fields() {
-			switch field.Name(true) {
-			case "ID", "Meta", "Schemas":
-				continue
-			}
-			o.L(`case resource.%s%sKey:`, object.Name(true), field.Name(true))
-			if strings.HasPrefix(field.Type(), `[]`) {
-				// Is this right? can we just add the new value?
-				singleType := strings.TrimPrefix(field.Type(), `[]*`)
-				ft, ok := objectMap[singleType]
-				if !ok {
-					panic(fmt.Sprintf("could not find %s in object definition", singleType))
-				}
-				o.L(`var in resource.%s`, singleType)
-				o.L(`if err := json.Unmarshal(src, &in); err != nil {`)
-				o.L(`return fmt.Errorf("failed to decode value: %%w", err)`)
-				o.L(`}`)
-
-				// Check if this resource already exists
-
-				// There are several irregular cases -- The name for IMS normalizes to Imses,
-				// and Members is actually represented as Users and Children Edges from a Group
-				/*
-					if field.Name(true) == "Members" {
-						// For now, we're going to require $ref to be properly populated
-						// so that we can deduce if this is a user or a group
-						o.LL(`parsedUUID, err := uuid.Parse(in.Value())`)
-						o.L(`if err != nil {`)
-						o.L(`return fmt.Errorf("failed to parse ID in value: %%w", err)`)
-						o.L(`}`)
-						o.L(`updateCall := e.Update()`)
-						o.L(`if strings.Contains(in.Ref(), "/Users/") {`)
-						o.L(`c, err := e.QueryUsers().Where(user.ID(parsedUUID)).Count(ctx)`)
-						o.L(`if err != nil {`)
-						o.L(`return fmt.Errorf("failed to check for existing member: %%w", err)`)
-						o.L(`}`)
-						o.L(`if c != 0 {`)
-						o.L(`return nil`)
-						o.L(`}`)
-						o.L(`updateCall.AddUserIDs(parsedUUID)`)
-						o.L(`} else if strings.Contains(in.Ref(), "/Groups/") {`)
-						o.L(`c, err := e.QueryChildren().Where(group.ID(parsedUUID)).Count(ctx)`)
-						o.L(`if err != nil {`)
-						o.L(`return fmt.Errorf("failed to check for existing member: %%w", err)`)
-						o.L(`}`)
-						o.L(`if c != 0 {`)
-						o.L(`return nil`)
-						o.L(`}`)
-						o.L(`updateCall.AddChildIDs(parsedUUID)`)
-						o.L(`} else {`)
-						o.L(`return fmt.Errorf("failed to deduce resource type (missing $ref)")`)
-						o.L(`}`)
-						o.L(`if _, err := updateCall.Save(ctx); err != nil {`)
-						o.L(`return fmt.Errorf("failed to add value in members: %%w", err)`)
-						o.L(`}`)
-						continue
-					}*/
-
-				o.LL(`q := e.%s()`, queryMethod(field))
-				pkgName := packageName(singularName(field.Name(false)))
-				createSubfieldMethod := fmt.Sprintf(`create%s`, resourceName(field))
-				for _, subfield := range ft.Fields() {
-					o.L(`if in.Has%s() {`, subfield.Name(true))
-					o.L(`q = q.Where(%[1]s.%[2]s(in.%[2]s()))`, pkgName, subfield.Name(true))
-					o.L(`}`)
-				}
-				o.L(`c, err := q.Count(ctx)`)
-				o.L(`if err != nil {`)
-				o.L(`return fmt.Errorf("failed to check for existing elements: %%w", err)`)
-				o.L(`}`)
-				o.L(`if c > 0 {`)
-				o.L(`return nil // already exists`)
-				o.L(`}`)
-
-				o.L(`calls, err := m.backend.%s(&in)`, createSubfieldMethod)
-				o.L(`if err != nil {`)
-				o.L(`return fmt.Errorf("failed to create new element: %%w", err)`)
-				o.L(`}`)
-				addMethod := addMethod(field)
-				o.L(`list := make([]*ent.%s, len(calls))`, resourceName(field))
-				o.L(`for i, call := range calls {`)
-				o.L(`created, err := call.Save(ctx)`)
-				o.L(`if err != nil {`)
-				o.L(`return fmt.Errorf("failed to create new element: %%w", err)`)
-				o.L(`}`)
-				o.L(`list[i] = created`)
-				o.L(`}`)
-				o.L(`if _, err := e.Update().%s(list...).Save(ctx); err != nil {`, addMethod)
-				o.L(`return fmt.Errorf("failed to save value: %%w", err)`)
-				o.L(`}`)
-			} else if field.Name(true) == `Members` {
-				o.L(`var in resource.GroupMember`)
-				o.L(`if err := json.Unmarshal(src, &in); err != nil {`)
-				o.L(`return fmt.Errorf("invalid value: %%w", err)`)
-				o.L(`}`)
-				o.LL(`parsedUUID, err := uuid.Parse(in.ID())`)
-				o.L(`if err != nil {`)
-				o.L(`return fmt.Errorf("failed to parse ID in value: %%w", err)`)
-				o.L(`}`)
-				o.LL(`switch {`)
-				o.L(`case strings.Contains(in.Ref(), "/Users/"):`)
-				o.L(`if _, err := e.Update().AddUserIDs(parsedUUID).Save(ctx); err != nil {`)
-				o.L(`return fmt.Errorf("failed to save value: %%w", err)`)
-				o.L(`}`)
-				o.L(`case strings.Contains(in.Ref(), "/Groups/"):`)
-				o.L(`if _, err := e.Update().AddChildIDs(parsedUUID).Save(ctx); err != nil {`)
-				o.L(`return fmt.Errorf("failed to save value: %%w", err)`)
-				o.L(`}`)
-				o.L(`default:`)
-				o.L(`return fmt.Errorf("failed to determine member type")`)
-				o.L(`}`)
-			} else if field.Name(true) == `Name` {
-				o.L(`var in resource.Names`)
-				o.L(`if err := json.Unmarshal(src, &in); err != nil {`)
-				o.L(`return fmt.Errorf("invalid value: %%w", err)`)
-				o.L(`}`)
-				o.L(`created, err := m.backend.createName(&in)`)
-				o.L(`if err != nil {`)
-				o.L(`return fmt.Errorf("failed to create name: %%w", err)`)
-				o.L(`}`)
-				o.L(`if _, err := e.Update().SetName(created).Save(ctx); err != nil {`)
-				o.L(`return fmt.Errorf("failed to save value: %%w", err)`)
-				o.L(`}`)
-			} else {
-				o.L(`var in %s`, field.Type())
-				o.L(`if err := json.Unmarshal(src, &in); err != nil {`)
-				o.L(`return fmt.Errorf("invalid value: %%w", err)`)
-				o.L(`}`)
-				o.L(`if _, err := e.Update().Set%s(in).Save(ctx); err != nil {`, field.Name(true))
-				o.L(`return fmt.Errorf("failed to save value: %%w", err)`)
-				o.L(`}`)
-			}
-		}
-		o.L(`default:`)
-		o.L(`return fmt.Errorf("unhandled field: %%s", m.field)`)
-		o.L(`}`)
-	}
-	o.L(`default:`)
-	o.L(`return fmt.Errorf("unhandled resource type %%T", m.target)`)
-	o.L(`}`)
-	o.L(`return nil`)
-	o.L(`}`) // func Add
-
-	fn := filepath.Join(`server_gen.go`)
-	if err := o.WriteFile(fn, codegen.WithFormatCode(true)); err != nil {
-		if cfe, ok := err.(codegen.CodeFormatError); ok {
-			fmt.Fprint(os.Stderr, cfe.Source())
-		}
-		return fmt.Errorf(`failed to write to %s: %w`, fn, err)
-	}
-	return nil
-
 }
 
 func (g *GenEnt) cloneSCIM(ctx context.Context) error {
@@ -1109,8 +849,7 @@ func generateExistsPredicate(dst io.Writer, object *codegen.Object) error {
 			continue
 		}
 
-		o.LL(`func (b *Backend) exists%[2]s%[1]s(parent *ent.%[2]s, in *resource.%[3]s) bool {`, rsname, object.Name(true), scimRsname)
-		o.L(`ctx := context.TODO()`)
+		o.LL(`func (b *Backend) exists%[2]s%[1]s(ctx context.Context, parent *ent.%[2]s, in *resource.%[3]s) bool {`, rsname, object.Name(true), scimRsname)
 		o.L(`queryCall := parent.Query%s()`, field.Name(true))
 
 		subObject, ok := objectMap[scimRsname]
@@ -1220,7 +959,7 @@ func generateUtilities(object *codegen.Object) error {
 			scimRsname := scimResourceName(field)
 			rsname := resourceName(field)
 
-			o.LL(`func (b *Backend) create%[1]s(resources ...*resource.%[2]s) ([]*ent.%[1]sCreate, error) {`, rsname, scimRsname)
+			o.LL(`func (b *Backend) create%[1]s(ctx context.Context, resources ...*resource.%[2]s) ([]*ent.%[1]sCreate, error) {`, rsname, scimRsname)
 			o.L(`list := make([]*ent.%sCreate, len(resources))`, rsname)
 			o.L(`for i, in := range resources {`)
 			o.L(`createCall := b.db.%s.Create()`, rsname)
@@ -1236,7 +975,6 @@ func generateUtilities(object *codegen.Object) error {
 
 				if subf == `Type` && rsname == `Member` {
 					o.L(`} else {`)
-					o.L(`ctx := context.TODO()`)
 					o.LL(`parsedUUID, err := uuid.Parse(in.Value())`)
 					o.L(`if err != nil {`)
 					o.L(`return nil, fmt.Errorf("failed to parse ID in \"value\" field: %%w", err)`)
@@ -1281,8 +1019,7 @@ func generateUtilities(object *codegen.Object) error {
 				optional = append(optional, field)
 			}
 		}
-		o.LL(`func (b *Backend) Create%[1]s(in *resource.%[1]s) (*resource.%[1]s, error) {`, object.Name(true))
-		o.L(`ctx := context.TODO()`)
+		o.LL(`func (b *Backend) Create%[1]s(ctx context.Context, in *resource.%[1]s) (*resource.%[1]s, error) {`, object.Name(true))
 		o.LL(`createCall := b.db.%s.Create()`, object.Name(true))
 
 		if object.Name(true) == `User` {
@@ -1303,7 +1040,7 @@ func generateUtilities(object *codegen.Object) error {
 			if isEdge(object, field) {
 				o.L(`var %[1]sCreateCalls []*ent.%[2]sCreate`, singularName(field.Name(false)), resourceName(field))
 				o.L(`if in.Has%s() {`, field.Name(true))
-				o.L(`calls, err := b.create%s(in.%s()...)`, resourceName(field), field.Name(true))
+				o.L(`calls, err := b.create%s(ctx, in.%s()...)`, resourceName(field), field.Name(true))
 				o.L(`if err != nil {`)
 				o.L(`return nil, fmt.Errorf("failed to create %s: %%w", err)`, field.JSON())
 				o.L(`}`)
@@ -1313,7 +1050,7 @@ func generateUtilities(object *codegen.Object) error {
 				continue
 			} else if field.Name(true) == `Name` {
 				o.L(`if in.Has%s() {`, field.Name(true))
-				o.L(`created, err := b.create%[1]s(in.%[1]s())`, field.Name(true))
+				o.L(`created, err := b.create%[1]s(ctx, in.%[1]s())`, field.Name(true))
 				o.L(`if err != nil {`)
 				o.L(`return nil, fmt.Errorf("failed to create %s: %%w", err)`, field.JSON())
 				o.L(`}`)
@@ -1357,8 +1094,7 @@ func generateUtilities(object *codegen.Object) error {
 		o.L(`return %sResourceFromEnt(rs)`, object.Name(true))
 		o.L(`}`)
 
-		o.LL(`func (b *Backend) Replace%[1]s(id string, in *resource.%[1]s) (*resource.%[1]s, error) {`, object.Name(true))
-		o.L(`ctx := context.TODO()`)
+		o.LL(`func (b *Backend) Replace%[1]s(ctx context.Context, id string, in *resource.%[1]s) (*resource.%[1]s, error) {`, object.Name(true))
 		o.LL(`parsedUUID, err := uuid.Parse(id)`)
 		o.L(`if err != nil {`)
 		o.L(`return nil, fmt.Errorf("failed to parse ID: %%w", err)`)
@@ -1390,7 +1126,7 @@ func generateUtilities(object *codegen.Object) error {
 
 				o.L(`var %sCreateCalls []*ent.%sCreate`, field.Name(false), entRsname)
 				o.L(`if in.Has%s() {`, field.Name(true))
-				o.L(`calls, err := b.create%s(in.%s()...)`, entRsname, field.Name(true))
+				o.L(`calls, err := b.create%s(ctx, in.%s()...)`, entRsname, field.Name(true))
 				o.L(`if err != nil {`)
 				o.L(`return nil, fmt.Errorf("failed to create %s: %%w", err)`, field.JSON())
 				o.L(`}`)
@@ -1398,7 +1134,7 @@ func generateUtilities(object *codegen.Object) error {
 				o.L(`}`)
 			} else if field.Name(true) == `Name` {
 				o.L(`if in.Has%s() {`, field.Name(true))
-				o.L(`created, err := b.createName(in.Name())`)
+				o.L(`created, err := b.createName(ctx, in.Name())`)
 				o.L(`if err != nil {`)
 				o.L(`return nil, fmt.Errorf("failed to create name: %%w", err)`)
 				o.L(`}`)
@@ -1456,8 +1192,7 @@ func generateUtilities(object *codegen.Object) error {
 		o.LL(`return %sResourceFromEnt(r2)`, object.Name(true))
 		o.L(`}`)
 
-		o.LL(`func (b *Backend) patchAdd%[1]s(parent *ent.%[1]s, op *resource.PatchOperation) error {`, object.Name(true))
-		o.L(`ctx := context.TODO()`)
+		o.LL(`func (b *Backend) patchAdd%[1]s(ctx context.Context, parent *ent.%[1]s, op *resource.PatchOperation) error {`, object.Name(true))
 		o.LL(`root, err := filter.Parse(op.Path(), filter.WithPatchExpression(true))`)
 		o.L(`if err != nil {`)
 		o.L(`return fmt.Errorf("failed to parse PATH path %%q", op.Path())`)
@@ -1517,11 +1252,11 @@ func generateUtilities(object *codegen.Object) error {
 				o.L(`return fmt.Errorf("failed to decode patch add value: %%w", err)`)
 				o.L(`}`)
 
-				o.LL(`if b.exists%s%s(parent, &in) {`, object.Name(true), rsname)
+				o.LL(`if b.exists%s%s(ctx, parent, &in) {`, object.Name(true), rsname)
 				o.L(`return nil`)
 				o.L(`}`)
 
-				o.LL(`calls, err := b.create%s(&in)`, rsname)
+				o.LL(`calls, err := b.create%s(ctx, &in)`, rsname)
 				o.L(`if err != nil {`)
 				o.L(`return fmt.Errorf("failed to create %s: %%w", err)`, rsname)
 				o.L(`}`)
@@ -1597,7 +1332,7 @@ func generateUtilities(object *codegen.Object) error {
 		o.L(`return nil`)
 		o.L(`}`) // patchAdd%[1]s
 
-		o.LL(`func (b *Backend) patchRemove%[1]s(parent *ent.%[1]s, op *resource.PatchOperation) error {`, object.Name(true))
+		o.LL(`func (b *Backend) patchRemove%[1]s(ctx context.Context, parent *ent.%[1]s, op *resource.PatchOperation) error {`, object.Name(true))
 		o.L(`if op.Path() == "" {`)
 		o.L(`return resource.NewErrorBuilder().`)
 		o.L(`Status(http.StatusBadRequest).`)
@@ -1605,7 +1340,6 @@ func generateUtilities(object *codegen.Object) error {
 		o.L(`Detail("empty path").`)
 		o.L(`MustBuild()`)
 		o.L(`}`)
-		o.L(`ctx := context.TODO()`)
 		o.LL(`root, err := filter.Parse(op.Path(), filter.WithPatchExpression(true))`)
 		o.L(`if err != nil {`)
 		o.L(`return fmt.Errorf("failed to parse path %%q", op.Path())`)

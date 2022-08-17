@@ -840,8 +840,7 @@ func userPresencePredicate(scimField string) predicate.User {
 	}
 }
 
-func (b *Backend) existsUserAddress(parent *ent.User, in *resource.Address) bool {
-	ctx := context.TODO()
+func (b *Backend) existsUserAddress(ctx context.Context, parent *ent.User, in *resource.Address) bool {
 	queryCall := parent.QueryAddresses()
 	var predicates []predicate.Address
 	if in.HasCountry() {
@@ -870,8 +869,7 @@ func (b *Backend) existsUserAddress(parent *ent.User, in *resource.Address) bool
 	return v
 }
 
-func (b *Backend) existsUserEmail(parent *ent.User, in *resource.Email) bool {
-	ctx := context.TODO()
+func (b *Backend) existsUserEmail(ctx context.Context, parent *ent.User, in *resource.Email) bool {
 	queryCall := parent.QueryEmails()
 	var predicates []predicate.Email
 	if in.HasDisplay() {
@@ -894,8 +892,7 @@ func (b *Backend) existsUserEmail(parent *ent.User, in *resource.Email) bool {
 	return v
 }
 
-func (b *Backend) existsUserEntitlement(parent *ent.User, in *resource.Entitlement) bool {
-	ctx := context.TODO()
+func (b *Backend) existsUserEntitlement(ctx context.Context, parent *ent.User, in *resource.Entitlement) bool {
 	queryCall := parent.QueryEntitlements()
 	var predicates []predicate.Entitlement
 	if in.HasDisplay() {
@@ -918,8 +915,7 @@ func (b *Backend) existsUserEntitlement(parent *ent.User, in *resource.Entitleme
 	return v
 }
 
-func (b *Backend) existsUserIMS(parent *ent.User, in *resource.IMS) bool {
-	ctx := context.TODO()
+func (b *Backend) existsUserIMS(ctx context.Context, parent *ent.User, in *resource.IMS) bool {
 	queryCall := parent.QueryIMS()
 	var predicates []predicate.IMS
 	if in.HasDisplay() {
@@ -942,8 +938,7 @@ func (b *Backend) existsUserIMS(parent *ent.User, in *resource.IMS) bool {
 	return v
 }
 
-func (b *Backend) existsUserPhoneNumber(parent *ent.User, in *resource.PhoneNumber) bool {
-	ctx := context.TODO()
+func (b *Backend) existsUserPhoneNumber(ctx context.Context, parent *ent.User, in *resource.PhoneNumber) bool {
 	queryCall := parent.QueryPhoneNumbers()
 	var predicates []predicate.PhoneNumber
 	if in.HasDisplay() {
@@ -966,8 +961,7 @@ func (b *Backend) existsUserPhoneNumber(parent *ent.User, in *resource.PhoneNumb
 	return v
 }
 
-func (b *Backend) existsUserPhoto(parent *ent.User, in *resource.Photo) bool {
-	ctx := context.TODO()
+func (b *Backend) existsUserPhoto(ctx context.Context, parent *ent.User, in *resource.Photo) bool {
 	queryCall := parent.QueryPhotos()
 	var predicates []predicate.Photo
 	if in.HasDisplay() {
@@ -990,8 +984,7 @@ func (b *Backend) existsUserPhoto(parent *ent.User, in *resource.Photo) bool {
 	return v
 }
 
-func (b *Backend) existsUserRole(parent *ent.User, in *resource.Role) bool {
-	ctx := context.TODO()
+func (b *Backend) existsUserRole(ctx context.Context, parent *ent.User, in *resource.Role) bool {
 	queryCall := parent.QueryRoles()
 	var predicates []predicate.Role
 	if in.HasDisplay() {
@@ -1014,8 +1007,7 @@ func (b *Backend) existsUserRole(parent *ent.User, in *resource.Role) bool {
 	return v
 }
 
-func (b *Backend) existsUserX509Certificate(parent *ent.User, in *resource.X509Certificate) bool {
-	ctx := context.TODO()
+func (b *Backend) existsUserX509Certificate(ctx context.Context, parent *ent.User, in *resource.X509Certificate) bool {
 	queryCall := parent.QueryX509Certificates()
 	var predicates []predicate.X509Certificate
 	if in.HasDisplay() {
@@ -1038,7 +1030,7 @@ func (b *Backend) existsUserX509Certificate(parent *ent.User, in *resource.X509C
 	return v
 }
 
-func (b *Backend) createEmail(resources ...*resource.Email) ([]*ent.EmailCreate, error) {
+func (b *Backend) createEmail(ctx context.Context, resources ...*resource.Email) ([]*ent.EmailCreate, error) {
 	list := make([]*ent.EmailCreate, len(resources))
 	for i, in := range resources {
 		createCall := b.db.Email.Create()
@@ -1059,7 +1051,7 @@ func (b *Backend) createEmail(resources ...*resource.Email) ([]*ent.EmailCreate,
 	return list, nil
 }
 
-func (b *Backend) createEntitlement(resources ...*resource.Entitlement) ([]*ent.EntitlementCreate, error) {
+func (b *Backend) createEntitlement(ctx context.Context, resources ...*resource.Entitlement) ([]*ent.EntitlementCreate, error) {
 	list := make([]*ent.EntitlementCreate, len(resources))
 	for i, in := range resources {
 		createCall := b.db.Entitlement.Create()
@@ -1080,7 +1072,7 @@ func (b *Backend) createEntitlement(resources ...*resource.Entitlement) ([]*ent.
 	return list, nil
 }
 
-func (b *Backend) createIMS(resources ...*resource.IMS) ([]*ent.IMSCreate, error) {
+func (b *Backend) createIMS(ctx context.Context, resources ...*resource.IMS) ([]*ent.IMSCreate, error) {
 	list := make([]*ent.IMSCreate, len(resources))
 	for i, in := range resources {
 		createCall := b.db.IMS.Create()
@@ -1101,7 +1093,7 @@ func (b *Backend) createIMS(resources ...*resource.IMS) ([]*ent.IMSCreate, error
 	return list, nil
 }
 
-func (b *Backend) createPhoneNumber(resources ...*resource.PhoneNumber) ([]*ent.PhoneNumberCreate, error) {
+func (b *Backend) createPhoneNumber(ctx context.Context, resources ...*resource.PhoneNumber) ([]*ent.PhoneNumberCreate, error) {
 	list := make([]*ent.PhoneNumberCreate, len(resources))
 	for i, in := range resources {
 		createCall := b.db.PhoneNumber.Create()
@@ -1122,7 +1114,7 @@ func (b *Backend) createPhoneNumber(resources ...*resource.PhoneNumber) ([]*ent.
 	return list, nil
 }
 
-func (b *Backend) createPhoto(resources ...*resource.Photo) ([]*ent.PhotoCreate, error) {
+func (b *Backend) createPhoto(ctx context.Context, resources ...*resource.Photo) ([]*ent.PhotoCreate, error) {
 	list := make([]*ent.PhotoCreate, len(resources))
 	for i, in := range resources {
 		createCall := b.db.Photo.Create()
@@ -1143,7 +1135,7 @@ func (b *Backend) createPhoto(resources ...*resource.Photo) ([]*ent.PhotoCreate,
 	return list, nil
 }
 
-func (b *Backend) createRole(resources ...*resource.Role) ([]*ent.RoleCreate, error) {
+func (b *Backend) createRole(ctx context.Context, resources ...*resource.Role) ([]*ent.RoleCreate, error) {
 	list := make([]*ent.RoleCreate, len(resources))
 	for i, in := range resources {
 		createCall := b.db.Role.Create()
@@ -1164,7 +1156,7 @@ func (b *Backend) createRole(resources ...*resource.Role) ([]*ent.RoleCreate, er
 	return list, nil
 }
 
-func (b *Backend) createX509Certificate(resources ...*resource.X509Certificate) ([]*ent.X509CertificateCreate, error) {
+func (b *Backend) createX509Certificate(ctx context.Context, resources ...*resource.X509Certificate) ([]*ent.X509CertificateCreate, error) {
 	list := make([]*ent.X509CertificateCreate, len(resources))
 	for i, in := range resources {
 		createCall := b.db.X509Certificate.Create()
@@ -1185,8 +1177,7 @@ func (b *Backend) createX509Certificate(resources ...*resource.X509Certificate) 
 	return list, nil
 }
 
-func (b *Backend) CreateUser(in *resource.User) (*resource.User, error) {
-	ctx := context.TODO()
+func (b *Backend) CreateUser(ctx context.Context, in *resource.User) (*resource.User, error) {
 
 	createCall := b.db.User.Create()
 	password, err := b.generatePassword(in)
@@ -1203,7 +1194,7 @@ func (b *Backend) CreateUser(in *resource.User) (*resource.User, error) {
 	}
 	var addressCreateCalls []*ent.AddressCreate
 	if in.HasAddresses() {
-		calls, err := b.createAddress(in.Addresses()...)
+		calls, err := b.createAddress(ctx, in.Addresses()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create addresses: %w", err)
 		}
@@ -1214,7 +1205,7 @@ func (b *Backend) CreateUser(in *resource.User) (*resource.User, error) {
 	}
 	var emailCreateCalls []*ent.EmailCreate
 	if in.HasEmails() {
-		calls, err := b.createEmail(in.Emails()...)
+		calls, err := b.createEmail(ctx, in.Emails()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create emails: %w", err)
 		}
@@ -1222,7 +1213,7 @@ func (b *Backend) CreateUser(in *resource.User) (*resource.User, error) {
 	}
 	var entitlementCreateCalls []*ent.EntitlementCreate
 	if in.HasEntitlements() {
-		calls, err := b.createEntitlement(in.Entitlements()...)
+		calls, err := b.createEntitlement(ctx, in.Entitlements()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create entitlements: %w", err)
 		}
@@ -1233,7 +1224,7 @@ func (b *Backend) CreateUser(in *resource.User) (*resource.User, error) {
 	}
 	var imsCreateCalls []*ent.IMSCreate
 	if in.HasIMS() {
-		calls, err := b.createIMS(in.IMS()...)
+		calls, err := b.createIMS(ctx, in.IMS()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create ims: %w", err)
 		}
@@ -1243,7 +1234,7 @@ func (b *Backend) CreateUser(in *resource.User) (*resource.User, error) {
 		createCall.SetLocale(in.Locale())
 	}
 	if in.HasName() {
-		created, err := b.createName(in.Name())
+		created, err := b.createName(ctx, in.Name())
 		if err != nil {
 			return nil, fmt.Errorf("failed to create name: %w", err)
 		}
@@ -1254,7 +1245,7 @@ func (b *Backend) CreateUser(in *resource.User) (*resource.User, error) {
 	}
 	var phoneNumberCreateCalls []*ent.PhoneNumberCreate
 	if in.HasPhoneNumbers() {
-		calls, err := b.createPhoneNumber(in.PhoneNumbers()...)
+		calls, err := b.createPhoneNumber(ctx, in.PhoneNumbers()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create phoneNumbers: %w", err)
 		}
@@ -1262,7 +1253,7 @@ func (b *Backend) CreateUser(in *resource.User) (*resource.User, error) {
 	}
 	var photoCreateCalls []*ent.PhotoCreate
 	if in.HasPhotos() {
-		calls, err := b.createPhoto(in.Photos()...)
+		calls, err := b.createPhoto(ctx, in.Photos()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create photos: %w", err)
 		}
@@ -1276,7 +1267,7 @@ func (b *Backend) CreateUser(in *resource.User) (*resource.User, error) {
 	}
 	var roleCreateCalls []*ent.RoleCreate
 	if in.HasRoles() {
-		calls, err := b.createRole(in.Roles()...)
+		calls, err := b.createRole(ctx, in.Roles()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create roles: %w", err)
 		}
@@ -1293,7 +1284,7 @@ func (b *Backend) CreateUser(in *resource.User) (*resource.User, error) {
 	}
 	var x509CertificateCreateCalls []*ent.X509CertificateCreate
 	if in.HasX509Certificates() {
-		calls, err := b.createX509Certificate(in.X509Certificates()...)
+		calls, err := b.createX509Certificate(ctx, in.X509Certificates()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create x509Certificates: %w", err)
 		}
@@ -1390,8 +1381,7 @@ func (b *Backend) CreateUser(in *resource.User) (*resource.User, error) {
 	return UserResourceFromEnt(rs)
 }
 
-func (b *Backend) ReplaceUser(id string, in *resource.User) (*resource.User, error) {
-	ctx := context.TODO()
+func (b *Backend) ReplaceUser(ctx context.Context, id string, in *resource.User) (*resource.User, error) {
 
 	parsedUUID, err := uuid.Parse(id)
 	if err != nil {
@@ -1413,7 +1403,7 @@ func (b *Backend) ReplaceUser(id string, in *resource.User) (*resource.User, err
 	replaceCall.ClearAddresses()
 	var addressesCreateCalls []*ent.AddressCreate
 	if in.HasAddresses() {
-		calls, err := b.createAddress(in.Addresses()...)
+		calls, err := b.createAddress(ctx, in.Addresses()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create addresses: %w", err)
 		}
@@ -1428,7 +1418,7 @@ func (b *Backend) ReplaceUser(id string, in *resource.User) (*resource.User, err
 	replaceCall.ClearEmails()
 	var emailsCreateCalls []*ent.EmailCreate
 	if in.HasEmails() {
-		calls, err := b.createEmail(in.Emails()...)
+		calls, err := b.createEmail(ctx, in.Emails()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create emails: %w", err)
 		}
@@ -1438,7 +1428,7 @@ func (b *Backend) ReplaceUser(id string, in *resource.User) (*resource.User, err
 	replaceCall.ClearEntitlements()
 	var entitlementsCreateCalls []*ent.EntitlementCreate
 	if in.HasEntitlements() {
-		calls, err := b.createEntitlement(in.Entitlements()...)
+		calls, err := b.createEntitlement(ctx, in.Entitlements()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create entitlements: %w", err)
 		}
@@ -1453,7 +1443,7 @@ func (b *Backend) ReplaceUser(id string, in *resource.User) (*resource.User, err
 	replaceCall.ClearIMS()
 	var imsCreateCalls []*ent.IMSCreate
 	if in.HasIMS() {
-		calls, err := b.createIMS(in.IMS()...)
+		calls, err := b.createIMS(ctx, in.IMS()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create ims: %w", err)
 		}
@@ -1467,7 +1457,7 @@ func (b *Backend) ReplaceUser(id string, in *resource.User) (*resource.User, err
 
 	replaceCall.ClearName()
 	if in.HasName() {
-		created, err := b.createName(in.Name())
+		created, err := b.createName(ctx, in.Name())
 		if err != nil {
 			return nil, fmt.Errorf("failed to create name: %w", err)
 		}
@@ -1487,7 +1477,7 @@ func (b *Backend) ReplaceUser(id string, in *resource.User) (*resource.User, err
 	replaceCall.ClearPhoneNumbers()
 	var phoneNumbersCreateCalls []*ent.PhoneNumberCreate
 	if in.HasPhoneNumbers() {
-		calls, err := b.createPhoneNumber(in.PhoneNumbers()...)
+		calls, err := b.createPhoneNumber(ctx, in.PhoneNumbers()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create phoneNumbers: %w", err)
 		}
@@ -1497,7 +1487,7 @@ func (b *Backend) ReplaceUser(id string, in *resource.User) (*resource.User, err
 	replaceCall.ClearPhotos()
 	var photosCreateCalls []*ent.PhotoCreate
 	if in.HasPhotos() {
-		calls, err := b.createPhoto(in.Photos()...)
+		calls, err := b.createPhoto(ctx, in.Photos()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create photos: %w", err)
 		}
@@ -1517,7 +1507,7 @@ func (b *Backend) ReplaceUser(id string, in *resource.User) (*resource.User, err
 	replaceCall.ClearRoles()
 	var rolesCreateCalls []*ent.RoleCreate
 	if in.HasRoles() {
-		calls, err := b.createRole(in.Roles()...)
+		calls, err := b.createRole(ctx, in.Roles()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create roles: %w", err)
 		}
@@ -1545,7 +1535,7 @@ func (b *Backend) ReplaceUser(id string, in *resource.User) (*resource.User, err
 	replaceCall.ClearX509Certificates()
 	var x509CertificatesCreateCalls []*ent.X509CertificateCreate
 	if in.HasX509Certificates() {
-		calls, err := b.createX509Certificate(in.X509Certificates()...)
+		calls, err := b.createX509Certificate(ctx, in.X509Certificates()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create x509Certificates: %w", err)
 		}
@@ -1640,8 +1630,7 @@ func (b *Backend) ReplaceUser(id string, in *resource.User) (*resource.User, err
 	return UserResourceFromEnt(r2)
 }
 
-func (b *Backend) patchAddUser(parent *ent.User, op *resource.PatchOperation) error {
-	ctx := context.TODO()
+func (b *Backend) patchAddUser(ctx context.Context, parent *ent.User, op *resource.PatchOperation) error {
 
 	root, err := filter.Parse(op.Path(), filter.WithPatchExpression(true))
 	if err != nil {
@@ -1671,11 +1660,11 @@ func (b *Backend) patchAddUser(parent *ent.User, op *resource.PatchOperation) er
 				return fmt.Errorf("failed to decode patch add value: %w", err)
 			}
 
-			if b.existsUserAddress(parent, &in) {
+			if b.existsUserAddress(ctx, parent, &in) {
 				return nil
 			}
 
-			calls, err := b.createAddress(&in)
+			calls, err := b.createAddress(ctx, &in)
 			if err != nil {
 				return fmt.Errorf("failed to create Address: %w", err)
 			}
@@ -1787,11 +1776,11 @@ func (b *Backend) patchAddUser(parent *ent.User, op *resource.PatchOperation) er
 				return fmt.Errorf("failed to decode patch add value: %w", err)
 			}
 
-			if b.existsUserEmail(parent, &in) {
+			if b.existsUserEmail(ctx, parent, &in) {
 				return nil
 			}
 
-			calls, err := b.createEmail(&in)
+			calls, err := b.createEmail(ctx, &in)
 			if err != nil {
 				return fmt.Errorf("failed to create Email: %w", err)
 			}
@@ -1873,11 +1862,11 @@ func (b *Backend) patchAddUser(parent *ent.User, op *resource.PatchOperation) er
 				return fmt.Errorf("failed to decode patch add value: %w", err)
 			}
 
-			if b.existsUserEntitlement(parent, &in) {
+			if b.existsUserEntitlement(ctx, parent, &in) {
 				return nil
 			}
 
-			calls, err := b.createEntitlement(&in)
+			calls, err := b.createEntitlement(ctx, &in)
 			if err != nil {
 				return fmt.Errorf("failed to create Entitlement: %w", err)
 			}
@@ -1979,11 +1968,11 @@ func (b *Backend) patchAddUser(parent *ent.User, op *resource.PatchOperation) er
 				return fmt.Errorf("failed to decode patch add value: %w", err)
 			}
 
-			if b.existsUserIMS(parent, &in) {
+			if b.existsUserIMS(ctx, parent, &in) {
 				return nil
 			}
 
-			calls, err := b.createIMS(&in)
+			calls, err := b.createIMS(ctx, &in)
 			if err != nil {
 				return fmt.Errorf("failed to create IMS: %w", err)
 			}
@@ -2119,11 +2108,11 @@ func (b *Backend) patchAddUser(parent *ent.User, op *resource.PatchOperation) er
 				return fmt.Errorf("failed to decode patch add value: %w", err)
 			}
 
-			if b.existsUserPhoneNumber(parent, &in) {
+			if b.existsUserPhoneNumber(ctx, parent, &in) {
 				return nil
 			}
 
-			calls, err := b.createPhoneNumber(&in)
+			calls, err := b.createPhoneNumber(ctx, &in)
 			if err != nil {
 				return fmt.Errorf("failed to create PhoneNumber: %w", err)
 			}
@@ -2205,11 +2194,11 @@ func (b *Backend) patchAddUser(parent *ent.User, op *resource.PatchOperation) er
 				return fmt.Errorf("failed to decode patch add value: %w", err)
 			}
 
-			if b.existsUserPhoto(parent, &in) {
+			if b.existsUserPhoto(ctx, parent, &in) {
 				return nil
 			}
 
-			calls, err := b.createPhoto(&in)
+			calls, err := b.createPhoto(ctx, &in)
 			if err != nil {
 				return fmt.Errorf("failed to create Photo: %w", err)
 			}
@@ -2327,11 +2316,11 @@ func (b *Backend) patchAddUser(parent *ent.User, op *resource.PatchOperation) er
 				return fmt.Errorf("failed to decode patch add value: %w", err)
 			}
 
-			if b.existsUserRole(parent, &in) {
+			if b.existsUserRole(ctx, parent, &in) {
 				return nil
 			}
 
-			calls, err := b.createRole(&in)
+			calls, err := b.createRole(ctx, &in)
 			if err != nil {
 				return fmt.Errorf("failed to create Role: %w", err)
 			}
@@ -2485,11 +2474,11 @@ func (b *Backend) patchAddUser(parent *ent.User, op *resource.PatchOperation) er
 				return fmt.Errorf("failed to decode patch add value: %w", err)
 			}
 
-			if b.existsUserX509Certificate(parent, &in) {
+			if b.existsUserX509Certificate(ctx, parent, &in) {
 				return nil
 			}
 
-			calls, err := b.createX509Certificate(&in)
+			calls, err := b.createX509Certificate(ctx, &in)
 			if err != nil {
 				return fmt.Errorf("failed to create X509Certificate: %w", err)
 			}
@@ -2563,7 +2552,7 @@ func (b *Backend) patchAddUser(parent *ent.User, op *resource.PatchOperation) er
 	return nil
 }
 
-func (b *Backend) patchRemoveUser(parent *ent.User, op *resource.PatchOperation) error {
+func (b *Backend) patchRemoveUser(ctx context.Context, parent *ent.User, op *resource.PatchOperation) error {
 	if op.Path() == "" {
 		return resource.NewErrorBuilder().
 			Status(http.StatusBadRequest).
@@ -2571,7 +2560,6 @@ func (b *Backend) patchRemoveUser(parent *ent.User, op *resource.PatchOperation)
 			Detail("empty path").
 			MustBuild()
 	}
-	ctx := context.TODO()
 
 	root, err := filter.Parse(op.Path(), filter.WithPatchExpression(true))
 	if err != nil {
