@@ -243,8 +243,7 @@ func groupPresencePredicate(scimField string) predicate.Group {
 	}
 }
 
-func (b *Backend) existsGroupMember(parent *ent.Group, in *resource.GroupMember) bool {
-	ctx := context.TODO()
+func (b *Backend) existsGroupMember(ctx context.Context, parent *ent.Group, in *resource.GroupMember) bool {
 	queryCall := parent.QueryMembers()
 	var predicates []predicate.Member
 	if in.HasDisplay() {
@@ -267,7 +266,7 @@ func (b *Backend) existsGroupMember(parent *ent.Group, in *resource.GroupMember)
 	return v
 }
 
-func (b *Backend) createMember(resources ...*resource.GroupMember) ([]*ent.MemberCreate, error) {
+func (b *Backend) createMember(ctx context.Context, resources ...*resource.GroupMember) ([]*ent.MemberCreate, error) {
 	list := make([]*ent.MemberCreate, len(resources))
 	for i, in := range resources {
 		createCall := b.db.Member.Create()
@@ -277,7 +276,6 @@ func (b *Backend) createMember(resources ...*resource.GroupMember) ([]*ent.Membe
 		if in.HasType() {
 			createCall.SetType(in.Type())
 		} else {
-			ctx := context.TODO()
 
 			parsedUUID, err := uuid.Parse(in.Value())
 			if err != nil {
@@ -299,8 +297,7 @@ func (b *Backend) createMember(resources ...*resource.GroupMember) ([]*ent.Membe
 	return list, nil
 }
 
-func (b *Backend) CreateGroup(in *resource.Group) (*resource.Group, error) {
-	ctx := context.TODO()
+func (b *Backend) CreateGroup(ctx context.Context, in *resource.Group) (*resource.Group, error) {
 
 	createCall := b.db.Group.Create()
 	if in.HasDisplayName() {
@@ -311,7 +308,7 @@ func (b *Backend) CreateGroup(in *resource.Group) (*resource.Group, error) {
 	}
 	var memberCreateCalls []*ent.MemberCreate
 	if in.HasMembers() {
-		calls, err := b.createMember(in.Members()...)
+		calls, err := b.createMember(ctx, in.Members()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create members: %w", err)
 		}
@@ -345,8 +342,7 @@ func (b *Backend) CreateGroup(in *resource.Group) (*resource.Group, error) {
 	return GroupResourceFromEnt(rs)
 }
 
-func (b *Backend) ReplaceGroup(id string, in *resource.Group) (*resource.Group, error) {
-	ctx := context.TODO()
+func (b *Backend) ReplaceGroup(ctx context.Context, id string, in *resource.Group) (*resource.Group, error) {
 
 	parsedUUID, err := uuid.Parse(id)
 	if err != nil {
@@ -373,7 +369,7 @@ func (b *Backend) ReplaceGroup(id string, in *resource.Group) (*resource.Group, 
 	replaceCall.ClearMembers()
 	var membersCreateCalls []*ent.MemberCreate
 	if in.HasMembers() {
-		calls, err := b.createMember(in.Members()...)
+		calls, err := b.createMember(ctx, in.Members()...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create members: %w", err)
 		}
@@ -412,8 +408,7 @@ func (b *Backend) ReplaceGroup(id string, in *resource.Group) (*resource.Group, 
 	return GroupResourceFromEnt(r2)
 }
 
-func (b *Backend) patchAddGroup(parent *ent.Group, op *resource.PatchOperation) error {
-	ctx := context.TODO()
+func (b *Backend) patchAddGroup(ctx context.Context, parent *ent.Group, op *resource.PatchOperation) error {
 
 	root, err := filter.Parse(op.Path(), filter.WithPatchExpression(true))
 	if err != nil {
@@ -479,11 +474,11 @@ func (b *Backend) patchAddGroup(parent *ent.Group, op *resource.PatchOperation) 
 				return fmt.Errorf("failed to decode patch add value: %w", err)
 			}
 
-			if b.existsGroupMember(parent, &in) {
+			if b.existsGroupMember(ctx, parent, &in) {
 				return nil
 			}
 
-			calls, err := b.createMember(&in)
+			calls, err := b.createMember(ctx, &in)
 			if err != nil {
 				return fmt.Errorf("failed to create Member: %w", err)
 			}
@@ -557,7 +552,7 @@ func (b *Backend) patchAddGroup(parent *ent.Group, op *resource.PatchOperation) 
 	return nil
 }
 
-func (b *Backend) patchRemoveGroup(parent *ent.Group, op *resource.PatchOperation) error {
+func (b *Backend) patchRemoveGroup(ctx context.Context, parent *ent.Group, op *resource.PatchOperation) error {
 	if op.Path() == "" {
 		return resource.NewErrorBuilder().
 			Status(http.StatusBadRequest).
@@ -565,7 +560,6 @@ func (b *Backend) patchRemoveGroup(parent *ent.Group, op *resource.PatchOperatio
 			Detail("empty path").
 			MustBuild()
 	}
-	ctx := context.TODO()
 
 	root, err := filter.Parse(op.Path(), filter.WithPatchExpression(true))
 	if err != nil {

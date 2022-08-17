@@ -1,5 +1,3 @@
-github.com/cybozu-go/scim v0.0.0-20220810075143-056c075687e3 h1:uqg4ojSlkWmSD8FZPUsdF68cc82OL/wEqgAlM6ou8dA=
-github.com/cybozu-go/scim v0.0.0-20220810075143-056c075687e3/go.mod h1:gNuJgeYjFePWiFW0+l+O0n8sL7mTtuQLEne0gvK9+mc=
 github.com/cybozu-go/scim v0.0.0-20220815132929-d9844e6c8fc9 h1:uhLuEFapzRcgxbful8IQgtqkLLL2jXZGMFrd8AQZYGQ=
 github.com/cybozu-go/scim v0.0.0-20220815132929-d9844e6c8fc9/go.mod h1:gNuJgeYjFePWiFW0+l+O0n8sL7mTtuQLEne0gvK9+mc=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
